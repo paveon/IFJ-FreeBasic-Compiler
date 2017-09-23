@@ -1,0 +1,14 @@
+*
+!*.c
+!*.h
+!*.cpp
+!*/
+!*.sh
+!CMakeLists.txt
+!.gitignore
+!Makefile
+!.idea/*
+bin/
+debug/
+cmake-build-debug/
+CMakeFiles/
