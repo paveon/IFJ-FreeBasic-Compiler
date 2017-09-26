@@ -4,10 +4,12 @@
     <option name="PER_PROJECT_SETTINGS">
       <value>
         <Objective-C>
-          <option name="INDENT_NAMESPACE_MEMBERS" value="2" />
-          <option name="INDENT_C_STRUCT_MEMBERS" value="2" />
-          <option name="INDENT_CLASS_MEMBERS" value="2" />
-          <option name="INDENT_INSIDE_CODE_BLOCK" value="2" />
+          <option name="INDENT_NAMESPACE_MEMBERS" value="3" />
+          <option name="INDENT_C_STRUCT_MEMBERS" value="3" />
+          <option name="INDENT_CLASS_MEMBERS" value="3" />
+          <option name="INDENT_INSIDE_CODE_BLOCK" value="3" />
+          <option name="SPACE_BEFORE_POINTER_IN_DECLARATION" value="false" />
+          <option name="SPACE_AFTER_POINTER_IN_DECLARATION" value="true" />
         </Objective-C>
         <Objective-C-extensions>
           <file>
@@ -36,8 +38,10 @@
         </Objective-C-extensions>
         <codeStyleSettings language="ObjectiveC">
           <indentOptions>
-            <option name="INDENT_SIZE" value="2" />
-            <option name="TAB_SIZE" value="2" />
+            <option name="INDENT_SIZE" value="3" />
+            <option name="TAB_SIZE" value="3" />
+            <option name="USE_TAB_CHARACTER" value="true" />
+            <option name="SMART_TABS" value="true" />
           </indentOptions>
         </codeStyleSettings>
       </value>
