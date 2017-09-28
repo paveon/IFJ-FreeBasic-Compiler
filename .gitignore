@@ -8,6 +8,7 @@
 !.gitignore
 !Makefile
 !.idea/*
+.idea/workspace.xml
 bin/
 debug/
 cmake-build-debug/

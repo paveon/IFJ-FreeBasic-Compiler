@@ -3,6 +3,8 @@ project(freebasic_compiler)
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -O0 -std=c99")
+include_directories(Source)
 
-set(SOURCE_FILES main.c Token.h Token.c CompilationErrors.h)
-add_executable(freebasic_compiler ${SOURCE_FILES})
+set(SOURCE_FILES Source/main.c Source/Token.c)
+set(HEADER_FILES Source/CompilationErrors.h Source/Token.h)
+add_executable(freebasic_compiler ${SOURCE_FILES} ${HEADER_FILES})
