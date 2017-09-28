@@ -31,6 +31,10 @@ typedef enum TokenType {
 typedef struct Token Token;
 
 
+/* Vraci ukazatel na dalsi nacteny token, VYHRAZENO PRO SYNTAKTICKY ANALYZATOR */
+Token* GetNextToken(void);
+
+
 /* Vraci ukazatel na inicializovany token, defaultni typ je TOKEN_UNDEFINED */
 Token* CreateToken(void);
 
@@ -81,5 +85,8 @@ void SetEOL(Token* token);
 /* Pouzivat pokud lexikalni analyzator narazi na konec vstupu */
 void SetEOF(Token* token);
 
+
+/* Nepouzivat, interni funkce pro vycisteni pameti */
+void TokenCleanup(void);
 
 #endif //FREEBASIC_COMPILER_TOKEN_H

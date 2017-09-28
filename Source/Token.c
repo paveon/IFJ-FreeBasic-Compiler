@@ -8,6 +8,7 @@
 #define KEYWORD_MAX_LEN 8
 #define OPERATOR_MAX_LEN 2
 #define MALLOC_CHUNK 20
+#define STASH_CHUNK 200
 
 struct Token {
 	void* value;
@@ -19,12 +20,21 @@ typedef struct ReadOnlyData {
 	double* doubles;
 	char** strings;
 	char** symbols;
-	size_t intArraySize;
-	size_t doubleArraySize;
-	size_t stringArraySize;
-	size_t symbolArraySize;
+	size_t intsSize, intsUsed;
+	size_t doublesSize, doublesUsed;
+	size_t stringsSize, stringsUsed;
+	size_t symbolsSize, symbolsUsed;
 } ReadOnlyData;
 
+
+typedef struct TokenStash{
+	Token* tokenArray;
+	size_t arraySize;
+	size_t arrayUsed;
+	size_t activeToken;
+} TokenStash;
+
+static TokenStash Stash;
 static ReadOnlyData Data;
 static char* const Keywords[] = {
 		  "AS", "ASC", "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "CHR",
@@ -58,6 +68,34 @@ void StrToLower(char* str) {
 }
 
 
+Token* GetNextToken(void){
+	if(Stash.activeToken < Stash.arrayUsed){
+		return &Stash.tokenArray[Stash.activeToken++];
+	}
+	return NULL;
+}
+
+
+Token* CreateToken(void) {
+	Token* newToken;
+
+	if(Stash.arrayUsed == Stash.arraySize){
+		Token* tmp = NULL;
+		Stash.arraySize += STASH_CHUNK;
+		if((tmp = realloc(Stash.tokenArray, sizeof(Token) * Stash.arraySize)) == NULL){
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		Stash.tokenArray = tmp;
+	}
+
+	newToken = &Stash.tokenArray[Stash.arrayUsed++];
+	newToken->type = TOKEN_UNDEFINED;
+	newToken->value = NULL;
+
+	return newToken;
+}
+
+
 TokenType GetType(const Token* token) {
 	return token->type;
 }
@@ -77,22 +115,6 @@ int GetInt(const Token* token) {
 double GetDouble(const Token* token) {
 	if (token->type == TOKEN_DOUBLE) { return *(double*) token->value; }
 	return NAN;
-}
-
-
-Token* CreateToken(void) {
-	Token* newToken;
-
-	if ((newToken = malloc(sizeof(Token))) == NULL) {
-		//TODO: error output + cleanup
-		exit(ER_EXIT_INTERNAL);
-	}
-
-	//TODO: vytvorit strukturu pro uchovavani vsech tokenu
-	newToken->type = TOKEN_UNDEFINED;
-	newToken->value = NULL;
-
-	return newToken;
 }
 
 
@@ -117,7 +139,6 @@ void SetOperator(Token* token, const char* operator) {
 
 
 void SetIdentifier(Token* token, char* symbol) {
-	static size_t arrayIndex = 0;
 	size_t symbolLength = strlen(symbol);
 
 	if (!token || token->type != TOKEN_UNDEFINED || !symbol || symbolLength == 0) { return; }
@@ -139,37 +160,34 @@ void SetIdentifier(Token* token, char* symbol) {
 	token->type = TOKEN_IDENTIFIER;
 
 	//Pokus o recyklaci identifikatoru
-	for (size_t i = 0; i < arrayIndex; i++) {
+	for (size_t i = 0; i < Data.symbolsUsed; i++) {
 		if (strcmp(Data.symbols[i], symbol) == 0) {
 			token->value = Data.symbols[i];
 			return;
 		}
 	}
 
-	if (arrayIndex == Data.symbolArraySize) {
+	if (Data.symbolsUsed == Data.symbolsSize) {
 		char** tmp = NULL;
-		Data.symbolArraySize += MALLOC_CHUNK;
-		if ((tmp = realloc(Data.symbols, sizeof(char**) * Data.symbolArraySize)) == NULL) {
-			//TODO: error output + cleanup
-			exit(ER_EXIT_INTERNAL);
+		Data.symbolsSize += MALLOC_CHUNK;
+		if ((tmp = realloc(Data.symbols, sizeof(char**) * Data.symbolsSize)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
 		}
 		Data.symbols = tmp;
 	}
 
 	char* newSymbol = NULL;
 	if ((newSymbol = malloc(sizeof(char) * (symbolLength + 1))) == NULL) {
-		//TODO: error output + cleanup
-		exit(ER_EXIT_INTERNAL); //Bez zotaveni
+		FatalError(ER_FATAL_INTERNAL);
 	}
 	memcpy(newSymbol, symbol, symbolLength);
 	newSymbol[symbolLength] = '\0';
-	Data.symbols[arrayIndex++] = newSymbol;
+	Data.symbols[Data.symbolsUsed++] = newSymbol;
 	token->value = newSymbol;
 }
 
 
 void SetInteger(Token* token, const char* number) {
-	static size_t arrayIndex = 0; //K sledovani aktualniho insert indexu do pole
 	size_t numberLength = strlen(number);
 	int value;
 
@@ -179,86 +197,80 @@ void SetInteger(Token* token, const char* number) {
 	value = (int) strtol(number, NULL, 10);
 	token->type = TOKEN_INTEGER;
 
-	for (size_t i = 0; i < arrayIndex; i++) {
+	for (size_t i = 0; i < Data.intsUsed; i++) {
 		if (value == Data.integers[i]) {
 			token->value = &Data.integers[i];
 			return;
 		}
 	}
 
-	if (arrayIndex == Data.intArraySize) {
+	if (Data.intsUsed == Data.intsSize) {
 		int* tmp = NULL;
-		Data.intArraySize += MALLOC_CHUNK;
-		if ((tmp = realloc(Data.integers, sizeof(int) * Data.intArraySize)) == NULL) {
-			//TODO: error output + cleanup
-			exit(ER_EXIT_INTERNAL);
+		Data.intsSize += MALLOC_CHUNK;
+		if ((tmp = realloc(Data.integers, sizeof(int) * Data.intsSize)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
 		}
 		Data.integers = tmp;
 	}
-	Data.integers[arrayIndex] = value;
-	token->value = &Data.integers[arrayIndex++];
+	Data.integers[Data.intsUsed] = value;
+	token->value = &Data.integers[Data.intsUsed++];
 }
 
 
 void SetDouble(Token* token, const char* number) {
-	static size_t arrayIndex = 0; //K sledovani aktualniho insert indexu do pole
 	size_t numberLength = strlen(number);
 
 	if (!token || token->type != TOKEN_UNDEFINED || !number || numberLength == 0) { return; }
 
-	if (arrayIndex == Data.doubleArraySize) {
+	if (Data.doublesUsed == Data.doublesSize) {
 		double* tmp = NULL;
-		Data.doubleArraySize += MALLOC_CHUNK;
-		if ((tmp = realloc(Data.doubles, sizeof(double) * Data.doubleArraySize)) == NULL) {
-			//TODO: error output + cleanup
-			exit(ER_EXIT_INTERNAL);
+		Data.doublesSize += MALLOC_CHUNK;
+		if ((tmp = realloc(Data.doubles, sizeof(double) * Data.doublesSize)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
 		}
 		Data.doubles = tmp;
 	}
 
 	//Predpoklada se validni hodnota predana z lexikalniho analyzatoru
-	Data.doubles[arrayIndex] = strtod(number, NULL);
+	Data.doubles[Data.doublesUsed] = strtod(number, NULL);
 	token->type = TOKEN_DOUBLE;
-	token->value = &Data.doubles[arrayIndex++];
+	token->value = &Data.doubles[Data.doublesUsed++];
 }
 
 
 void SetString(Token* token, const char* string) {
-	static size_t arrayIndex = 0; //K sledovani aktualniho insert indexu do pole
 	size_t stringLength = strlen(string);
 
 	if (!token || token->type != TOKEN_UNDEFINED || !string) { return; }
 
 	token->type = TOKEN_STRING;
 
-	for (size_t i = 0; i < arrayIndex; i++) {
+	for (size_t i = 0; i < Data.stringsUsed; i++) {
 		if (strcmp(Data.strings[i], string) == 0) {
 			token->value = Data.strings[i];
 			return;
 		}
 	}
 
-	if (arrayIndex == Data.stringArraySize) {
+	if (Data.stringsUsed == Data.stringsSize) {
 		char** tmp = NULL;
-		Data.stringArraySize += MALLOC_CHUNK;
-		if ((tmp = realloc(Data.strings, sizeof(char**) * Data.stringArraySize)) == NULL) {
-			//TODO: error output + cleanup
-			exit(ER_EXIT_INTERNAL);
+		Data.stringsSize += MALLOC_CHUNK;
+		if ((tmp = realloc(Data.strings, sizeof(char**) * Data.stringsSize)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
 		}
 		Data.strings = tmp;
 	}
 
 	char* newString = NULL;
 	if ((newString = malloc(sizeof(char) * (stringLength + 1))) == NULL) {
-		//TODO: error output + cleanup
-		exit(ER_EXIT_INTERNAL);
+		FatalError(ER_FATAL_INTERNAL);
 	}
 
 	//Ukladam string literaly do pole, abychom je mohli pripadne jednoduse recyklovat
 	//a zaroven jednoduse hlidat memory leaky
 	memcpy(newString, string, stringLength);
 	newString[stringLength] = '\0';
-	Data.strings[arrayIndex++] = newString;
+	Data.strings[Data.stringsUsed++] = newString;
 	token->value = newString;
 }
 
@@ -274,4 +286,19 @@ void SetEOF(Token* token) {
 	if (!token || token->type != TOKEN_UNDEFINED) { return; }
 
 	token->type = TOKEN_EOF;
+}
+
+
+void TokenCleanup(void) {
+	for(size_t i = 0; i < Data.stringsUsed; i++){
+		free(Data.strings[i]);
+	}
+	for(size_t i = 0; i < Data.symbolsUsed; i++){
+		free(Data.symbols[i]);
+	}
+	free(Data.integers);
+	free(Data.doubles);
+	free(Data.strings);
+	free(Data.symbols);
+	free(Stash.tokenArray);
 }
