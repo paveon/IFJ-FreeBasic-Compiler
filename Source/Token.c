@@ -7,7 +7,7 @@
 
 #define KEYWORD_MAX_LEN 8
 #define OPERATOR_MAX_LEN 2
-#define MALLOC_CHUNK 20
+#define MALLOC_SMALL_CHUNK 20
 #define STASH_CHUNK 200
 
 struct Token {
@@ -169,7 +169,7 @@ void SetIdentifier(Token* token, char* symbol) {
 
 	if (Data.symbolsUsed == Data.symbolsSize) {
 		char** tmp = NULL;
-		Data.symbolsSize += MALLOC_CHUNK;
+		Data.symbolsSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(Data.symbols, sizeof(char**) * Data.symbolsSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
@@ -206,7 +206,7 @@ void SetInteger(Token* token, const char* number) {
 
 	if (Data.intsUsed == Data.intsSize) {
 		int* tmp = NULL;
-		Data.intsSize += MALLOC_CHUNK;
+		Data.intsSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(Data.integers, sizeof(int) * Data.intsSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
@@ -224,7 +224,7 @@ void SetDouble(Token* token, const char* number) {
 
 	if (Data.doublesUsed == Data.doublesSize) {
 		double* tmp = NULL;
-		Data.doublesSize += MALLOC_CHUNK;
+		Data.doublesSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(Data.doubles, sizeof(double) * Data.doublesSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
@@ -254,7 +254,7 @@ void SetString(Token* token, const char* string) {
 
 	if (Data.stringsUsed == Data.stringsSize) {
 		char** tmp = NULL;
-		Data.stringsSize += MALLOC_CHUNK;
+		Data.stringsSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(Data.strings, sizeof(char**) * Data.stringsSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}

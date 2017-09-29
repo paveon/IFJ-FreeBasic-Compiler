@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include "Token.h"
+#include "symtable.h"
 
 int main() {
 	printf("Test run started...\n");
@@ -43,7 +45,16 @@ int main() {
 	token = CreateToken();
 	SetEOL(token);
 
+	SymbolTable* scope = CreateScope(GetMainScope());
+	while ((token = GetNextToken())) {
+		scope = CreateScope(scope);
+		if (GetType(token) == TOKEN_IDENTIFIER) {
+			InsertSymbol(scope, GetValue(token));
+		}
+	}
+
 	TokenCleanup();
+	TableCleanup();
 	printf("Test run finished, allocated memory should be released...\n");
 	return 0;
 }

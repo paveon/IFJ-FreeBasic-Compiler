@@ -5,6 +5,6 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -O0 -std=c99")
 include_directories(Source)
 
-set(SOURCE_FILES Source/main.c Source/Token.c Source/CompilationErrors.c)
-set(HEADER_FILES Source/CompilationErrors.h Source/Token.h)
+set(SOURCE_FILES Source/main.c Source/Token.c Source/CompilationErrors.c Source/symtable.c)
+set(HEADER_FILES Source/CompilationErrors.h Source/Token.h Source/symtable.h)
 add_executable(freebasic_compiler ${SOURCE_FILES} ${HEADER_FILES})

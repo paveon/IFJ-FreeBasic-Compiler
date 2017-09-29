@@ -54,7 +54,7 @@ const void* GetValue(const Token*);
 int GetInt(const Token*);
 
 
-/* Vraci prio hodnotu, pokud token odkazuje na double. Jinak vraci NAN */
+/* Vraci primo hodnotu, pokud token odkazuje na double. Jinak vraci NAN */
 double GetDouble(const Token*);
 
 

@@ -1,5 +1,6 @@
 #include "CompilationErrors.h"
 #include "Token.h"
+#include "symtable.h"
 
 #undef FatalError
 
@@ -29,6 +30,7 @@ static ErrorMetadata errors[] = {
 
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
 	TokenCleanup();
+	TableCleanup();
 
 	fprintf(stderr, "Fatal error: %s\nExiting from: %s\nSource file: %s\nLine no. %d\n",
 	        errors[index].errorMessage, function, sourceFile, line);
