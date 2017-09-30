@@ -30,7 +30,7 @@ static ErrorMetadata errors[] = {
 
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
 	TokenCleanup();
-	TableCleanup();
+	TableCleanup(true);
 
 	fprintf(stderr, "Fatal error: %s\nExiting from: %s\nSource file: %s\nLine no. %d\n",
 	        errors[index].errorMessage, function, sourceFile, line);

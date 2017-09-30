@@ -12,6 +12,10 @@
 #define MALLOC_SMALL_CHUNK 20
 #define MALLOC_BIG_CHUNK 100
 
+#ifdef DEBUG_INFO
+static int scope_index = 0;
+static int scope_level = 0;
+#endif
 
 typedef struct Node {
 	uint64_t key;
@@ -23,9 +27,13 @@ typedef struct Node {
 } Node;
 
 struct SymbolTable {
-	struct SymbolTable* parentTable;
-	struct SymbolTable* previousSubscope;
+	struct SymbolTable* parentScope;
+	struct SymbolTable* olderScope;
 	Node* root;
+
+#ifdef DEBUG_INFO
+	int index;
+#endif
 };
 
 typedef struct NodeStash {
@@ -42,11 +50,29 @@ static NodeStash Nodes;
 static TableStash Tables;
 
 
-static SymbolTable* Functions;
-static SymbolTable* MainScope;
+static SymbolTable GlobalSymbols;
+static SymbolTable LocalSymbols;
+static SymbolTable* ActiveScope = &LocalSymbols;
 
-//TODO: budeme podporovat globalni promenne, mozne budouci rozsireni?
-//static SymbolTable* GlobalScope;
+
+void ResizeTableStash(TableStash* stash) {
+	SymbolTable** tmp = NULL;
+	stash->arraySize += MALLOC_SMALL_CHUNK;
+	if ((tmp = realloc(stash->tableArray, sizeof(SymbolTable*) * stash->arraySize)) == NULL) {
+		FatalError(ER_FATAL_INTERNAL);
+	}
+	stash->tableArray = tmp;
+}
+
+
+void ResizeNodeStash(void) {
+	Node** tmp = NULL;
+	Nodes.arraySize += MALLOC_BIG_CHUNK;
+	if ((tmp = realloc(Nodes.nodeArray, sizeof(Node*) * Nodes.arraySize)) == NULL) {
+		FatalError(ER_FATAL_INTERNAL);
+	}
+	Nodes.nodeArray = tmp;
+}
 
 
 uint64_t HashFunction(const char* str) {
@@ -60,80 +86,57 @@ uint64_t HashFunction(const char* str) {
 	return hash;
 }
 
-void TableCleanup(void) {
-	if (Nodes.nodeArray != NULL) {
-		for (size_t i = 0; i < Nodes.arrayUsed; i++) {
-			free(Nodes.nodeArray[i]);
-		}
-		free(Nodes.nodeArray);
-	}
-	if (Tables.tableArray != NULL) {
-		for (size_t i = 0; i < Tables.arrayUsed; i++) {
-			free(Tables.tableArray[i]);
-		}
-		free(Tables.tableArray);
-	}
-	if (Functions != NULL) { free(Functions); }
-	if (MainScope != NULL) { free(MainScope); }
-}
 
-void CreateBaseScopes(void) {
-	if (Functions || MainScope) { return; }
-
-	if ((Functions = malloc(sizeof(SymbolTable))) == NULL ||
-	    (MainScope = malloc(sizeof(SymbolTable))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-
-	MainScope->parentTable = MainScope->previousSubscope = NULL;
-	Functions->parentTable = Functions->previousSubscope = NULL;
-	Functions->root = MainScope->root = NULL;
-}
-
-SymbolTable* GetMainScope(void) {
-	if (MainScope == NULL) {
-		CreateBaseScopes();
-	}
-	return MainScope;
-}
-
-SymbolTable* GetFuncScope(void) {
-	if (Functions == NULL) {
-		CreateBaseScopes();
-	}
-	return Functions;
-}
-
-SymbolTable* CreateScope(SymbolTable* parentScope) {
+void BeginSubScope() {
 	SymbolTable* newTable = NULL;
 
 	if ((newTable = malloc(sizeof(SymbolTable))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
 	if (Tables.arrayUsed == Tables.arraySize) {
-		SymbolTable** tmp = NULL;
-		Tables.arraySize += MALLOC_SMALL_CHUNK;
-		if ((tmp = realloc(Tables.tableArray, sizeof(SymbolTable*) * Tables.arraySize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
-		}
-		Tables.tableArray = tmp;
+		ResizeTableStash(&Tables);
 	}
 	newTable->root = NULL;
-
-	//Defaultni parent scope je main scope
-	if (parentScope == NULL) {
-		parentScope = GetMainScope();
-	}
-	else {
-		newTable->parentTable = parentScope;
-	}
-
-	//Tabulka muze mit pouze jeden aktivni subscope, stare tabulky uschovame v seznamu
-	newTable->previousSubscope = parentScope->previousSubscope;
-	parentScope->previousSubscope = newTable;
+	newTable->parentScope = ActiveScope;
+	newTable->olderScope = ActiveScope->olderScope;
+	ActiveScope->olderScope = newTable;
+	ActiveScope = newTable;
 
 	Tables.tableArray[Tables.arrayUsed++] = newTable;
-	return newTable;
+
+
+#ifdef DEBUG_INFO
+	newTable->index = scope_index;
+	for (int i = 0; i < scope_level; i++) {
+		printf("\t");
+	}
+	printf("Begin subscope %d\n\n", newTable->index);
+	scope_level++;
+	scope_index++;
+#endif
+}
+
+
+void EndSubScope() {
+#ifdef DEBUG_INFO
+	scope_level--;
+	for (int i = 0; i < scope_level; i++) {
+		printf("\t");
+	}
+	printf("End subscope %d\n\n", ActiveScope->index);
+#endif
+
+	if (ActiveScope->parentScope != NULL) {
+		ActiveScope = ActiveScope->parentScope;
+	}
+}
+
+
+void EndScope(void) {
+	TableCleanup(false);
+	LocalSymbols.root = NULL;
+	LocalSymbols.olderScope = NULL;
+	ActiveScope = &LocalSymbols;
 }
 
 
@@ -144,16 +147,12 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
 	if (Nodes.arrayUsed == Nodes.arraySize) {
-		Node** tmp = NULL;
-		Nodes.arraySize += MALLOC_BIG_CHUNK;
-		if ((tmp = realloc(Nodes.nodeArray, sizeof(Node*) * Nodes.arraySize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
-		}
-		Nodes.nodeArray = tmp;
+		ResizeNodeStash();
 	}
 
 	newNode->key = key;
 	newNode->symbol.name = symbolName;
+	newNode->symbol.symbolType = SYMBOL_LOCAL;
 	LEFT(newNode) = RIGHT(newNode) = NEXT(newNode) = NULL;
 
 	//TODO: casem mozna prepracovat na AVL?
@@ -163,27 +162,42 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 	return newNode;
 }
 
-bool InsertSymbol(SymbolTable* table, const char* symbol) {
-	if (!table || !symbol) { return false; }
+
+Symbol* InsertGlobalSymbol(const char* name) {
+	//ulozeni aktivniho lokalniho scopu
+	SymbolTable* inActiveScope = ActiveScope;
+	ActiveScope = &GlobalSymbols;
+
+	Symbol* newSymbol = InsertSymbol(name);
+	if (newSymbol != NULL) {
+		newSymbol->symbolType = SYMBOL_GLOBAL;
+	}
+
+	//obnoveni scopu
+	ActiveScope = inActiveScope;
+	return newSymbol;
+}
+
+
+Symbol* InsertSymbol(const char* name) {
+	if (!name) { return NULL; }
 
 	//Pouzivam hashovani, protoze neustale porovnavani pripadne
 	//velmi dlouhych identifikatoru je pomale a u stromu je riziko kolize minimalni
-	uint64_t hash = HashFunction(symbol);
+	uint64_t hash = HashFunction(name);
 
-	if (table->root == NULL) {
-		table->root = CreateNode(hash, symbol);
-		return true;
+	if (ActiveScope->root == NULL) {
+		return &(ActiveScope->root = CreateNode(hash, name))->symbol;
 	}
 
-	Node* current = table->root;
+	Node* current = ActiveScope->root;
 	while (true) {
 		if (hash < current->key) {
 			if (LEFT(current)) {
 				current = LEFT(current);
 			}
 			else {
-				LEFT(current) = CreateNode(hash, symbol);
-				return true;
+				return &(LEFT(current) = CreateNode(hash, name))->symbol;
 			}
 		}
 		else if (hash > current->key) {
@@ -191,8 +205,7 @@ bool InsertSymbol(SymbolTable* table, const char* symbol) {
 				current = RIGHT(current);
 			}
 			else {
-				RIGHT(current) = CreateNode(hash, symbol);
-				return true;
+				return &(RIGHT(current) = CreateNode(hash, name))->symbol;
 			}
 		}
 		else {
@@ -200,49 +213,105 @@ bool InsertSymbol(SymbolTable* table, const char* symbol) {
 			Node* previous = NULL;
 
 			while (current) {
-				if (strlen(symbol) == strlen(current->symbol.name) &&
-				    strcmp(symbol, current->symbol.name) == 0) {
-					return false;
+				if (strlen(name) == strlen(current->symbol.name) &&
+				    strcmp(name, current->symbol.name) == 0) {
+					return NULL; //Symbol jiz existuje
 				}
 				previous = current;
 				current = NEXT(current);
 			}
 
-			NEXT(previous) = CreateNode(hash, symbol);
-			return true;
+			return &(NEXT(previous) = CreateNode(hash, name))->symbol;
 		}
 	}
 }
 
 
-Symbol* LookupSymbol(SymbolTable* table, const char* symbol) {
-	if (!table || !symbol) { return NULL; }
+Symbol* LookupSymbol(const char* symbol) {
+	if (!symbol) { return NULL; }
 
 	uint64_t hash = HashFunction(symbol);
-	Node* current = table->root;
+	Node* current;
 
-	while (current) {
-		if (hash < current->key) {
-			current = LEFT(current);
+	SymbolTable* table = ActiveScope;
+	while (table) {
+		current = table->root;
+		while (current) {
+			if (hash < current->key) {
+				current = LEFT(current);
+			}
+			else if (hash > current->key) {
+				current = RIGHT(current);
+			}
+			else {
+				while (current) {
+					if (strlen(symbol) == strlen(current->symbol.name) &&
+					    strcmp(symbol, current->symbol.name) == 0) {
+						//Symbol existuje
+						return &current->symbol;
+					}
+					current = NEXT(current);
+				}
+				break;
+			}
 		}
-		else if (hash > current->key) {
-			current = RIGHT(current);
+
+		//Prohledame vyssi tabulku
+		if (ActiveScope != &GlobalSymbols) {
+			table = table->parentScope;
+		}
+	}
+
+	return NULL;
+}
+
+
+Symbol* LookupGlobalSymbol(const char* name) {
+	//Ulozeni aktivniho lokalniho scopu
+	SymbolTable* inActiveScope = ActiveScope;
+	ActiveScope = &GlobalSymbols;
+
+	Symbol* symbol = LookupSymbol(name);
+
+	//Obnoveni scopu
+	ActiveScope = inActiveScope;
+	return symbol;
+}
+
+
+void TableCleanup(bool allNodes) {
+	if (Nodes.nodeArray != NULL) {
+		if (allNodes) {
+			for (size_t i = 0; i < Nodes.arrayUsed; i++) {
+				free(Nodes.nodeArray[i]);
+			}
+			Nodes.arraySize = Nodes.arrayUsed = 0;
+			free(Nodes.nodeArray);
 		}
 		else {
-			while (current) {
-				if (strlen(symbol) == strlen(current->symbol.name) &&
-				    strcmp(symbol, current->symbol.name) == 0) {
-					//Symbol existuje
-					break;
+			//Mazeme pouze lokalni symboly a preskladavame pole, abychom zachovali konzistenci
+			for (size_t i = 0; i < Nodes.arrayUsed;) {
+				if (Nodes.nodeArray[i]->symbol.symbolType == SYMBOL_LOCAL) {
+					free(Nodes.nodeArray[i]);
+					Nodes.nodeArray[i] = Nodes.nodeArray[Nodes.arrayUsed - 1];
+					Nodes.nodeArray[Nodes.arrayUsed - 1] = NULL;
+					Nodes.arrayUsed--;
 				}
-				current = NEXT(current);
+				else {
+					i++;
+				}
 			}
-			break;
 		}
 	}
+	if (Tables.tableArray != NULL) {
+		for (size_t i = 0; i < Tables.arrayUsed; i++) {
+			free(Tables.tableArray[i]);
 
-	if (current) {
-		return &current->symbol;
+		}
+		Tables.arrayUsed = 0;
+		if (allNodes) {
+			free(Tables.tableArray);
+			Tables.arraySize = 0;
+		}
 	}
-	return NULL;
 }

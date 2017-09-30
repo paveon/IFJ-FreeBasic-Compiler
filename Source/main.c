@@ -19,7 +19,7 @@ int main() {
 	token = CreateToken();
 	SetIdentifier(token, id);
 
-	const void* tmp = GetValue(token);
+	//const void* tmp = GetValue(token);
 	//tmp[0] = '\0';
 
 	token = CreateToken();
@@ -45,16 +45,34 @@ int main() {
 	token = CreateToken();
 	SetEOL(token);
 
-	SymbolTable* scope = CreateScope(GetMainScope());
+	Symbol* newSymbol;
 	while ((token = GetNextToken())) {
-		scope = CreateScope(scope);
 		if (GetType(token) == TOKEN_IDENTIFIER) {
-			InsertSymbol(scope, GetValue(token));
+			BeginSubScope();
+			InsertGlobalSymbol(GetValue(token));
+			newSymbol = InsertSymbol(GetValue(token));
+			newSymbol = LookupSymbol(GetValue(token));
+			EndSubScope();
+			newSymbol = LookupSymbol(GetValue(token));
+			newSymbol = LookupGlobalSymbol(GetValue(token));
 		}
 	}
+	EndScope();
+
+	BeginSubScope();
+	BeginSubScope();
+	EndSubScope();
+	BeginSubScope();
+	BeginSubScope();
+	EndSubScope();
+	EndSubScope();
+	EndSubScope();
+	BeginSubScope();
+	EndSubScope();
+
 
 	TokenCleanup();
-	TableCleanup();
+	TableCleanup(true);
 	printf("Test run finished, allocated memory should be released...\n");
 	return 0;
 }
