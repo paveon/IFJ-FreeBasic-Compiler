@@ -9,10 +9,10 @@
  * Davejte si tedy predevsim pozor na funkci SetIdentifier, ktere NESMITE
  * predavat retezcove literaly (dojde k SEGFAULT)
  *
- * Set funkce lze pouzit pouze na tokeny s typem TOKEN_UNDEFINED (novy token),
- * nepodporuji tedy pozdejsi modifikaci. Funkce nic nevraci, protoze se predpoklada
+ * Set funkce automaticky modifikuji posledne vytvoreny token a to pouze jednou.
+ * Nepodporuji tedy pozdejsi modifikaci. Funkce nic nevraci, protoze se predpoklada
  * ze dostanou korektni vstup a pripadne nevalidni lexemy osetri primo lexikalni analyzator.
- * Pri nevalidnim vstupu zustane typ tokenu UNDEFINED a ukazatel NULL
+ * Pri nevalidnim vstupu zustane typ tokenu UNDEFINED a ukazatel na data NULL
  *
  * Pri selhani alokace je program ukoncen pomoci exit(..) funkce a je vycistena pamet.
  */
@@ -35,8 +35,12 @@ typedef struct Token Token;
 Token* GetNextToken(void);
 
 
-/* Vraci ukazatel na inicializovany token, defaultni typ je TOKEN_UNDEFINED */
-Token* CreateToken(void);
+/* Vrati nacteny token zpet. Ziskame stejny token pri pristim volani funkce GetNextToken */
+void ReturnToken(void);
+
+
+/* Vytvori novy token typu TOKEN_UNDEFINED. Modifikace tokenu se provadi pomoci Set funkci */
+void CreateToken(void);
 
 
 /* Vraci typ tokenu, pouzivejte enumeraci TokenType pro porovnavani */
@@ -58,32 +62,39 @@ int GetInt(const Token*);
 double GetDouble(const Token*);
 
 
+/* Set funkce modifikuji data tokenu maximalne 1, pote je potreba vytvorit novy token */
+
 /* Pouzivat pokud je lexem operator */
-void SetOperator(Token* token, const char* operator);
+void SetOperator(const char* operator);
 
 
-/* Pouzivat pokud je lexem identifikator / klicove slovo */
-void SetIdentifier(Token* token, char* symbol);
+/* Pouzivat pokud je lexem identifikator / klicove slovo.
+ * Je potreba posilat s ukoncujicim whitespace charakterem, pokud nejaky je
+ * kvuli rozliseni, zda se muze jednat o volani funkce.
+ * Pokud je ukoncen pomoci noveho radku, je pote potreba zaslat novy radek jakozto
+ * dalsi token typu EOL.
+ */
+void SetIdentifier(char* symbol);
 
 
 /* Pouzivat pokud je lexem celociselny literal, ocekava se korektni vstup */
-void SetInteger(Token* token, const char* number);
+void SetInteger(const char* number);
 
 
 /* Pouzivat pokud je lexem desetinny literal, ocekava se korektni vstup */
-void SetDouble(Token* token, const char* number);
+void SetDouble(const char* number);
 
 
 /* Pouzivat pokud je lexem retezcovy literal */
-void SetString(Token* token, const char* string);
+void SetString(const char* string);
 
 
 /* Pouzivat pokud je lexem konec radku */
-void SetEOL(Token* token);
+void SetEOL(void);
 
 
 /* Pouzivat pokud lexikalni analyzator narazi na konec vstupu */
-void SetEOF(Token* token);
+void SetEOF(void);
 
 
 /* Nepouzivat, interni funkce pro vycisteni pameti */

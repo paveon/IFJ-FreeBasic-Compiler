@@ -6,46 +6,48 @@
 int main() {
 	printf("Test run started...\n");
 	char keyword[] = "aSc";
-	char id[] = "testIdentifikator";
-	Token* token = CreateToken();
-	SetIdentifier(token, keyword);
+	char id[] = "id_with_space ";
+	CreateToken();
+	SetIdentifier(keyword);
+	SetIdentifier(keyword);
 
-	token = CreateToken();
-	SetString(token, "");
+	CreateToken();
+	SetString("");
 
-	token = CreateToken();
-	SetIdentifier(token, keyword);
+	CreateToken();
+	SetIdentifier(keyword);
 
-	token = CreateToken();
-	SetIdentifier(token, id);
+	CreateToken();
+	SetIdentifier(id);
 
 	//const void* tmp = GetValue(token);
 	//tmp[0] = '\0';
 
-	token = CreateToken();
-	SetIdentifier(token, id);
+	CreateToken();
+	SetIdentifier(id);
 
-	token = CreateToken();
-	SetDouble(token, "1.25");
+	CreateToken();
+	SetDouble("1.25");
 
-	token = CreateToken();
-	SetDouble(token, "1.25");
+	CreateToken();
+	SetDouble("1.25");
 
-	token = CreateToken();
-	SetInteger(token, "25231");
+	CreateToken();
+	SetInteger("25231");
 
-	token = CreateToken();
-	SetInteger(token, "25231");
+	CreateToken();
+	SetInteger("25231");
 
-	token = CreateToken();
-	SetString(token, "RetezcovyLiteral");
+	CreateToken();
+	SetString("RetezcovyLiteral");
 
-	token = CreateToken();
-	SetEOF(token);
-	token = CreateToken();
-	SetEOL(token);
+	CreateToken();
+	SetEOF();
+	CreateToken();
+	SetEOL();
 
 	Symbol* newSymbol;
+	Token* token;
 	while ((token = GetNextToken())) {
 		if (GetType(token) == TOKEN_IDENTIFIER) {
 			BeginSubScope();

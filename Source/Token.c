@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <stdbool.h>
 #include "CompilationErrors.h"
 #include "Token.h"
 
@@ -13,6 +14,7 @@
 struct Token {
 	void* value;
 	TokenType type;
+	bool trailSpace;
 };
 
 typedef struct ReadOnlyData {
@@ -27,7 +29,7 @@ typedef struct ReadOnlyData {
 } ReadOnlyData;
 
 
-typedef struct TokenStash{
+typedef struct TokenStash {
 	Token* tokenArray;
 	size_t arraySize;
 	size_t arrayUsed;
@@ -36,6 +38,8 @@ typedef struct TokenStash{
 
 static TokenStash Stash;
 static ReadOnlyData Data;
+static Token* Current;
+
 static char* const Keywords[] = {
 		  "AS", "ASC", "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "CHR",
 		  "FUNCTION", "IF", "INPUT", "INTEGER", "LENGTH", "LOOP", "PRINT", "RETURN",
@@ -68,31 +72,35 @@ void StrToLower(char* str) {
 }
 
 
-Token* GetNextToken(void){
-	if(Stash.activeToken < Stash.arrayUsed){
+Token* GetNextToken(void) {
+	if (Stash.activeToken < Stash.arrayUsed) {
 		return &Stash.tokenArray[Stash.activeToken++];
 	}
 	return NULL;
 }
 
 
-Token* CreateToken(void) {
-	Token* newToken;
+void ReturnToken(void) {
+	if (Stash.activeToken > 0) {
+		Stash.activeToken--;
+	}
+}
 
-	if(Stash.arrayUsed == Stash.arraySize){
+
+void CreateToken(void) {
+	if (Stash.arrayUsed == Stash.arraySize) {
 		Token* tmp = NULL;
 		Stash.arraySize += STASH_CHUNK;
-		if((tmp = realloc(Stash.tokenArray, sizeof(Token) * Stash.arraySize)) == NULL){
+		if ((tmp = realloc(Stash.tokenArray, sizeof(Token) * Stash.arraySize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
 		Stash.tokenArray = tmp;
 	}
 
-	newToken = &Stash.tokenArray[Stash.arrayUsed++];
-	newToken->type = TOKEN_UNDEFINED;
-	newToken->value = NULL;
-
-	return newToken;
+	Current = &Stash.tokenArray[Stash.arrayUsed++];
+	Current->type = TOKEN_UNDEFINED;
+	Current->value = NULL;
+	Current->trailSpace = false;
 }
 
 
@@ -118,51 +126,60 @@ double GetDouble(const Token* token) {
 }
 
 
-void SetOperator(Token* token, const char* operator) {
-	size_t opLength = strlen(operator);
-
-	if (!token || token->type != TOKEN_UNDEFINED || !operator || opLength == 0) { return; }
+void SetOperator(const char* operator) {
+	size_t length = strlen(operator);
+	if (!Current || !operator || length == 0) { return; }
 
 	//Nemuze se jednat o operator
-	if (opLength > OPERATOR_MAX_LEN) { return; }
+	if (length > OPERATOR_MAX_LEN) { return; }
 
 	size_t arraySize = (sizeof(Operators) / sizeof(char*));
 	for (size_t i = 0; i < arraySize; i++) {
 		if (strcmp(Operators[i], operator) == 0) {
 			//Operator byl nalezen
-			token->type = TOKEN_OPERATOR;
-			token->value = Operators[i];
+			Current->type = TOKEN_OPERATOR;
+			Current->value = Operators[i];
+			Current = NULL;
 			return;
 		}
 	}
 }
 
 
-void SetIdentifier(Token* token, char* symbol) {
-	size_t symbolLength = strlen(symbol);
+void SetIdentifier(char* symbol) {
+	size_t length = strlen(symbol);
 
-	if (!token || token->type != TOKEN_UNDEFINED || !symbol || symbolLength == 0) { return; }
+	if (!Current || !symbol || length == 0) { return; }
 
-	if (symbolLength <= KEYWORD_MAX_LEN) {
-		//Mohlo by se jednat o klicove slovo
+	//Token je ukoncen pomoci libovolneho whitespace charakteru -> nemuze byt volani funkce
+	if (isspace(symbol[length - 1])) {
+		length--;
+		symbol[length] = '\0';
+		Current->trailSpace = true;
+	}
+
+	//Mohlo by se jednat o klicove slovo
+	if (length <= KEYWORD_MAX_LEN) {
 		StrToUpper(symbol);
 		size_t arraySize = (sizeof(Keywords) / sizeof(char*));
 		for (size_t i = 0; i < arraySize; i++) {
 			if (strcmp(Keywords[i], symbol) == 0) {
-				token->type = TOKEN_KEYWORD;
-				token->value = Keywords[i];
+				Current->type = TOKEN_KEYWORD;
+				Current->value = Keywords[i];
+				Current = NULL;
 				return;
 			}
 		}
 	}
 
 	StrToLower(symbol);
-	token->type = TOKEN_IDENTIFIER;
+	Current->type = TOKEN_IDENTIFIER;
 
 	//Pokus o recyklaci identifikatoru
 	for (size_t i = 0; i < Data.symbolsUsed; i++) {
 		if (strcmp(Data.symbols[i], symbol) == 0) {
-			token->value = Data.symbols[i];
+			Current->value = Data.symbols[i];
+			Current = NULL;
 			return;
 		}
 	}
@@ -177,29 +194,33 @@ void SetIdentifier(Token* token, char* symbol) {
 	}
 
 	char* newSymbol = NULL;
-	if ((newSymbol = malloc(sizeof(char) * (symbolLength + 1))) == NULL) {
+	if ((newSymbol = malloc(sizeof(char) * (length + 1))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	memcpy(newSymbol, symbol, symbolLength);
-	newSymbol[symbolLength] = '\0';
+
+	memcpy(newSymbol, symbol, length);
+	newSymbol[length] = '\0';
 	Data.symbols[Data.symbolsUsed++] = newSymbol;
-	token->value = newSymbol;
+	Current->value = newSymbol;
+	Current = NULL;
 }
 
 
-void SetInteger(Token* token, const char* number) {
-	size_t numberLength = strlen(number);
+void SetInteger(const char* number) {
+	size_t length = strlen(number);
 	int value;
 
-	if (!token || token->type != TOKEN_UNDEFINED || !number || numberLength == 0) { return; }
+	if (!Current || !number || length == 0) { return; }
 
 	//Predpoklada se validni hodnota predana z lexikalniho analyzatoru
+	//TODO: vymyslet nejake reseni pro prilis velka cisla
 	value = (int) strtol(number, NULL, 10);
-	token->type = TOKEN_INTEGER;
+	Current->type = TOKEN_INTEGER;
 
 	for (size_t i = 0; i < Data.intsUsed; i++) {
 		if (value == Data.integers[i]) {
-			token->value = &Data.integers[i];
+			Current->value = &Data.integers[i];
+			Current = NULL;
 			return;
 		}
 	}
@@ -213,14 +234,15 @@ void SetInteger(Token* token, const char* number) {
 		Data.integers = tmp;
 	}
 	Data.integers[Data.intsUsed] = value;
-	token->value = &Data.integers[Data.intsUsed++];
+	Current->value = &Data.integers[Data.intsUsed++];
+	Current = NULL;
 }
 
 
-void SetDouble(Token* token, const char* number) {
-	size_t numberLength = strlen(number);
+void SetDouble(const char* number) {
+	size_t length = strlen(number);
 
-	if (!token || token->type != TOKEN_UNDEFINED || !number || numberLength == 0) { return; }
+	if (!Current || !number || length == 0) { return; }
 
 	if (Data.doublesUsed == Data.doublesSize) {
 		double* tmp = NULL;
@@ -233,15 +255,16 @@ void SetDouble(Token* token, const char* number) {
 
 	//Predpoklada se validni hodnota predana z lexikalniho analyzatoru
 	Data.doubles[Data.doublesUsed] = strtod(number, NULL);
-	token->type = TOKEN_DOUBLE;
-	token->value = &Data.doubles[Data.doublesUsed++];
+	Current->type = TOKEN_DOUBLE;
+	Current->value = &Data.doubles[Data.doublesUsed++];
+	Current = NULL;
 }
 
 
-void SetString(Token* token, const char* string) {
-	size_t stringLength = strlen(string);
-
-	if (!token || token->type != TOKEN_UNDEFINED || !string) { return; }
+void SetString(const char* string) {
+	if (!Current || !string) { return; }
+	Token* token = Current;
+	Current = NULL;
 
 	token->type = TOKEN_STRING;
 
@@ -260,7 +283,7 @@ void SetString(Token* token, const char* string) {
 		}
 		Data.strings = tmp;
 	}
-
+	size_t stringLength = strlen(string);
 	char* newString = NULL;
 	if ((newString = malloc(sizeof(char) * (stringLength + 1))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
@@ -275,25 +298,25 @@ void SetString(Token* token, const char* string) {
 }
 
 
-void SetEOL(Token* token) {
-	if (!token || token->type != TOKEN_UNDEFINED) { return; }
-
-	token->type = TOKEN_EOL;
+void SetEOL(void) {
+	if (!Current) { return; }
+	Current->type = TOKEN_EOL;
+	Current = NULL;
 }
 
 
-void SetEOF(Token* token) {
-	if (!token || token->type != TOKEN_UNDEFINED) { return; }
-
-	token->type = TOKEN_EOF;
+void SetEOF(void) {
+	if (!Current) { return; }
+	Current->type = TOKEN_EOF;
+	Current = NULL;
 }
 
 
 void TokenCleanup(void) {
-	for(size_t i = 0; i < Data.stringsUsed; i++){
+	for (size_t i = 0; i < Data.stringsUsed; i++) {
 		free(Data.strings[i]);
 	}
-	for(size_t i = 0; i < Data.symbolsUsed; i++){
+	for (size_t i = 0; i < Data.symbolsUsed; i++) {
 		free(Data.symbols[i]);
 	}
 	free(Data.integers);
