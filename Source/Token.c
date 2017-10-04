@@ -48,7 +48,7 @@ static char* const Keywords[] = {
 		  "NOT", "OR", "SHARED", "STATIC", "TRUE"
 };
 static char* const Operators[] = {
-		  "*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
+		  ",", ";", "*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
 };
 
 
@@ -133,8 +133,10 @@ void SetOperator(const char* operator) {
 	//Nemuze se jednat o operator
 	if (length > OPERATOR_MAX_LEN) { return; }
 
+
+	//osklivy hack, preskocim znaky "," a ";" v poli...
 	size_t arraySize = (sizeof(Operators) / sizeof(char*));
-	for (size_t i = 0; i < arraySize; i++) {
+	for (size_t i = 2; i < arraySize; i++) {
 		if (strcmp(Operators[i], operator) == 0) {
 			//Operator byl nalezen
 			Current->type = TOKEN_OPERATOR;
@@ -143,6 +145,24 @@ void SetOperator(const char* operator) {
 			return;
 		}
 	}
+}
+
+
+void SetComma(void) {
+	if (!Current) { return; }
+
+	Current->type = TOKEN_COMMA;
+	Current->value = Operators[0]; //Hack...
+	Current = NULL;
+}
+
+
+void SetSemicolon(void) {
+	if (!Current) { return; }
+
+	Current->type = TOKEN_SEMICOLON;
+	Current->value = Operators[1]; //Hack...
+	Current = NULL;
 }
 
 

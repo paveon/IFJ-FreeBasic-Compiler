@@ -7,6 +7,13 @@ int main() {
 	printf("Test run started...\n");
 	char keyword[] = "aSc";
 	char id[] = "id_with_space ";
+
+	CreateToken();
+	SetComma();
+	SetComma();
+	CreateToken();
+	SetSemicolon();
+
 	CreateToken();
 	SetIdentifier(keyword);
 	SetIdentifier(keyword);

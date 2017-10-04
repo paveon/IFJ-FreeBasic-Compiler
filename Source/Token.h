@@ -25,6 +25,8 @@ typedef enum TokenType {
 	TOKEN_INTEGER,
 	TOKEN_DOUBLE,
 	TOKEN_STRING,
+	TOKEN_COMMA,
+	TOKEN_SEMICOLON,
 	TOKEN_EOL,
 	TOKEN_EOF
 } TokenType;
@@ -66,6 +68,14 @@ double GetDouble(const Token*);
 
 /* Pouzivat pokud je lexem operator */
 void SetOperator(const char* operator);
+
+
+/* Pouzivat pokud je lexem carka (v zakladni verzi se nemuze vyskytovat ve vyrazech) */
+void SetComma(void);
+
+
+/* Pouzivat pokud je lexem strednik */
+void SetSemicolon(void);
 
 
 /* Pouzivat pokud je lexem identifikator / klicove slovo.
