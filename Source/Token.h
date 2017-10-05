@@ -18,17 +18,20 @@
  */
 
 typedef enum TokenType {
-	TOKEN_UNDEFINED,
+	//Pouzivaji se pro indexaci, proto natvrdo zadane hodnoty
+			  TOKEN_COMMA = 0,
+	TOKEN_SEMICOLON = 1,
+	TOKEN_L_BRACKET = 2,
+	TOKEN_R_BRACKET = 3,
 	TOKEN_OPERATOR,
 	TOKEN_KEYWORD,
 	TOKEN_IDENTIFIER,
 	TOKEN_INTEGER,
 	TOKEN_DOUBLE,
 	TOKEN_STRING,
-	TOKEN_COMMA,
-	TOKEN_SEMICOLON,
 	TOKEN_EOL,
-	TOKEN_EOF
+	TOKEN_EOF,
+	TOKEN_UNDEFINED
 } TokenType;
 typedef struct Token Token;
 
@@ -76,6 +79,14 @@ void SetComma(void);
 
 /* Pouzivat pokud je lexem strednik */
 void SetSemicolon(void);
+
+
+/* Pouzivat pokud je lexem leva zavorka */
+void SetLeftBracket(void);
+
+
+/* Pouzivat pokud je lexem prava zavorka */
+void SetRightBracket(void);
 
 
 /* Pouzivat pokud je lexem identifikator / klicove slovo.

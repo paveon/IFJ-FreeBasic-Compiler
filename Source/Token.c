@@ -48,7 +48,12 @@ static char* const Keywords[] = {
 		  "NOT", "OR", "SHARED", "STATIC", "TRUE"
 };
 static char* const Operators[] = {
-		  ",", ";", "*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
+		  "*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
+};
+
+
+static char* Miscellaneous[] = {
+		  ",", ";", "(", ")"
 };
 
 
@@ -133,10 +138,8 @@ void SetOperator(const char* operator) {
 	//Nemuze se jednat o operator
 	if (length > OPERATOR_MAX_LEN) { return; }
 
-
-	//osklivy hack, preskocim znaky "," a ";" v poli...
 	size_t arraySize = (sizeof(Operators) / sizeof(char*));
-	for (size_t i = 2; i < arraySize; i++) {
+	for (size_t i = 0; i < arraySize; i++) {
 		if (strcmp(Operators[i], operator) == 0) {
 			//Operator byl nalezen
 			Current->type = TOKEN_OPERATOR;
@@ -152,7 +155,7 @@ void SetComma(void) {
 	if (!Current) { return; }
 
 	Current->type = TOKEN_COMMA;
-	Current->value = Operators[0]; //Hack...
+	Current->value = Miscellaneous[TOKEN_COMMA];
 	Current = NULL;
 }
 
@@ -161,7 +164,24 @@ void SetSemicolon(void) {
 	if (!Current) { return; }
 
 	Current->type = TOKEN_SEMICOLON;
-	Current->value = Operators[1]; //Hack...
+	Current->value = Miscellaneous[TOKEN_SEMICOLON];
+	Current = NULL;
+}
+
+
+void SetLeftBracket(void) {
+	if (!Current) { return; }
+
+	Current->type = TOKEN_L_BRACKET;
+	Current->value = Miscellaneous[TOKEN_L_BRACKET];
+	Current = NULL;
+}
+
+void SetRightBracket(void) {
+	if (!Current) { return; }
+
+	Current->type = TOKEN_R_BRACKET;
+	Current->value = Miscellaneous[TOKEN_R_BRACKET];
 	Current = NULL;
 }
 
