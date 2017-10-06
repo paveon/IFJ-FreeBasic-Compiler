@@ -1,46 +1,37 @@
 #ifndef FREEBASIC_COMPILER_STACK_H
 #define FREEBASIC_COMPILER_STACK_H
 
+#include <stdbool.h>
 #include "Token.h"
+#include "LLtable.h"
 
-typedef enum ItemType {
-	TYPE_UNDEFINED,
-	TYPE_BOTTOM,
-	TYPE_TERMINAL,
-	TYPE_NONTERMINAL
-} ItemType;
 
-typedef enum NonTerminal {
-	NT_PROGRAM,
-	NT_HEADER,
-	NT_FUNCTION,
-	NT_ARGUMENT,
-	NT_NEXT_ARGUMENT,
-	NT_STATEMENT_LIST,
-	NT_STATEMENT,
-	NT_ELSE,
-	NT_NEXT_EXPRESSION,
-	NT_INITIALIZATION,
-	NT_TYPE
-} NTerm;
-
-typedef const char* Term;
-typedef struct StackItem StackItem;
 typedef struct Stack Stack;
 
-ItemType TopItemType(const Stack* stack);
+SymbolType TopSymbolType(const Stack* stack);
 
 void PopItem(Stack* stack);
 
-bool ExpandNT(Stack* stack, Token* token);
+bool ExpandTop(Stack* stack, Token* token);
 
-Stack* CreateStack(void);
+void PushT(Stack* stack, Terminal terminal);
 
-void DeleteStack(Stack* stack);
+void PushNT(Stack* stack, NTerminal nTerminal);
 
-void PushNonTerminal(Stack* stack, NTerm nonterm);
+/* Poskytne prazdny zasobnik k pouziti */
+Stack* GetStack(void);
 
-void PushTerminal(Stack* stack, Term term);
+
+/* Uvolni zasobnik, volat po ukonceni prace se zasobnikem.
+ * Je zakazano dale pracovat s ukazatelem na zasobnik,
+ * zasobnik jiz nepatri programatorovi (je mozne, ze je vyuzivan nekym jinym)
+ */
+void ReleaseStack(Stack* stack);
+
+
+/* Interni funkce pro cisteni pameti  <!!>NEPOUZIVAT<!!> */
+void StackCleanup(void);
+
 
 
 #endif //FREEBASIC_COMPILER_STACK_H

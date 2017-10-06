@@ -30,7 +30,7 @@ typedef enum TokenType {
 	TOKEN_DOUBLE,
 	TOKEN_STRING,
 	TOKEN_EOL,
-	TOKEN_EOF,
+	TOKEN_EOF = 4,
 	TOKEN_UNDEFINED
 } TokenType;
 typedef struct Token Token;

@@ -1,10 +1,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "Token.h"
+#include "LLtable.h"
 #include "symtable.h"
+#include "Stack.h"
+#include "CompilationErrors.h"
 
 int main() {
 	printf("Test run started...\n");
+
+	Stack* stack = GetStack();
+
+	//Simulace derivace neterminalu <prog> do deklarace funkce
+	PushNT(stack, NT_PROGRAM);
+	PushNT(stack, NT_HEADER);
+	PushT(stack, T_DECLARE);
+	ReleaseStack(stack);
+
+	//Mel by znovupouzit existujici stack
+	stack = GetStack();
+
+	//Simulace derivace neterminalu <prog> dalsim pravidlem
+	PushT(stack, T_SCOPE);
+	PushT(stack, T_END);
+	PushNT(stack, NT_STATEMENT_LIST);
+
+	/* test uvolneni pameti */
+	//FatalError(ER_FATAL_INTERNAL);
+
+	PushT(stack, T_EOL);
+	PushT(stack, T_SCOPE);
+
+
+
 	char keyword[] = "aSc";
 	char id[] = "id_with_space ";
 
@@ -42,6 +70,9 @@ int main() {
 	CreateToken();
 	SetInteger("25231");
 
+	/* test uvolneni pameti */
+	//FatalError(ER_FATAL_INTERNAL);
+
 	CreateToken();
 	SetInteger("25231");
 
@@ -53,20 +84,23 @@ int main() {
 	CreateToken();
 	SetEOL();
 
-	Symbol* newSymbol;
+	Identifier* newID;
 	Token* token;
 	while ((token = GetNextToken())) {
 		if (GetType(token) == TOKEN_IDENTIFIER) {
 			BeginSubScope();
-			InsertGlobalSymbol(GetValue(token));
-			newSymbol = InsertSymbol(GetValue(token));
-			newSymbol = LookupSymbol(GetValue(token));
+			InsertGlobalID(GetValue(token));
+			newID = InsertLocalID(GetValue(token));
+			newID = LookupID(GetValue(token));
 			EndSubScope();
-			newSymbol = LookupSymbol(GetValue(token));
-			newSymbol = LookupGlobalSymbol(GetValue(token));
+			newID = LookupID(GetValue(token));
+			newID = LookupGlobalID(GetValue(token));
 		}
 	}
 	EndScope();
+
+	/* test uvolneni pameti */
+	//FatalError(ER_FATAL_INTERNAL);
 
 	BeginSubScope();
 	BeginSubScope();
@@ -82,6 +116,7 @@ int main() {
 
 	TokenCleanup();
 	TableCleanup(true);
+	StackCleanup();
 	printf("Test run finished, allocated memory should be released...\n");
 	return 0;
 }

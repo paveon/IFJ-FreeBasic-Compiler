@@ -2,57 +2,149 @@
 #include <stdbool.h>
 #include "CompilationErrors.h"
 #include "Stack.h"
+#include "LLtable.h"
 
-
-struct StackItem {
-	struct StackItem* up;
-	struct StackItem* down;
-	bool reduceEnd;
-	ItemType type;
-
-	//Nepotrebujeme vyuzivat obe promenne zaraz
-	union {
-		const char* term;
-		NTerm nonterm;
-	} data;
-};
+#define CHUNK 50
 
 struct Stack {
-	StackItem* top;
+	Symbol* top;
+	bool inUse;
 };
 
+typedef struct StackStash {
+	Stack* array;
+	size_t size;
+} StackStash;
+static StackStash g_Stacks;
 
-static Term const PredictTerminals[] = {
-		  "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "FUNCTION",
-		  "IF", "INPUT", "INTEGER", "LOOP", "PRINT", "RETURN", "SCOPE",
-		  "STRING", "ID", ",", ")", "=", "EOL"
-};
+typedef struct SymbolStash {
+	Symbol* allocated; //Pole vsech alokovanych symbolu
+	Symbol** unused; //Pole ukazatelu na nepouzite symboly
+	size_t size; //Velikost pole vsech symbolu
+	size_t used; //Index do pole nepouzitych symbolu
+} SymbolStash;
+static SymbolStash g_Symbols;
 
-StackItem* CreateItem(Stack* stack, ItemType type) {
-	StackItem* item;
-	if ((item = malloc(sizeof(StackItem))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
+/* Deklarace privatnich funkci */
+Symbol* CreateSymbol(void);
+
+void ReleaseSymbol(Symbol* symbol);
+
+
+void PushT(Stack* stack, Terminal terminal) {
+	if (!stack) { return; }
+	Symbol* newSymbol = CreateSymbol();
+	newSymbol->type = SYMBOL_TERMINAL;
+	newSymbol->data.terminal = terminal;
+	newSymbol->down = stack->top;
+	if (stack->top) {
+		stack->top->up = newSymbol;
 	}
-
-	item->up = NULL;
-	item->down = stack->top;
-	item->type = type;
-	item->reduceEnd = false;
-	stack->top->up = item;
-	stack->top = item;
-	return item;
+	stack->top = newSymbol;
 }
 
 
-ItemType TopItemType(const Stack* stack) {
-	if (!stack) { return TYPE_UNDEFINED; }
-	else if (!stack->top) { return TYPE_BOTTOM; }
+void PushNT(Stack* stack, NTerminal nTerminal) {
+	if (!stack) { return; }
+	Symbol* newSymbol = CreateSymbol();
+	newSymbol->type = SYMBOL_NONTERMINAL;
+	newSymbol->data.nonTerminal = nTerminal;
+	newSymbol->down = stack->top;
+	if (stack->top) {
+		stack->top->up = newSymbol;
+	}
+	stack->top = newSymbol;
+}
+
+
+/* Vytvori nove symboly, pouze pokud jiz nejsou k dispozici zadne
+ * volne symboly. Nasledujici zpusob se snazi minimalizovat celkovy
+ * pocet alokaci pomoci predalokovani vetsiho mnozstvi symbolu
+ * a monitorovani dostupnych symbolu. Take umoznuje recyklaci symbolu
+ */
+Symbol* CreateSymbol(void) {
+	if (g_Symbols.used == g_Symbols.size) {
+		Symbol* array;
+		Symbol** available;
+		g_Symbols.size += CHUNK;
+		if ((array = realloc(g_Symbols.allocated, sizeof(Symbol) * g_Symbols.size)) == NULL ||
+		    (available = realloc(g_Symbols.unused, sizeof(Symbol*) * g_Symbols.size)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		g_Symbols.allocated = array;
+		g_Symbols.unused = available;
+
+		//Zkopirujeme ukazatele na nove symboly do pole dostupnych symbolu
+		for (size_t i = g_Symbols.used; i < g_Symbols.size; i++) {
+			g_Symbols.unused[i] = &g_Symbols.allocated[i];
+			g_Symbols.unused[i]->used = false;
+		}
+	}
+
+	//Pouzijeme nasledujici volny symbol a inkrementujeme pocitadlo pouzitych symbolu
+	Symbol* freeSymbol = g_Symbols.unused[g_Symbols.used];
+	g_Symbols.unused[g_Symbols.used++] = NULL;
+
+	//Pred pouzitim (re)inicializujeme hodnoty
+	freeSymbol->used = true;
+	freeSymbol->reduceEnd = false;
+	freeSymbol->down = freeSymbol->up = NULL;
+	return freeSymbol;
+}
+
+
+/* interni funkce - nekontroluje se ukazatel */
+void ReleaseSymbol(Symbol* symbol) {
+	if (symbol->used == false || g_Symbols.used == 0) {
+		return; //symbol nelze uvolnit (jiz byl uvolnen / vsechny symboly jsou nepouzite)
+	}
+	symbol->used = false;
+	g_Symbols.unused[--g_Symbols.used] = symbol;
+}
+
+
+Stack* GetStack(void) {
+	//Pokusime se najit nepouzity stack
+	for (size_t i = 0; i < g_Stacks.size; i++) {
+		if (g_Stacks.array[i].inUse == false) {
+			return &g_Stacks.array[i]; //Volny stack existuje
+		}
+	}
+
+	//Vytvorime novy stack
+	Stack* tmp;
+	g_Stacks.size++;
+	if ((tmp = realloc(g_Stacks.array, sizeof(Stack) * g_Stacks.size)) == NULL) {
+		FatalError(ER_FATAL_INTERNAL);
+	}
+	g_Stacks.array = tmp;
+	tmp = &g_Stacks.array[g_Stacks.size - 1];
+	tmp->top = NULL;
+	tmp->inUse = true;
+	return tmp;
+}
+
+
+/* Uvolni symboly a zasobnik pro opetovne pouziti (neprovadi dealokaci) */
+void ReleaseStack(Stack* stack) {
+	Symbol* current = stack->top;
+	while (current) {
+		stack->top = current->down;
+		ReleaseSymbol(current);
+		current = stack->top;
+	}
+	stack->inUse = false;
+}
+
+SymbolType TopSymbolType(const Stack* stack) {
+	if (!stack) { return SYMBOL_UNDEFINED; }
+	else if (!stack->top) { return SYMBOL_BOTTOM; }
 	return stack->top->type;
 }
 
 void PopItem(Stack* stack) {
 	if (!stack) { return; }
-	StackItem* tmp = stack->top;
+	Symbol* tmp = stack->top;
 	if (tmp) {
 		stack->top = tmp->down;
 		if (stack->top) {
@@ -62,51 +154,37 @@ void PopItem(Stack* stack) {
 	free(tmp);
 }
 
-bool ExpandNT(Stack* stack, Token* token) {
-	StackItem* nterm;
-	if (!token || !stack || !(nterm = stack->top) || nterm->type != TYPE_NONTERMINAL) {
+bool ExpandTop(Stack* stack, Token* token) {
+	Symbol* nterm;
+	if (!token || !stack || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
 		return false;
 	}
+	Symbol* symbolString;
+	bool result = ProduceString(nterm, token, &symbolString);
 
-	return true;
+	return result;
 }
 
-Stack* CreateStack(void) {
-	Stack* newStack = NULL;
 
-	if ((newStack = malloc(sizeof(Stack))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
+/* Provadi dealokaci vsech symbolu a zasobniku, slouzi
+ * primarne pro uvolneni pameti pri ukonceni programu,
+ * ale je prizpusobeno i pro pripadnou realokaci
+ */
+void StackCleanup(void) {
+	if (g_Stacks.array != NULL) {
+		free(g_Stacks.array);
 	}
-	newStack->top = NULL;
+	g_Stacks.array = NULL;
+	g_Stacks.size = 0;
 
-	return newStack;
-}
-
-
-void DeleteStack(Stack* stack) {
-	if (!stack) { return; }
-
-	StackItem* current = stack->top;
-	while (current) {
-		stack->top = current->down;
-		free(current);
-		current = stack->top;
+	if (g_Symbols.allocated != NULL) {
+		//alokuji se vzdy pohromade, staci zkontrolovat jeden z nich
+		free(g_Symbols.allocated);
+		free(g_Symbols.unused);
 	}
-	free(stack);
-}
-
-void PushNonTerminal(Stack* stack, NTerm nonterm) {
-	if (!stack) { return; }
-
-	StackItem* item = CreateItem(stack, TYPE_NONTERMINAL);
-	item->data.nonterm = nonterm;
-}
-
-void PushTerminal(Stack* stack, const char* term) {
-	if (!stack || !term) { return; }
-
-	StackItem* item = CreateItem(stack, TYPE_TERMINAL);
-	item->data.term = term;
+	g_Symbols.allocated = NULL;
+	g_Symbols.unused = NULL;
+	g_Symbols.size = g_Symbols.used = 0;
 }
 
 

@@ -53,7 +53,7 @@ static char* const Operators[] = {
 
 
 static char* Miscellaneous[] = {
-		  ",", ";", "(", ")"
+		  ",", ";", "(", ")", "\n"
 };
 
 
@@ -341,6 +341,7 @@ void SetString(const char* string) {
 void SetEOL(void) {
 	if (!Current) { return; }
 	Current->type = TOKEN_EOL;
+	Current->value = Miscellaneous[TOKEN_EOL];
 	Current = NULL;
 }
 

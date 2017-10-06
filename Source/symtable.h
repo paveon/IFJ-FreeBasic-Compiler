@@ -3,19 +3,19 @@
 
 #include <stdbool.h>
 
-typedef enum SymbolType {
-	SYMBOL_LOCAL,
-	SYMBOL_GLOBAL
-} SymbolType;
+typedef enum IdentifierType {
+	IDENTIFIER_LOCAL,
+	IDENTIFIER_GLOBAL
+} IdentifierType;
 
-typedef struct Symbol {
+typedef struct Identifier {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
 	int type;
 	const char* name;
-	SymbolType symbolType;
-} Symbol;
+	IdentifierType idType;
+} Identifier;
 
-typedef struct SymbolTable SymbolTable;
+typedef struct IDTable IDTable;
 
 
 /* Ukazka prace s BeginSubScope a EndSubScope
@@ -78,28 +78,28 @@ void EndScope(void);
  * (pouzivat pro funkce a globalni promenne).
  * Vraci ukazatel na novy symbol. Pokud symbol jiz existuje, vraci NULL.
  */
-Symbol* InsertGlobalSymbol(const char* name);
+Identifier* InsertGlobalID(const char* name);
 
 
 /*
  * Vytvori a vlozi novy symbol do tabulky prislusejici aktualnimu bloku.
  * Vraci ukazatel na novy symbol. Pokud symbol jiz existuje, vraci NULL.
  */
-Symbol* InsertSymbol(const char* name);
+Identifier* InsertLocalID(const char* name);
 
 
 /*
  * Hleda symbol v aktualnim bloku, nadrazenych blocich a nakonec i v globalnim scopu.
  * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
  */
-Symbol* LookupSymbol(const char* name);
+Identifier* LookupID(const char* name);
 
 
 /*
  * Hleda symbol pouze v globalnim scopu.
  * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
  */
-Symbol* LookupGlobalSymbol(const char* name);
+Identifier* LookupGlobalID(const char* name);
 
 
 /* Interni funkce pro uvolneni alokovane pameti souvisejici s tabulkami symbolu. !!NEPOUZIVAT!! */

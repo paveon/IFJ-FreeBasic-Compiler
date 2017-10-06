@@ -19,16 +19,16 @@ static int scope_level = 0;
 
 typedef struct Node {
 	uint64_t key;
-	Symbol symbol;
+	Identifier symbol;
 	struct Node* treeLeft;
 	struct Node* treeRight;
 	struct Node* nextNode;
 	int height;
 } Node;
 
-struct SymbolTable {
-	struct SymbolTable* parentScope;
-	struct SymbolTable* olderScope;
+struct IDTable {
+	struct IDTable* parentScope;
+	struct IDTable* olderScope;
 	Node* root;
 
 #ifdef DEBUG_INFO
@@ -42,23 +42,23 @@ typedef struct NodeStash {
 } NodeStash;
 
 typedef struct TableStash {
-	SymbolTable** tableArray;
+	IDTable** tableArray;
 	size_t arraySize, arrayUsed;
 } TableStash;
 
-static NodeStash Nodes;
-static TableStash Tables;
+static NodeStash g_Nodes;
+static TableStash g_Tables;
 
 
-static SymbolTable GlobalSymbols;
-static SymbolTable LocalSymbols;
-static SymbolTable* ActiveScope = &LocalSymbols;
+static IDTable g_GlobalSymbols;
+static IDTable g_LocalSymbols;
+static IDTable* g_ActiveScope = &g_LocalSymbols;
 
 
 void ResizeTableStash(TableStash* stash) {
-	SymbolTable** tmp = NULL;
+	IDTable** tmp = NULL;
 	stash->arraySize += MALLOC_SMALL_CHUNK;
-	if ((tmp = realloc(stash->tableArray, sizeof(SymbolTable*) * stash->arraySize)) == NULL) {
+	if ((tmp = realloc(stash->tableArray, sizeof(IDTable*) * stash->arraySize)) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
 	stash->tableArray = tmp;
@@ -67,11 +67,11 @@ void ResizeTableStash(TableStash* stash) {
 
 void ResizeNodeStash(void) {
 	Node** tmp = NULL;
-	Nodes.arraySize += MALLOC_BIG_CHUNK;
-	if ((tmp = realloc(Nodes.nodeArray, sizeof(Node*) * Nodes.arraySize)) == NULL) {
+	g_Nodes.arraySize += MALLOC_BIG_CHUNK;
+	if ((tmp = realloc(g_Nodes.nodeArray, sizeof(Node*) * g_Nodes.arraySize)) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	Nodes.nodeArray = tmp;
+	g_Nodes.nodeArray = tmp;
 }
 
 
@@ -88,21 +88,21 @@ uint64_t HashFunction(const char* str) {
 
 
 void BeginSubScope() {
-	SymbolTable* newTable = NULL;
+	IDTable* newTable = NULL;
 
-	if ((newTable = malloc(sizeof(SymbolTable))) == NULL) {
+	if ((newTable = malloc(sizeof(IDTable))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	if (Tables.arrayUsed == Tables.arraySize) {
-		ResizeTableStash(&Tables);
+	if (g_Tables.arrayUsed == g_Tables.arraySize) {
+		ResizeTableStash(&g_Tables);
 	}
 	newTable->root = NULL;
-	newTable->parentScope = ActiveScope;
-	newTable->olderScope = ActiveScope->olderScope;
-	ActiveScope->olderScope = newTable;
-	ActiveScope = newTable;
+	newTable->parentScope = g_ActiveScope;
+	newTable->olderScope = g_ActiveScope->olderScope;
+	g_ActiveScope->olderScope = newTable;
+	g_ActiveScope = newTable;
 
-	Tables.tableArray[Tables.arrayUsed++] = newTable;
+	g_Tables.tableArray[g_Tables.arrayUsed++] = newTable;
 
 
 #ifdef DEBUG_INFO
@@ -123,20 +123,20 @@ void EndSubScope() {
 	for (int i = 0; i < scope_level; i++) {
 		printf("\t");
 	}
-	printf("End subscope %d\n\n", ActiveScope->index);
+	printf("End subscope %d\n\n", g_ActiveScope->index);
 #endif
 
-	if (ActiveScope->parentScope != NULL) {
-		ActiveScope = ActiveScope->parentScope;
+	if (g_ActiveScope->parentScope != NULL) {
+		g_ActiveScope = g_ActiveScope->parentScope;
 	}
 }
 
 
 void EndScope(void) {
 	TableCleanup(false);
-	LocalSymbols.root = NULL;
-	LocalSymbols.olderScope = NULL;
-	ActiveScope = &LocalSymbols;
+	g_LocalSymbols.root = NULL;
+	g_LocalSymbols.olderScope = NULL;
+	g_ActiveScope = &g_LocalSymbols;
 }
 
 
@@ -146,51 +146,51 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 	if ((newNode = malloc(sizeof(Node))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	if (Nodes.arrayUsed == Nodes.arraySize) {
+	if (g_Nodes.arrayUsed == g_Nodes.arraySize) {
 		ResizeNodeStash();
 	}
 
 	newNode->key = key;
 	newNode->symbol.name = symbolName;
-	newNode->symbol.symbolType = SYMBOL_LOCAL;
+	newNode->symbol.idType = IDENTIFIER_LOCAL;
 	LEFT(newNode) = RIGHT(newNode) = NEXT(newNode) = NULL;
 
 	//TODO: casem mozna prepracovat na AVL?
 	newNode->height = 0;
 
-	Nodes.nodeArray[Nodes.arrayUsed++] = newNode;
+	g_Nodes.nodeArray[g_Nodes.arrayUsed++] = newNode;
 	return newNode;
 }
 
 
-Symbol* InsertGlobalSymbol(const char* name) {
+Identifier* InsertGlobalID(const char* name) {
 	//ulozeni aktivniho lokalniho scopu
-	SymbolTable* inActiveScope = ActiveScope;
-	ActiveScope = &GlobalSymbols;
+	IDTable* inActiveScope = g_ActiveScope;
+	g_ActiveScope = &g_GlobalSymbols;
 
-	Symbol* newSymbol = InsertSymbol(name);
+	Identifier* newSymbol = InsertLocalID(name);
 	if (newSymbol != NULL) {
-		newSymbol->symbolType = SYMBOL_GLOBAL;
+		newSymbol->idType = IDENTIFIER_GLOBAL;
 	}
 
 	//obnoveni scopu
-	ActiveScope = inActiveScope;
+	g_ActiveScope = inActiveScope;
 	return newSymbol;
 }
 
 
-Symbol* InsertSymbol(const char* name) {
+Identifier* InsertLocalID(const char* name) {
 	if (!name) { return NULL; }
 
 	//Pouzivam hashovani, protoze neustale porovnavani pripadne
 	//velmi dlouhych identifikatoru je pomale a u stromu je riziko kolize minimalni
 	uint64_t hash = HashFunction(name);
 
-	if (ActiveScope->root == NULL) {
-		return &(ActiveScope->root = CreateNode(hash, name))->symbol;
+	if (g_ActiveScope->root == NULL) {
+		return &(g_ActiveScope->root = CreateNode(hash, name))->symbol;
 	}
 
-	Node* current = ActiveScope->root;
+	Node* current = g_ActiveScope->root;
 	while (true) {
 		if (hash < current->key) {
 			if (LEFT(current)) {
@@ -227,13 +227,13 @@ Symbol* InsertSymbol(const char* name) {
 }
 
 
-Symbol* LookupSymbol(const char* symbol) {
+Identifier* LookupID(const char* symbol) {
 	if (!symbol) { return NULL; }
 
 	uint64_t hash = HashFunction(symbol);
 	Node* current;
 
-	SymbolTable* table = ActiveScope;
+	IDTable* table = g_ActiveScope;
 	while (table) {
 		current = table->root;
 		while (current) {
@@ -257,7 +257,7 @@ Symbol* LookupSymbol(const char* symbol) {
 		}
 
 		//Prohledame vyssi tabulku
-		if (ActiveScope != &GlobalSymbols) {
+		if (g_ActiveScope != &g_GlobalSymbols) {
 			table = table->parentScope;
 		}
 	}
@@ -266,36 +266,36 @@ Symbol* LookupSymbol(const char* symbol) {
 }
 
 
-Symbol* LookupGlobalSymbol(const char* name) {
+Identifier* LookupGlobalID(const char* name) {
 	//Ulozeni aktivniho lokalniho scopu
-	SymbolTable* inActiveScope = ActiveScope;
-	ActiveScope = &GlobalSymbols;
+	IDTable* inActiveScope = g_ActiveScope;
+	g_ActiveScope = &g_GlobalSymbols;
 
-	Symbol* symbol = LookupSymbol(name);
+	Identifier* symbol = LookupID(name);
 
 	//Obnoveni scopu
-	ActiveScope = inActiveScope;
+	g_ActiveScope = inActiveScope;
 	return symbol;
 }
 
 
 void TableCleanup(bool allNodes) {
-	if (Nodes.nodeArray != NULL) {
+	if (g_Nodes.nodeArray != NULL) {
 		if (allNodes) {
-			for (size_t i = 0; i < Nodes.arrayUsed; i++) {
-				free(Nodes.nodeArray[i]);
+			for (size_t i = 0; i < g_Nodes.arrayUsed; i++) {
+				free(g_Nodes.nodeArray[i]);
 			}
-			Nodes.arraySize = Nodes.arrayUsed = 0;
-			free(Nodes.nodeArray);
+			g_Nodes.arraySize = g_Nodes.arrayUsed = 0;
+			free(g_Nodes.nodeArray);
 		}
 		else {
 			//Mazeme pouze lokalni symboly a preskladavame pole, abychom zachovali konzistenci
-			for (size_t i = 0; i < Nodes.arrayUsed;) {
-				if (Nodes.nodeArray[i]->symbol.symbolType == SYMBOL_LOCAL) {
-					free(Nodes.nodeArray[i]);
-					Nodes.nodeArray[i] = Nodes.nodeArray[Nodes.arrayUsed - 1];
-					Nodes.nodeArray[Nodes.arrayUsed - 1] = NULL;
-					Nodes.arrayUsed--;
+			for (size_t i = 0; i < g_Nodes.arrayUsed;) {
+				if (g_Nodes.nodeArray[i]->symbol.idType == IDENTIFIER_LOCAL) {
+					free(g_Nodes.nodeArray[i]);
+					g_Nodes.nodeArray[i] = g_Nodes.nodeArray[g_Nodes.arrayUsed - 1];
+					g_Nodes.nodeArray[g_Nodes.arrayUsed - 1] = NULL;
+					g_Nodes.arrayUsed--;
 				}
 				else {
 					i++;
@@ -303,15 +303,15 @@ void TableCleanup(bool allNodes) {
 			}
 		}
 	}
-	if (Tables.tableArray != NULL) {
-		for (size_t i = 0; i < Tables.arrayUsed; i++) {
-			free(Tables.tableArray[i]);
+	if (g_Tables.tableArray != NULL) {
+		for (size_t i = 0; i < g_Tables.arrayUsed; i++) {
+			free(g_Tables.tableArray[i]);
 
 		}
-		Tables.arrayUsed = 0;
+		g_Tables.arrayUsed = 0;
 		if (allNodes) {
-			free(Tables.tableArray);
-			Tables.arraySize = 0;
+			free(g_Tables.tableArray);
+			g_Tables.arraySize = 0;
 		}
 	}
 }
