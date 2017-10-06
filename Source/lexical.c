@@ -6,19 +6,20 @@
 #include <stdlib.h>
 #include "lexical.h"
 #include <stddef.h>
+#include "Token.h"
 
 
 /* Toto je dočasná práce, funkčnost některých funkcí je čistě náhodná, komentáře existují ale jsou velmi dobře ukryty
  * V absolutně žádném případě se nepokoušet číst,pochopit či použít jakoukoliv část této knihovny.*/
 
-char* createBuffer() //possibly redundant
+char* CreateBuffer() //possibly redundant
 {
     char *ptr = malloc(sizeof(char)*100); //TODO kontrola správnosti
     ptr[99] = 0;
     return ptr;
 }
 
-void appendToBuff(char *buffPtr,int* lenght,char c)
+char* AppendToBuff(char* buffPtr,int* lenght,char c)
 {
     printf("%i - lenght\n",*lenght);
     if(*lenght%100  == 0)
@@ -32,214 +33,320 @@ void appendToBuff(char *buffPtr,int* lenght,char c)
 
     //temp
     printf("%s \n", buffPtr);
+	return buffPtr;
+
 
 }
 
-void clearBuffer(char* buffPtr,int* lenght)
+void SetLex(state* currentState,char chartype,char* buffer,int* lenght)
+{
+	//rozrazeni do stavu
+	if(isspace(chartype))
+	{
+		//je whitespace pokracovat jako by nebyl
+	}
+	else if(isdigit(chartype)) // zacina cislem
+	{
+		*currentState = NUMBER;
+		AppendToBuff(buffer,lenght,chartype);
+	}
+	else if(isalpha(chartype) || chartype == '_') // zacina pismenem
+	{
+		*currentState = WORD;
+		AppendToBuff(buffer,lenght,chartype);
+	}
+	else if(chartype == '!')//je string a zacina
+	{
+		*currentState = STRING;
+	}
+	else if(chartype == '/')
+	{
+		*currentState = COMMENTS;
+	}
+	else if(chartype == '\'')
+	{
+		*currentState = COMMENTP;
+	}
+	else if(chartype == '<' || chartype == '>')
+	{
+		*currentState = RELAT;
+		AppendToBuff(buffer,lenght,chartype);
+	}
+	else if(chartype == ' ')
+	{
+		*currentState = START;
+	}
+
+}
+
+void MakeShortToken(int type, char c)
+{
+	if (type != 8)
+		CreateToken();
+	switch(type)
+	{
+		case 1 :
+			SetSemicolon();
+		case 2:
+			SetOperator(&c);
+		case 3:
+			SetComma();
+		case 4:
+			SetLeftBracket();
+		case 5:
+			SetRightBracket();
+		case 6:
+			SetEOL();
+	}
+}
+
+void ClearBuffer(char* buffPtr,int* lenght)
 {
     *lenght = 0;
-    buffPtr[100] = 0; //dořešit pro reallokované
+    buffPtr[0] = 0; //dořešit pro reallokované
 }
 
-int isEnd(char c)
+int IsEnd(char c)
 {
     switch (c)
     {//TODO odkomentovat tuhle funkci
+	     //jednoznake operatory
         case '+':
-            printf("+\n"); // poslat token s +
-            return 1;
+            return 2;
         case '-':
-            printf("-\n"); // poslat token s -
-            return 1;
-        case '=':
-            printf("=\n"); // poslat token s =
-            return 1;
-        case '/':
-            printf("/\n"); // poslat token s /
-            return 1;
-        case '*':
-            printf("*\n"); // poslat token s *
-            return 1;
-        case '(':
-            printf("(\n"); // poslat token s *
-            return 1;
+            return 2;
+	     case '/':
+		      return 2;
+	    case '\\':
+		     return 2;
+	    case '*':
+		     return 2;
+	    case '=':
+            return 2;
+       //viceznake operatory
+
+	    case '<':
+		    return 8;
+	    case '>':
+		    return 8;
+
+		//zavorky
+	    case '(':
+            return 4;
         case ')':
-            printf(")\n"); // poslat token s *
-            return 1;
-        case '}':
-            printf("{\n"); // poslat token s *
-            return 1;
-        case '{':
-            printf("}\n"); // poslat token s *
-            return 1;
-        case ']':
-            printf("]\n"); // poslat token s *
-            return 1;
-        case '[':
-            printf("[\n"); // poslat token s *
-            return 1;
-        case '"':
-            printf("[\n"); // poslat token s *
-            return 1;
-        case '\'':
-            printf("[\n"); // poslat token s *
-            return 1;
-        case '<':
-            printf(">\n"); // poslat token s *
-            return 2;
-        case '>':
-            printf("<\n"); // poslat token s *
-            return 2;
-        default:
+            return 5;
+
+		//zacatek komentare
+	    case '\'':
+            return 7;
+
+		//EOL
+	    case '\n':
+		    return 6;
+
+		//strednik
+	    case ';':
+		    return 1;
+
+        //carka
+	    case ',':
+		    return 3;
+
+		 //whitespace
+	    case ' ':
+		    return 9;
+
+	    default:
             return 0;
-            //TODO add additional things
 
     }
 
 }
 
-int lexical()
+int Lexical() // doresit / jako operand a eof, kteremu nepredchazi whitespace
 {
     char chartype;
-    char *buffer = createBuffer();
+    char *buffer = CreateBuffer();
     int assistVariable = 0;
+	int prevVariable = 0;
+	int endVar = 0;
     int lenght = 0;
     printf("start\n");
-    state currentState = start;
-    while((chartype = getchar()) != EOF)
-    {
-        if(isEnd(chartype) == 1)
-        {
-            //TODO create token
-            currentState = start;
-        }
-        else if(isEnd(chartype) == 2) // byl zadan '<' nebo '>'
-        {
-            currentState = relat;
-            appendToBuff(buffer,&lenght,chartype);
-        }
-        else
-        {
-            switch(currentState)
-            {
-                case start://nezadano
-                    if(isspace(chartype))
-                    {
-                        //je whitespace pokracovat jako by nebyl
-                    }
-                    else if(isdigit(chartype)) // zacina cislem
-                    {
-                        currentState = number;
-                        appendToBuff(buffer,&lenght,chartype);
-                    }
-                    else if(isalpha(chartype) || chartype == '_') // zacina pismenem
-                    {
-                        currentState = word;
-                        appendToBuff(buffer,&lenght,chartype);
-                    }
-                    else if(chartype == '!')//je string a zacina
-                    {
-                        currentState = stringLit;
-                    }
-                    else if(chartype == '/')
-                    {
-                        currentState = commentS;
-                    }
-                    else if(chartype == '"')
-                    {
-                        currentState = commentP;
-                    }
-                    break;
+    state currentState = START;
 
-                case word:
+ 	 while((chartype = getchar()) != EOF) {
+	     CreateToken();
+	     endVar = IsEnd(chartype);
+	     switch (currentState) {
+		     case START:
+			     if (endVar) { //pokud je tohle konec lexemu posle token
+				     MakeShortToken(endVar, chartype);
+			     }
+			     //rozrazeni do stavu
+			     SetLex(&currentState,chartype,buffer,&lenght);
+			     break;
 
-                    if(isalnum(chartype) || chartype == '_')
-                    {
-                        //append to buffer
-                        appendToBuff(buffer,&lenght,chartype);
 
-                    }
-                    else if(isEnd(chartype))
-                    {
-                        //TODO create token
-                        // clear buffer
-                        clearBuffer(buffer,&lenght);
-                        currentState = start;
-                    }
-                    else
-                    {
-                        currentState = fail;
-                        printLexError(); // maybe add args;
-                        return 1;
-                    }
-                    break;
+		     case RELAT:
+			     if(chartype == '=' || (chartype == '>' && buffer[0] == '<'))
+			     {
+				     AppendToBuff(buffer,&lenght,chartype);
+				     CreateToken();
+				     SetIdentifier(buffer);
+				     ClearBuffer(buffer,&lenght);
+				     currentState = START;
 
-                case number:
+			     }
+			     else
+			     {
+				     CreateToken();
+				     SetIdentifier(buffer);
+				     SetLex(&currentState,chartype,buffer,&lenght);
+				     ClearBuffer(buffer,&lenght);
+				     currentState = START;
+			     }
+			     break;
 
-                    if(isdigit(chartype))
-                    {
-                        //append to buffer
-                        appendToBuff(buffer,&lenght,chartype);
 
-                    }
-                    else if(chartype == '.' || toupper(chartype) == 'E')
-                    {
-                        //append to buffer
-                        appendToBuff(buffer,&lenght,chartype);
-                        currentState = floatLit;
-                    }
-                    else if(isEnd(chartype))
-                    {
-                        //TODO create Token
-                        currentState = start;
-                    }
-                    else
-                    {
-                        currentState = fail;
-                        printLexError(); // maybe add args;
-                        return 1;
-                    }
-                case stringLit:
-                {
-                    if(chartype == '"')
-                    {
-                        if(assistVariable == 0)
-                        {
-                            assistVariable = 1;
-                        }
-                            //else if() previous char was \ count as part of string                   }
-                        else
-                        {
-                            assistVariable = 0;
-                            //TODO create token
-                            //TODO clear buffer
-                            currentState = start;
-                        }
-                    }
-                    else
-                    {
-                        //TODO append to buffer
+		     case WORD:
+			     if (endVar)
+			     {
+				     CreateToken();
+				     if (endVar == 9) //v pripade ukonceni mezerou ji prida na konec stringu
+				     {
+					     AppendToBuff(buffer, &lenght, ' ');
+				     }
+				     SetIdentifier(buffer);
+				     ClearBuffer(buffer, &lenght);
+				     CreateToken();
+				     MakeShortToken(endVar,chartype);
+				     currentState = START;
+				     break;
+			     }
+			     else if(isalnum(chartype) || chartype == '_')
+			     {
+				     AppendToBuff(buffer, &lenght, chartype);
+			     }
+			     else
+			     {
+				     currentState = FAIL;
+			     }
+			     break;
 
-                    }
-                }
-                case relat:
-                    if(chartype == '=')
-                    {
-                        //TODO create token
-                        currentState = start;
-                    }
+		     case NUMBER:
+			     if(endVar)
+			     {
+				     CreateToken();
+				     SetInteger(buffer);
+				     ClearBuffer(buffer, &lenght);
+				     MakeShortToken(endVar,chartype);
+				     currentState = START;
 
-            }//State switch
+			     }
+			     else if(chartype == '.' || chartype == 'e' || chartype == 'E')
+			     {
+				     AppendToBuff(buffer,&lenght,chartype);
+				     currentState = FLOAT;
+			     }
+			     else if(isdigit(chartype))
+			     {
+				     AppendToBuff(buffer,&lenght,chartype);
+			     }
+			     else
+			     {
+				     currentState = FAIL;
+			     }
+			     break;
 
-        }//wtf is this ?
+		     case FLOAT:
+			     if (endVar)
+			     {
+				     CreateToken();
+				     SetInteger(buffer);
+				     ClearBuffer(buffer, &lenght);
+				     MakeShortToken(endVar,chartype);
+				     currentState = START;
 
-    }//Main cycle that reads inputs
-    //TODO send EOF token
+			     }
+			     else if(isdigit(chartype))
+			     {
+				     AppendToBuff(buffer,&lenght,chartype);
+			     }
+			     else
+			     {
+				     currentState = FAIL;
+			     }
+			     break;
+
+		     case STRING :
+			     if(chartype == '"')
+			     {
+				     if(assistVariable == 0)
+					     assistVariable++;
+				     else
+				     {
+					     assistVariable = 0;
+					     CreateToken();
+					     SetString(buffer);
+					     ClearBuffer(buffer,&lenght);
+					     currentState = START;
+				     }
+			     }
+			     else
+			     {
+				     AppendToBuff(buffer,&lenght,chartype);
+			     }
+			     break;
+
+		     case COMMENTP:
+			     if (chartype == '\n')
+			     {
+				     currentState = START;
+			     }
+			     break;
+
+		     case COMMENTS:
+			     if(chartype == '/')
+			     {
+				     if(assistVariable == 0){
+					     assistVariable = 1;
+				     }
+				     else if(assistVariable == 1 && prevVariable == 0){
+					     prevVariable = 1;
+				     }
+					 else if(prevVariable == 1)
+					 {
+						 currentState = START;
+					 }
+			     }
+			     else if(assistVariable == 0)
+			     {
+				     MakeShortToken(endVar,chartype);
+				     currentState = START;
+			     }
+			     else
+			     {
+				     prevVariable = 0;
+			     }
+
+			     break;
+
+
+		     case FAIL:
+			     printf("f \n");
+			     //nevim co presne tady delat
+			     break;
+	     }
+     }//cycle that reads input
+	CreateToken();
+	SetEOF();
     printf("end");
+	free(buffer); //TODO zkontrolovat uspech
+
     return 0;
 }
 
-void printLexError()
+void PrintLexError()
 {
     printf("this is a temp message\n");
 

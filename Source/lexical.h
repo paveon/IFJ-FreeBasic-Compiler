@@ -3,35 +3,34 @@
 //
 #ifndef LEXICAL_H
 #define LEXICAL_H
-#include <stdio.h>
-#include <ctype.h>
-#include <stdlib.h>
-#include "lexical.h"
-#include <stddef.h>
-
-char* createBuffer(); //possibly redundant
-
-void appendToBuff(char *buffPtr,int* lenght,char c);
-
-void clearBuffer(char* buffPtr,int* lenght);
 
 typedef enum {
-    start,
-    word,
-    number,
-    commentP,
-    commentS,
-    floatLit,
-    stringLit,
-    relat,
-    fail,
+   START,
+   WORD,
+   NUMBER,
+   COMMENTP,
+   COMMENTS,
+   FLOAT,
+   STRING,
+   RELAT,
+   FAIL,
 }state;
 
 
-int isEnd(char c);
+char* CreateBuffer(); //possibly redundant
 
-int lexical();
+char* AppendToBuff(char *buffPtr,int* lenght,char c);
 
-void printLexError();
+void ClearBuffer(char* buffPtr,int* lenght);
+
+void MakeShortToken(int type, char c);
+
+void SetLex(state* currentState,char chartype,char* buffer,int* lenght);
+
+int IsEnd(char c);
+
+int Lexical();
+
+void PrintLexError();
 
 #endif //LEXICAL_H
