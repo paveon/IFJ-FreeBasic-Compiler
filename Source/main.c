@@ -1,20 +1,77 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include "Token.h"
 #include "LLtable.h"
-#include "symtable.h"
 #include "Stack.h"
+#include "symtable.h"
 #include "CompilationErrors.h"
 
 int main() {
 	printf("Test run started...\n");
-
+	Token* token;
+	SymbolType symbolType;
+	TokenType tokenType;
+	char keywords[][20] = {
+			  "declare",
+			  "end",
+			  "scope"
+	};
+	CreateToken();
+	SetIdentifier(keywords[2]);
+	CreateToken();
+	SetEOL();
+	CreateToken();
+	SetIdentifier(keywords[1]);
+	CreateToken();
+	SetIdentifier(keywords[2]);
+	CreateToken();
+	SetEOF();
 	Stack* stack = GetStack();
-
-	//Simulace derivace neterminalu <prog> do deklarace funkce
 	PushNT(stack, NT_PROGRAM);
-	PushNT(stack, NT_HEADER);
-	PushT(stack, T_DECLARE);
+
+	printf("Parsing simple program...\n");
+	printf("%s\n\t<epsilon>\n%s %s\n\n", keywords[2], keywords[1], keywords[2]);
+	token = GetNextToken();
+	while (true) {
+		symbolType = GetSymbolType(stack);
+		tokenType = GetTokenType(token);
+		if (symbolType == SYMBOL_BOTTOM) {
+			if (tokenType == TOKEN_EOF) {
+				printf("Simple program is correct!\n");
+			}
+			else {
+				fprintf(stderr, "Syntax error!\n");
+			}
+			break;
+		}
+		else if (symbolType == SYMBOL_TERMINAL) {
+			printf("-- Comparing terminals --\n");
+			if (CompareTop(stack, token)) {
+				printf("-- Terminals are equal --\n");
+				PopSymbol(stack);
+				token = GetNextToken();
+			}
+			else {
+				fprintf(stderr, "Syntax error!\n");
+				break;
+			}
+		}
+		else if (symbolType == SYMBOL_NONTERMINAL) {
+			while (symbolType == SYMBOL_NONTERMINAL) {
+				printf("-- Derivating --\n");
+				if (ExpandTop(stack, token)) {
+					printf("-- Derivation successful --\n");
+					symbolType = GetSymbolType(stack);
+				}
+				else {
+					fprintf(stderr, "Syntax error!\n");
+					break;
+				}
+			}
+		}
+		else {
+			fprintf(stderr, "Unknown error!\n");
+			break;
+		}
+	}
 	ReleaseStack(stack);
 
 	//Mel by znovupouzit existujici stack
@@ -30,7 +87,6 @@ int main() {
 
 	PushT(stack, T_EOL);
 	PushT(stack, T_SCOPE);
-
 
 
 	char keyword[] = "aSc";
@@ -55,7 +111,7 @@ int main() {
 	CreateToken();
 	SetIdentifier(id);
 
-	//const void* tmp = GetValue(token);
+	//const void* tmp = GetTokenValue(token);
 	//tmp[0] = '\0';
 
 	CreateToken();
@@ -85,16 +141,15 @@ int main() {
 	SetEOL();
 
 	Identifier* newID;
-	Token* token;
 	while ((token = GetNextToken())) {
-		if (GetType(token) == TOKEN_IDENTIFIER) {
+		if (GetTokenType(token) == TOKEN_IDENTIFIER) {
 			BeginSubScope();
-			InsertGlobalID(GetValue(token));
-			newID = InsertLocalID(GetValue(token));
-			newID = LookupID(GetValue(token));
+			InsertGlobalID(GetTokenValue(token));
+			newID = InsertLocalID(GetTokenValue(token));
+			newID = LookupID(GetTokenValue(token));
 			EndSubScope();
-			newID = LookupID(GetValue(token));
-			newID = LookupGlobalID(GetValue(token));
+			newID = LookupID(GetTokenValue(token));
+			newID = LookupGlobalID(GetTokenValue(token));
 		}
 	}
 	EndScope();

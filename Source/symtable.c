@@ -26,7 +26,7 @@ typedef struct Node {
 	int height;
 } Node;
 
-struct IDTable {
+typedef struct IDTable {
 	struct IDTable* parentScope;
 	struct IDTable* olderScope;
 	Node* root;
@@ -34,7 +34,7 @@ struct IDTable {
 #ifdef DEBUG_INFO
 	int index;
 #endif
-};
+} IDTable;
 
 typedef struct NodeStash {
 	Node** nodeArray;

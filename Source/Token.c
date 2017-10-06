@@ -109,23 +109,23 @@ void CreateToken(void) {
 }
 
 
-TokenType GetType(const Token* token) {
+TokenType GetTokenType(const Token* token) {
 	return token->type;
 }
 
 
-const void* GetValue(const Token* token) {
+const void* GetTokenValue(const Token* token) {
 	return token->value;
 }
 
 
-int GetInt(const Token* token) {
+int GetTokenInt(const Token* token) {
 	if (token->type == TOKEN_INTEGER) { return *(int*) token->value; }
 	return -1;
 }
 
 
-double GetDouble(const Token* token) {
+double GetTokenDouble(const Token* token) {
 	if (token->type == TOKEN_DOUBLE) { return *(double*) token->value; }
 	return NAN;
 }

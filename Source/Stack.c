@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include <stdbool.h>
+#include <string.h>
 #include "CompilationErrors.h"
 #include "Stack.h"
 #include "LLtable.h"
@@ -58,7 +58,7 @@ void PushNT(Stack* stack, NTerminal nTerminal) {
 
 
 /* Vytvori nove symboly, pouze pokud jiz nejsou k dispozici zadne
- * volne symboly. Nasledujici zpusob se snazi minimalizovat celkovy
+ * volne. Nasledujici zpusob se snazi minimalizovat celkovy
  * pocet alokaci pomoci predalokovani vetsiho mnozstvi symbolu
  * a monitorovani dostupnych symbolu. Take umoznuje recyklaci symbolu
  */
@@ -136,13 +136,13 @@ void ReleaseStack(Stack* stack) {
 	stack->inUse = false;
 }
 
-SymbolType TopSymbolType(const Stack* stack) {
+SymbolType GetSymbolType(const Stack* stack) {
 	if (!stack) { return SYMBOL_UNDEFINED; }
 	else if (!stack->top) { return SYMBOL_BOTTOM; }
 	return stack->top->type;
 }
 
-void PopItem(Stack* stack) {
+void PopSymbol(Stack* stack) {
 	if (!stack) { return; }
 	Symbol* tmp = stack->top;
 	if (tmp) {
@@ -150,19 +150,8 @@ void PopItem(Stack* stack) {
 		if (stack->top) {
 			stack->top->up = NULL;
 		}
+		ReleaseSymbol(tmp);
 	}
-	free(tmp);
-}
-
-bool ExpandTop(Stack* stack, Token* token) {
-	Symbol* nterm;
-	if (!token || !stack || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
-		return false;
-	}
-	Symbol* symbolString;
-	bool result = ProduceString(nterm, token, &symbolString);
-
-	return result;
 }
 
 
@@ -187,4 +176,160 @@ void StackCleanup(void) {
 	g_Symbols.size = g_Symbols.used = 0;
 }
 
+bool CompareTop(const Stack* stack, const Token* token) {
+	Symbol* term;
+	if (!stack || !token || !(term = stack->top) || term->type != SYMBOL_TERMINAL) {
+		return false;
+	}
+	if (strcmp(GetTerminalValue(term->data.terminal), GetTokenValue(token)) == 0) {
+		return true;
+	}
+	return false;
+}
+
+bool ExpandTop(Stack* stack, const Token* token) {
+	Symbol* nterm;
+	if (!stack || !token || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
+		return true; //false hodnota vyhrazena pro derivacni chybu
+	}
+
+	Rule rule = GetLLRule(nterm->data.nonTerminal, token);
+	PopSymbol(stack);
+	switch (rule) {
+		case 1:
+			PushT(stack, T_SCOPE);
+			PushT(stack, T_END);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushT(stack, T_EOL);
+			PushT(stack, T_SCOPE);
+			break;
+		case 2:
+			PushNT(stack, NT_PROGRAM);
+			PushNT(stack, NT_HEADER);
+			PushT(stack, T_DECLARE);
+			break;
+		case 3:
+			PushT(stack, T_SCOPE);
+			PushT(stack, T_END);
+			PushNT(stack, NT_PROGRAM);
+			PushNT(stack, NT_FUNCTION);
+			break;
+		case 4:
+			PushT(stack, T_EOL);
+			PushNT(stack, NT_TYPE);
+			PushT(stack, T_AS);
+			PushT(stack, T_RIGHT_BRACKET);
+			PushNT(stack, NT_ARGUMENT);
+			PushT(stack, T_LEFT_BRACKET);
+			PushT(stack, T_ID);
+			PushT(stack, T_FUNCTION);
+			break;
+		case 5:
+			PushT(stack, T_FUNCTION);
+			PushT(stack, T_END);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_HEADER);
+			break;
+		case 6:
+			PushNT(stack, NT_NEXT_ARGUMENT);
+			PushNT(stack, NT_TYPE);
+			PushT(stack, T_AS);
+			PushT(stack, T_ID);
+			break;
+		case 7:
+			PushNT(stack, NT_ARGUMENT);
+			PushT(stack, T_COMMA);
+			break;
+		case 8:
+			break; //epsilon pravidlo
+		case 9:
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushT(stack, T_EOL);
+			PushNT(stack, NT_STATEMENT);
+			break;
+		case 10:
+			break; //epsilon pravidlo
+		case 11:
+			PushNT(stack, NT_INITIALIZATION);
+			PushNT(stack, NT_TYPE);
+			PushT(stack, T_AS);
+			PushT(stack, T_ID);
+			PushT(stack, T_DIM);
+			break;
+		case 12:
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_EQUAL);
+			PushT(stack, T_ID);
+			break;
+		case 13:
+			PushT(stack, T_ID);
+			PushT(stack, T_INPUT);
+			break;
+		case 14:
+			PushNT(stack, NT_NEXT_ARGUMENT);
+			PushT(stack, T_SEMICOLON);
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_PRINT);
+			break;
+		case 15:
+			PushT(stack, T_LOOP);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushT(stack, T_EOL);
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_WHILE);
+			PushT(stack, T_DO);
+			break;
+		case 16:
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_RETURN);
+			break;
+		case 17:
+			PushNT(stack, NT_ELSE);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushT(stack, T_EOL);
+			PushT(stack, T_THEN);
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_IF);
+			break;
+		case 18:
+			PushT(stack, T_IF);
+			PushT(stack, T_END);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushT(stack, T_EOL);
+			PushT(stack, T_ELSE);
+			break;
+		case 19:
+			PushT(stack, T_IF);
+			PushT(stack, T_END);
+			break;
+		case 20:
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_SEMICOLON);
+			PushNT(stack, NT_EXPRESSION);
+			break;
+		case 21:
+			break; //epsilon pravidlo
+		case 22:
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_EQUAL);
+			break;
+		case 23:
+			break; //epsilon pravidlo
+		case 24:
+			PushT(stack, T_STRING);
+			break;
+		case 25:
+			PushT(stack, T_INTEGER);
+			break;
+		case 26:
+			PushT(stack, T_DOUBLE);
+			break;
+
+			//Neexistujici pravidlo - chyba syntaxe
+		case 0:
+		default:
+			return false;
+	}
+	return true;
+}
 

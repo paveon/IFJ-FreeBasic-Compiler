@@ -15,8 +15,6 @@ typedef struct Identifier {
 	IdentifierType idType;
 } Identifier;
 
-typedef struct IDTable IDTable;
-
 
 /* Ukazka prace s BeginSubScope a EndSubScope
  *

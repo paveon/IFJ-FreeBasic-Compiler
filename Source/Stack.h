@@ -3,20 +3,57 @@
 
 #include <stdbool.h>
 #include "Token.h"
-#include "LLtable.h"
+#include "Symbol.h"
 
+/* Header poskytuje jednoduche rozhrani pro praci se zasobnikem
+ * Snazi se nezatezovat uzivatele s implementacnimi detaily a
+ * zajistuje korektni alokaci / dealokaci pameti
+ */
 
 typedef struct Stack Stack;
 
-SymbolType TopSymbolType(const Stack* stack);
+/* Vraci typ symbolu na vrcholu zasobniku.
+ * Pokud je ukazatel NULL, vraci SYMBOL_UNDEFINED
+ * Pokud je zasobnik prazdny, vraci SYMBOL_BOTTOM (signalizace prazdneho zasobniku)
+ */
+SymbolType GetSymbolType(const Stack* stack);
 
-void PopItem(Stack* stack);
 
-bool ExpandTop(Stack* stack, Token* token);
+/* Odstrani libovolny symbol z vrcholu zasobniku.
+ * Pokud je ukazatel NULL, nebo je zasobnik prazdny, nestane se nic
+ */
+void PopSymbol(Stack* stack);
 
+
+/* Provede derivaci neterminalu na vrcholu zasobniku
+ * podle odpovidajiciho pravidla vybraneho na zaklade predict mnoziny.
+ * Vraci "false" POUZE pokud neexistuje derivacni pravidlo v LL tabulce,
+ * jinak vraci "true" (kvuli rozpoznani derivacni chyby).
+ * Vzdy provede POP neterminalu na vrcholu zasobniku.
+ */
+bool ExpandTop(Stack* stack, const Token* token);
+
+
+/* Porovna terminal na vrcholu zasobniku s poskytnutym tokenem.
+ * Vraci "true" pri shode, jinak "false".
+ * Pokud na vrcholu zasobniku neni terminal, vraci "false".
+ * <<!!>>NEPROVADI<<!!>> POP neterminalu na vrcholu zasobniku,
+ * tato povinnost je na programatorovi.
+ */
+bool CompareTop(const Stack* stack, const Token* token);
+
+
+/* Vlozi terminal na vrchol zasobniku.
+ * Pokud je ukazatel NULL, neprovede nic
+ */
 void PushT(Stack* stack, Terminal terminal);
 
+
+/* Vlozi neterminal na vrchol zasobniku
+ * Pokud je ukazatel NULL, neprovede nic
+ */
 void PushNT(Stack* stack, NTerminal nTerminal);
+
 
 /* Poskytne prazdny zasobnik k pouziti */
 Stack* GetStack(void);
@@ -31,7 +68,6 @@ void ReleaseStack(Stack* stack);
 
 /* Interni funkce pro cisteni pameti  <!!>NEPOUZIVAT<!!> */
 void StackCleanup(void);
-
 
 
 #endif //FREEBASIC_COMPILER_STACK_H

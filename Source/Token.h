@@ -17,20 +17,21 @@
  * Pri selhani alokace je program ukoncen pomoci exit(..) funkce a je vycistena pamet.
  */
 
+
+/* Pouzivaji se pro indexaci, proto natvrdo zadane hodnoty */
 typedef enum TokenType {
-	//Pouzivaji se pro indexaci, proto natvrdo zadane hodnoty
-			  TOKEN_COMMA = 0,
+	TOKEN_COMMA = 0,
 	TOKEN_SEMICOLON = 1,
 	TOKEN_L_BRACKET = 2,
 	TOKEN_R_BRACKET = 3,
+	TOKEN_EOL = 4,
+	TOKEN_EOF,
 	TOKEN_OPERATOR,
 	TOKEN_KEYWORD,
 	TOKEN_IDENTIFIER,
 	TOKEN_INTEGER,
 	TOKEN_DOUBLE,
 	TOKEN_STRING,
-	TOKEN_EOL,
-	TOKEN_EOF = 4,
 	TOKEN_UNDEFINED
 } TokenType;
 typedef struct Token Token;
@@ -49,22 +50,22 @@ void CreateToken(void);
 
 
 /* Vraci typ tokenu, pouzivejte enumeraci TokenType pro porovnavani */
-TokenType GetType(const Token*);
+TokenType GetTokenType(const Token*);
 
 
 /* Vraci ukazatel na konstatni data tokenu. Nastavovat data tokenu
  * je povoleno pouze skrze odpovidajici funkce.
  * Pri potrebe menit data si vytvorte lokalni kopii dat
  */
-const void* GetValue(const Token*);
+const void* GetTokenValue(const Token*);
 
 
 /* Vraci primo hodnotu, pokud token odkazuje na integer. Jinak vraci -1 */
-int GetInt(const Token*);
+int GetTokenInt(const Token*);
 
 
 /* Vraci primo hodnotu, pokud token odkazuje na double. Jinak vraci NAN */
-double GetDouble(const Token*);
+double GetTokenDouble(const Token*);
 
 
 /* Set funkce modifikuji data tokenu maximalne 1, pote je potreba vytvorit novy token */
