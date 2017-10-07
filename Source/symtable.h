@@ -2,17 +2,22 @@
 #define FREEBASIC_COMPILER_SYMTABLE_H
 
 #include <stdbool.h>
+#include "Symbol.h"
 
-typedef enum IdentifierType {
-	IDENTIFIER_LOCAL,
-	IDENTIFIER_GLOBAL
-} IdentifierType;
+#define MAX_ARGS 20
+
+typedef enum Scope {
+	SCOPE_LOCAL,
+	SCOPE_GLOBAL
+} Scope;
 
 typedef struct Identifier {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
-	int type;
-	const char* name;
-	IdentifierType idType;
+	bool declared;
+	char signature[MAX_ARGS];
+	short argIndex;
+	const char* name; //nazev identifikatoru
+	Scope scope; //privatni promenna - nemenit rucne
 } Identifier;
 
 
@@ -98,6 +103,10 @@ Identifier* LookupID(const char* name);
  * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
  */
 Identifier* LookupGlobalID(const char* name);
+
+
+bool SetSignature(Identifier* id, Terminal type, bool returnType);
+
 
 
 /* Interni funkce pro uvolneni alokovane pameti souvisejici s tabulkami symbolu. !!NEPOUZIVAT!! */

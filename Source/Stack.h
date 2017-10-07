@@ -18,6 +18,13 @@ typedef struct Stack Stack;
  */
 SymbolType GetSymbolType(const Stack* stack);
 
+Terminal GetTopT(const Stack* stack);
+
+NTerminal GetTopNT(const Stack* stack);
+
+/* Vraci symbol na vrcholu zasobniku */
+const Symbol* GetTop(const Stack* stack);
+
 
 /* Odstrani libovolny symbol z vrcholu zasobniku.
  * Pokud je ukazatel NULL, nebo je zasobnik prazdny, nestane se nic

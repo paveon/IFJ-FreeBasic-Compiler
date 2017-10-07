@@ -15,7 +15,8 @@ typedef enum NTerminal {
 	NT_NEXT_EXPRESSION = 8,
 	NT_INITIALIZATION = 9,
 	NT_TYPE = 10,
-	NT_EXPRESSION
+	NT_EXPRESSION,
+	NT_UNDEFINED
 } NTerminal;
 
 typedef enum Terminal {
@@ -43,7 +44,9 @@ typedef enum Terminal {
 	T_AS,
 	T_WHILE,
 	T_THEN,
-	T_SEMICOLON
+	T_SEMICOLON,
+	T_BOTTOM,
+	T_UNDEFINED
 } Terminal;
 
 typedef enum SymbolType {

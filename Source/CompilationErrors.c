@@ -20,14 +20,20 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[] = {
-		  {"placeholder...\n",         EXIT_CODE_LEXICAL_ANALYSIS},
-		  {"placeholder...\n",         EXIT_CODE_SYNTAX_ANALYSIS},
-		  {"placeholder...\n",         EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"placeholder...\n",         EXIT_CODE_SEMANTIC_TYPES},
-		  {"placeholder...\n",         EXIT_CODE_SEMANTIC_OTHER},
-		  {"memory allocation failed", EXIT_CODE_INTERNAL}
+		  {"placeholder...\n",                       EXIT_CODE_LEXICAL_ANALYSIS},
+		  {"placeholder...\n",                       EXIT_CODE_SYNTAX_ANALYSIS},
+		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_TYPES},
+		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_OTHER},
+		  {"memory allocation failed",               EXIT_CODE_INTERNAL},
+		  {"function was declared after definition", EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"function was already declared",          EXIT_CODE_SEMANTIC_DEFINITIONS}
 };
 
+
+void SemanticError(size_t line, ErrorCode errorCode) {
+	fprintf(stderr, "Error: %s\nLine no. %zd\n", errors[errorCode].errorMessage, line);
+}
 
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
 	TokenCleanup();

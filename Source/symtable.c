@@ -151,8 +151,10 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 	}
 
 	newNode->key = key;
+	newNode->symbol.declared = false;
+	newNode->symbol.argIndex = 1;
 	newNode->symbol.name = symbolName;
-	newNode->symbol.idType = IDENTIFIER_LOCAL;
+	newNode->symbol.scope = SCOPE_LOCAL;
 	LEFT(newNode) = RIGHT(newNode) = NEXT(newNode) = NULL;
 
 	//TODO: casem mozna prepracovat na AVL?
@@ -170,7 +172,7 @@ Identifier* InsertGlobalID(const char* name) {
 
 	Identifier* newSymbol = InsertLocalID(name);
 	if (newSymbol != NULL) {
-		newSymbol->idType = IDENTIFIER_GLOBAL;
+		newSymbol->scope = SCOPE_GLOBAL;
 	}
 
 	//obnoveni scopu
@@ -279,6 +281,27 @@ Identifier* LookupGlobalID(const char* name) {
 }
 
 
+bool SetSignature(Identifier* id, Terminal type, bool returnType) {
+	if (!id || id->argIndex == MAX_ARGS) { return false; }
+	short index = returnType ? (short) 0 : id->argIndex;
+	switch (type) {
+		case T_INTEGER:
+			id->signature[index] = 'i';
+			break;
+		case T_DOUBLE:
+			id->signature[index] = 'd';
+			break;
+		case T_STRING:
+			id->signature[index] = 's';
+			break;
+		default:
+			return false;
+	}
+	id->argIndex++;
+	return true;
+}
+
+
 void TableCleanup(bool allNodes) {
 	if (g_Nodes.nodeArray != NULL) {
 		if (allNodes) {
@@ -291,7 +314,7 @@ void TableCleanup(bool allNodes) {
 		else {
 			//Mazeme pouze lokalni symboly a preskladavame pole, abychom zachovali konzistenci
 			for (size_t i = 0; i < g_Nodes.arrayUsed;) {
-				if (g_Nodes.nodeArray[i]->symbol.idType == IDENTIFIER_LOCAL) {
+				if (g_Nodes.nodeArray[i]->symbol.scope == SCOPE_LOCAL) {
 					free(g_Nodes.nodeArray[i]);
 					g_Nodes.nodeArray[i] = g_Nodes.nodeArray[g_Nodes.arrayUsed - 1];
 					g_Nodes.nodeArray[g_Nodes.arrayUsed - 1] = NULL;

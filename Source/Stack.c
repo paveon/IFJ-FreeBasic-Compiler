@@ -3,6 +3,7 @@
 #include "CompilationErrors.h"
 #include "Stack.h"
 #include "LLtable.h"
+#include "Symbol.h"
 
 #define CHUNK 50
 
@@ -34,7 +35,12 @@ void ReleaseSymbol(Symbol* symbol);
 void PushT(Stack* stack, Terminal terminal) {
 	if (!stack) { return; }
 	Symbol* newSymbol = CreateSymbol();
-	newSymbol->type = SYMBOL_TERMINAL;
+	if (terminal == T_BOTTOM) {
+		newSymbol->type = SYMBOL_BOTTOM;
+	}
+	else {
+		newSymbol->type = SYMBOL_TERMINAL;
+	}
 	newSymbol->data.terminal = terminal;
 	newSymbol->down = stack->top;
 	if (stack->top) {
@@ -104,24 +110,27 @@ void ReleaseSymbol(Symbol* symbol) {
 
 
 Stack* GetStack(void) {
+	Stack* freeStack;
 	//Pokusime se najit nepouzity stack
 	for (size_t i = 0; i < g_Stacks.size; i++) {
-		if (g_Stacks.array[i].inUse == false) {
-			return &g_Stacks.array[i]; //Volny stack existuje
+		freeStack = &g_Stacks.array[i];
+		if (freeStack->inUse == false) {
+			PushT(freeStack, T_BOTTOM);
+			return freeStack; //Volny stack existuje
 		}
 	}
 
 	//Vytvorime novy stack
-	Stack* tmp;
 	g_Stacks.size++;
-	if ((tmp = realloc(g_Stacks.array, sizeof(Stack) * g_Stacks.size)) == NULL) {
+	if ((freeStack = realloc(g_Stacks.array, sizeof(Stack) * g_Stacks.size)) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	g_Stacks.array = tmp;
-	tmp = &g_Stacks.array[g_Stacks.size - 1];
-	tmp->top = NULL;
-	tmp->inUse = true;
-	return tmp;
+	g_Stacks.array = freeStack;
+	freeStack = &g_Stacks.array[g_Stacks.size - 1];
+	freeStack->top = NULL;
+	freeStack->inUse = true;
+	PushT(freeStack, T_BOTTOM);
+	return freeStack;
 }
 
 
@@ -138,8 +147,22 @@ void ReleaseStack(Stack* stack) {
 
 SymbolType GetSymbolType(const Stack* stack) {
 	if (!stack) { return SYMBOL_UNDEFINED; }
-	else if (!stack->top) { return SYMBOL_BOTTOM; }
 	return stack->top->type;
+}
+
+Terminal GetTopT(const Stack* stack) {
+	if (!stack) { return T_UNDEFINED; }
+	return stack->top->data.terminal;
+}
+
+NTerminal GetTopNT(const Stack* stack) {
+	if (!stack) { return NT_UNDEFINED; }
+	return stack->top->data.nonTerminal;
+}
+
+const Symbol* GetTop(const Stack* stack) {
+	if (!stack) { return NULL; }
+	return stack->top;
 }
 
 void PopSymbol(Stack* stack) {
@@ -177,11 +200,16 @@ void StackCleanup(void) {
 }
 
 bool CompareTop(const Stack* stack, const Token* token) {
-	Symbol* term;
-	if (!stack || !token || !(term = stack->top) || term->type != SYMBOL_TERMINAL) {
+	Symbol* symbol;
+	if (!stack || !token || !(symbol = stack->top) || symbol->type != SYMBOL_TERMINAL) {
 		return false;
 	}
-	if (strcmp(GetTerminalValue(term->data.terminal), GetTokenValue(token)) == 0) {
+	Terminal terminal = symbol->data.terminal;
+
+	if (terminal == T_ID && GetTokenType(token) == TOKEN_IDENTIFIER) {
+		return true;
+	}
+	else if (strcmp(GetTerminalValue(terminal), GetTokenValue(token)) == 0) {
 		return true;
 	}
 	return false;
