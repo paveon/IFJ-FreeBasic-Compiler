@@ -20,14 +20,20 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[] = {
-		  {"placeholder...\n",                       EXIT_CODE_LEXICAL_ANALYSIS},
-		  {"placeholder...\n",                       EXIT_CODE_SYNTAX_ANALYSIS},
-		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_TYPES},
-		  {"placeholder...\n",                       EXIT_CODE_SEMANTIC_OTHER},
-		  {"memory allocation failed",               EXIT_CODE_INTERNAL},
-		  {"function was declared after definition", EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"function was already declared",          EXIT_CODE_SEMANTIC_DEFINITIONS}
+		  {"placeholder...\n",                                     EXIT_CODE_LEXICAL_ANALYSIS},
+		  {"placeholder...\n",                                     EXIT_CODE_SYNTAX_ANALYSIS},
+		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_TYPES},
+		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_OTHER},
+		  {"memory allocation failed",                             EXIT_CODE_INTERNAL},
+		  {"variable redeclaration",                               EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"function was declaration after definition",            EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"function was already declared",                        EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"redefinition of existing function",                    EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"redefinition of function parameter",                   EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"function definition has a wrong number of parameters", EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"parameter type mismatch in function signatures",       EXIT_CODE_SEMANTIC_DEFINITIONS},
+		  {"return type mismatch in function signatures",          EXIT_CODE_SEMANTIC_DEFINITIONS}
 };
 
 

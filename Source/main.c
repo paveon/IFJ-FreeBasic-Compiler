@@ -5,52 +5,109 @@
 #include "symtable.h"
 #include "CompilationErrors.h"
 
+//int Foo(int Foo){
+//	return 1;
+//}
+
+
 int main() {
 	printf("Test run started...\n");
 	Token* token;
 	SymbolType symbolType;
 	TokenType tokenType;
-	char tokens[][20] = {
-			  "declare",
-			  "end",
-			  "scope",
-			  "dim",
-			  "as",
-			  "string",
-			  "integer",
-			  "double",
-			  "tmpValue",
-			  "return",
-			  "function",
+	char tokens[30][20] = {
+			  [T_DECLARE] = "declare",
+			  [T_END] = "end",
+			  [T_SCOPE] = "scope",
+			  [T_DIM] = "dim",
+			  [T_AS] = "as",
+			  [T_STRING] = "string",
+			  [T_INTEGER] = "integer",
+			  [T_DOUBLE] = "double",
+			  [T_ID] = "tmpValue",
+			  [T_RETURN] = "return",
+			  [T_FUNCTION] = "function",
 			  //function id (<argument>) as <type> EOL
 	};
+
 	CreateToken();
-	SetIdentifier(tokens[2]);
+	SetIdentifier(tokens[T_DECLARE]);
+	CreateToken();
+	SetIdentifier(tokens[T_FUNCTION]);
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetLeftBracket();
+	CreateToken();
+	SetRightBracket();
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_DOUBLE]);
+	CreateToken();
+	SetEOL();
+
+	CreateToken();
+	SetIdentifier(tokens[T_DECLARE]);
+	CreateToken();
+	SetIdentifier(tokens[T_FUNCTION]);
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetLeftBracket();
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_STRING]);
+	CreateToken();
+	SetRightBracket();
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_DOUBLE]);
+	CreateToken();
+	SetEOL();
+
+	CreateToken();
+	SetIdentifier(tokens[T_SCOPE]);
 	CreateToken();
 	SetEOL();
 
 	//Statements
 	CreateToken();
-	SetIdentifier(tokens[3]);
+	SetIdentifier(tokens[T_DIM]);
 	CreateToken();
-	SetIdentifier(tokens[8]);
+	SetIdentifier(tokens[T_ID]);
 	CreateToken();
-	SetIdentifier(tokens[4]);
+	SetIdentifier(tokens[T_AS]);
 	CreateToken();
-	SetIdentifier(tokens[7]);
+	SetIdentifier(tokens[T_DOUBLE]);
 	CreateToken();
 	SetEOL();
 
 	CreateToken();
-	SetIdentifier(tokens[9]);
+	SetIdentifier(tokens[T_DIM]);
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_DOUBLE]);
 	CreateToken();
 	SetEOL();
+
+//	CreateToken();
+//	SetIdentifier(tokens[T_RETURN]);
+//	CreateToken();
+//	SetEOL();
 
 	//End
 	CreateToken();
-	SetIdentifier(tokens[1]);
+	SetIdentifier(tokens[T_END]);
 	CreateToken();
-	SetIdentifier(tokens[2]);
+	SetIdentifier(tokens[T_SCOPE]);
 	CreateToken();
 	SetEOF();
 	printf("Parsing simple program...\n");

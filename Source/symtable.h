@@ -13,9 +13,9 @@ typedef enum Scope {
 
 typedef struct Identifier {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
-	bool declared;
+	bool declaration;
 	char signature[MAX_ARGS];
-	short argIndex;
+	size_t argIndex;
 	const char* name; //nazev identifikatoru
 	Scope scope; //privatni promenna - nemenit rucne
 } Identifier;
@@ -106,6 +106,8 @@ Identifier* LookupGlobalID(const char* name);
 
 
 bool SetSignature(Identifier* id, Terminal type, bool returnType);
+
+bool CompareSignature(Identifier* id, Terminal type, size_t index);
 
 
 

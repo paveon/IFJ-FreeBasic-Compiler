@@ -36,6 +36,7 @@ bool ParseProgram(void) {
 	bool declareFunc = false;
 	bool declareVar = false;
 	bool declareArg = false;
+	size_t paramCount = 0;
 
 
 	const char* value;
@@ -91,29 +92,68 @@ bool ParseProgram(void) {
 						case T_ID:
 							value = GetTokenValue(token);
 							if (declareVar) {
-								//Deklarace lokalni promenne
-								varID = InsertLocalID(value);
+								varID = LookupID(value);
+								if (varID) {
+									//Promenna jiz existuje (redeklarace)
+									SemanticError(currentLine, ER_SEMANTIC_VAR_REDECL);
+								}
+								else {
+									//Deklarace lokalni promenne
+									varID = InsertLocalID(value);
+								}
 							}
-							else if (declareArg) {
-
-							}
-							else if (declareFunc) {
+							else if (declareFunc && !declareArg) {
 								funcID = LookupGlobalID(value);
 								if (funcID) {
 									//Chybove stavy
-									if (funcID->declared) {
+									if (funcID->declaration == false) {
 										//Pozdni deklarace jiz definovane funkce
 										SemanticError(currentLine, ER_SEMANTIC_DECL_AFTER_DEF);
 									}
 									else {
 										//Redeklarace
-										SemanticError(currentLine, ER_SEMANTIC_REDECLARATION);
+										SemanticError(currentLine, ER_SEMANTIC_FUNC_REDECL);
 									}
 								}
 								else {
-									//Funkce zatim nebyla deklarovana / definovana
+									//Funkce zatim nebyla deklarovana ani definovana
 									funcID = InsertGlobalID(value);
-									funcID->declared = true; //Jedna se o deklaraci
+									funcID->declaration = true; //Jedna se o deklaraci
+								}
+							}
+							else if (defineFunc) {
+								if (declareArg) {
+									//Identifikator parametru funkce
+									varID = LookupID(value);
+									if (varID) {
+										//Dva parametry funkce se stejnym nazvem
+										SemanticError(currentLine, ER_SEMANTIC_PARAM_REDEF);
+									}
+									else {
+										if (funcID && funcID->declaration) {
+											//Kontrola shodneho poctu parametru s deklaraci, pokud existuje
+											paramCount++;
+											if (paramCount > (funcID->argIndex - 1)) {
+												//Definice ma vice parametru nez deklarace
+												SemanticError(currentLine, ER_SEMANTIC_PARAM_COUNT);
+											}
+										}
+										//TODO: nevytvaret novy parametr, pokud nesedi signatury
+										varID = InsertLocalID(value);
+									}
+								}
+								else {
+									funcID = LookupGlobalID(value);
+									if (funcID) {
+										if (funcID->declaration == false) {
+											//Redefinice
+											SemanticError(currentLine, ER_SEMANTIC_FUNC_REDEF);
+										}
+									}
+									else {
+										//Funkce zatim nebyla deklarovana ani definovana
+										funcID = InsertGlobalID(value);
+									}
 								}
 							}
 
@@ -124,16 +164,46 @@ bool ParseProgram(void) {
 						case T_STRING:
 							if (declareVar) {
 								//Typ promenne
-								SetSignature(varID, terminal, true);
-							}
-							else if (declareFunc || defineFunc) {
-								if (declareArg) {
-									//Typ argumentu funkce
-									SetSignature(funcID, terminal, false);
+								if (varID) {
+									SetSignature(varID, terminal, true);
 								}
-								else {
-									//Navratovy typ funkce
-									SetSignature(funcID, terminal, true);
+							}
+							else if (funcID) {
+								if (declareFunc) {
+									if (declareArg) {
+										//Specifikace typu parametru pri deklaraci
+										SetSignature(funcID, terminal, false);
+									}
+									else {
+										//Specifikace navratoveho typu pri deklaraci
+										SetSignature(funcID, terminal, true);
+									}
+								}
+								else if (defineFunc) {
+									if (declareArg) {
+										if (funcID->declaration) {
+											//Je k dispozici deklarace, porovname typy parametru
+											if (!CompareSignature(funcID, terminal, paramCount)) {
+												SemanticError(currentLine, ER_SEMANTIC_PARAM_MISMATCH);
+											}
+										}
+										else {
+											//Deklarace neexistuje, nastavujeme parametr automaticky
+											SetSignature(funcID, terminal, false);
+										}
+									}
+									else {
+										if (funcID->declaration) {
+											//Je k dispozici deklarace, porovname navratove typy
+											if (!CompareSignature(funcID, terminal, 0)) {
+												SemanticError(currentLine, ER_SEMANTIC_RETURN_MISMATCH);
+											}
+										}
+										else {
+											//Deklarace neexistuje, nastavujeme navratovy typ automaticky
+											SetSignature(funcID, terminal, true);
+										}
+									}
 								}
 							}
 							break;
@@ -163,6 +233,13 @@ bool ParseProgram(void) {
 						case T_RIGHT_BRACKET:
 							//Konec deklarace parametru
 							declareArg = false;
+							if (defineFunc && funcID && funcID->declaration) {
+								//Pri definici se musi pocet parametru rovnat poctu parametru v deklaraci
+								if (paramCount != (funcID->argIndex - 1)) {
+									SemanticError(currentLine, ER_SEMANTIC_PARAM_COUNT);
+								}
+							}
+							paramCount = 0;
 							break;
 
 						case T_END:

@@ -134,9 +134,6 @@ void EndSubScope() {
 
 void EndScope(void) {
 	TableCleanup(false);
-	g_LocalSymbols.root = NULL;
-	g_LocalSymbols.olderScope = NULL;
-	g_ActiveScope = &g_LocalSymbols;
 }
 
 
@@ -151,7 +148,7 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 	}
 
 	newNode->key = key;
-	newNode->symbol.declared = false;
+	newNode->symbol.declaration = false;
 	newNode->symbol.argIndex = 1;
 	newNode->symbol.name = symbolName;
 	newNode->symbol.scope = SCOPE_LOCAL;
@@ -259,9 +256,7 @@ Identifier* LookupID(const char* symbol) {
 		}
 
 		//Prohledame vyssi tabulku
-		if (g_ActiveScope != &g_GlobalSymbols) {
-			table = table->parentScope;
-		}
+		table = table->parentScope;
 	}
 
 	return NULL;
@@ -283,7 +278,7 @@ Identifier* LookupGlobalID(const char* name) {
 
 bool SetSignature(Identifier* id, Terminal type, bool returnType) {
 	if (!id || id->argIndex == MAX_ARGS) { return false; }
-	short index = returnType ? (short) 0 : id->argIndex;
+	size_t index = returnType ? 0 : id->argIndex;
 	switch (type) {
 		case T_INTEGER:
 			id->signature[index] = 'i';
@@ -297,8 +292,25 @@ bool SetSignature(Identifier* id, Terminal type, bool returnType) {
 		default:
 			return false;
 	}
-	id->argIndex++;
+	if (!returnType) {
+		id->argIndex++;
+	}
 	return true;
+}
+
+
+bool CompareSignature(Identifier* id, Terminal type, size_t index) {
+	if (!id || id->argIndex < index) { return false; }
+	switch (type) {
+		case T_INTEGER:
+			return id->signature[index] == 'i';
+		case T_DOUBLE:
+			return id->signature[index] == 'd';
+		case T_STRING:
+			return id->signature[index] == 's';
+		default:
+			return false;
+	}
 }
 
 
@@ -308,8 +320,9 @@ void TableCleanup(bool allNodes) {
 			for (size_t i = 0; i < g_Nodes.arrayUsed; i++) {
 				free(g_Nodes.nodeArray[i]);
 			}
-			g_Nodes.arraySize = g_Nodes.arrayUsed = 0;
 			free(g_Nodes.nodeArray);
+			g_Nodes.arraySize = g_Nodes.arrayUsed = 0;
+			g_Nodes.nodeArray = NULL;
 		}
 		else {
 			//Mazeme pouze lokalni symboly a preskladavame pole, abychom zachovali konzistenci
@@ -335,6 +348,10 @@ void TableCleanup(bool allNodes) {
 		if (allNodes) {
 			free(g_Tables.tableArray);
 			g_Tables.arraySize = 0;
+			g_Tables.tableArray = NULL;
 		}
 	}
+	g_LocalSymbols.root = NULL;
+	g_LocalSymbols.olderScope = NULL;
+	g_ActiveScope = &g_LocalSymbols;
 }

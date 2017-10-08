@@ -268,15 +268,11 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushNT(stack, NT_ARGUMENT);
 			PushT(stack, T_COMMA);
 			break;
-		case 8:
-			break; //epsilon pravidlo
 		case 9:
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_STATEMENT);
 			break;
-		case 10:
-			break; //epsilon pravidlo
 		case 11:
 			PushNT(stack, NT_INITIALIZATION);
 			PushNT(stack, NT_TYPE);
@@ -335,14 +331,10 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_SEMICOLON);
 			PushNT(stack, NT_EXPRESSION);
 			break;
-		case 21:
-			break; //epsilon pravidlo
 		case 22:
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_EQUAL);
 			break;
-		case 23:
-			break; //epsilon pravidlo
 		case 24:
 			PushT(stack, T_STRING);
 			break;
@@ -353,9 +345,17 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_DOUBLE);
 			break;
 
-			//Neexistujici pravidlo - chyba syntaxe
+		case 8:
+		case 10:
+		case 21:
+		case 27:
+		case 23:
+			//epsilon pravidla
+			break;
+
 		case 0:
 		default:
+			//Neexistujici pravidlo - chyba syntaxe
 			return false;
 	}
 	return true;
