@@ -21,7 +21,7 @@ typedef enum ErrorCode {
 	ER_SEMANTIC_RETURN_MISMATCH //Nekompatibilita navratoveho typu u deklarace a definice
 } ErrorCode;
 
-void SemanticError(size_t line, ErrorCode errorCode);
+void SemanticError(size_t line, ErrorCode errorCode, const char* extra);
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode errorCode);
 
 #define FatalError(errorCode) FatalError(__func__, __FILE__, __LINE__, errorCode)

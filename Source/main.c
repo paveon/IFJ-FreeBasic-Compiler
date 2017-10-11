@@ -3,11 +3,6 @@
 #include "Stack.h"
 #include "TopDown.h"
 #include "symtable.h"
-#include "CompilationErrors.h"
-
-//int Foo(int Foo){
-//	return 1;
-//}
 
 
 int main() {
@@ -30,6 +25,11 @@ int main() {
 			  //function id (<argument>) as <type> EOL
 	};
 
+	/* Test prazdnych radku pred zacatkem programu */
+	CreateToken();
+	SetEOL();
+
+	/* Deklarace 'declare function Foo() as double' */
 	CreateToken();
 	SetIdentifier(tokens[T_DECLARE]);
 	CreateToken();
@@ -47,6 +47,11 @@ int main() {
 	CreateToken();
 	SetEOL();
 
+	/* Vice prazdnych radku za deklaraci */
+	CreateToken();
+	SetEOL();
+
+	/* Redeklarace 'declare function Foo(var as string) as double' */
 	CreateToken();
 	SetIdentifier(tokens[T_DECLARE]);
 	CreateToken();
@@ -69,6 +74,38 @@ int main() {
 	SetIdentifier(tokens[T_DOUBLE]);
 	CreateToken();
 	SetEOL();
+
+
+	/* Definice 'function Foo(var as string) as double'
+	 * Nekompatibilita typu
+	 */
+	CreateToken();
+	SetIdentifier(tokens[T_FUNCTION]);
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetLeftBracket();
+	CreateToken();
+	SetIdentifier(tokens[T_ID]);
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_STRING]);
+	CreateToken();
+	SetRightBracket();
+	CreateToken();
+	SetIdentifier(tokens[T_AS]);
+	CreateToken();
+	SetIdentifier(tokens[T_DOUBLE]);
+	CreateToken();
+	SetEOL();
+	CreateToken();
+	SetIdentifier(tokens[T_END]);
+	CreateToken();
+	SetIdentifier(tokens[T_FUNCTION]);
+	CreateToken();
+	SetEOL();
+
 
 	CreateToken();
 	SetIdentifier(tokens[T_SCOPE]);
@@ -98,22 +135,36 @@ int main() {
 	CreateToken();
 	SetEOL();
 
-//	CreateToken();
-//	SetIdentifier(tokens[T_RETURN]);
-//	CreateToken();
-//	SetEOL();
+	CreateToken();
+	SetIdentifier(tokens[T_RETURN]);
+	CreateToken();
+	SetEOL();
 
 	//End
 	CreateToken();
 	SetIdentifier(tokens[T_END]);
 	CreateToken();
 	SetIdentifier(tokens[T_SCOPE]);
+
+	/* Test prazdnych radku na konci programu */
+	CreateToken();
+	SetEOL();
+	CreateToken();
+	SetEOL();
+
+	/* Konec programu */
 	CreateToken();
 	SetEOF();
+
+
 	printf("Parsing simple program...\n");
 	//printf("%s\n\t<epsilon>\n%s %s\n\n", tokens[2], tokens[1], tokens[2]);
-	ParseProgram();
-	printf("Program parsed...\n");
+	if (ParseProgram()) {
+		printf("Program parsed...\n");
+	}
+	else {
+		printf("Program contains an error!\n");
+	}
 
 
 

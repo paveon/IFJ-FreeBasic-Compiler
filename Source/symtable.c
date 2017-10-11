@@ -140,6 +140,7 @@ void EndScope(void) {
 Node* CreateNode(uint64_t key, const char* symbolName) {
 	Node* newNode = NULL;
 
+	//TODO: prepsat na zpusob minimalizujici pocet alokaci ala stack
 	if ((newNode = malloc(sizeof(Node))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
@@ -350,6 +351,11 @@ void TableCleanup(bool allNodes) {
 			g_Tables.arraySize = 0;
 			g_Tables.tableArray = NULL;
 		}
+	}
+
+	if (allNodes) {
+		g_GlobalSymbols.root = NULL;
+		g_LocalSymbols.olderScope = NULL;
 	}
 	g_LocalSymbols.root = NULL;
 	g_LocalSymbols.olderScope = NULL;

@@ -11,19 +11,20 @@ typedef enum Code {
 	ANALYSIS_SUCCESS
 } Code;
 
-const char* NTerminalText[12] = {
-		  [NT_PROGRAM] = "<prog>",
-		  [NT_HEADER] = "<header>",
-		  [NT_FUNCTION] = "<func>",
-		  [NT_ARGUMENT] = "<argument>",
-		  [NT_NEXT_ARGUMENT] = "<next_arg>",
-		  [NT_STATEMENT_LIST] = "<stat_list>",
-		  [NT_STATEMENT] = "<stat>",
-		  [NT_ELSE] = "<else>",
-		  [NT_NEXT_EXPRESSION] = "<next_expr>",
-		  [NT_INITIALIZATION] = "<init>",
-		  [NT_TYPE] = "<type>",
-		  [NT_EXPRESSION] = "<expr>",
+const char* NTerminalText[20] = {
+				[NT_PROGRAM] = "<prog>",
+				[NT_HEADER] = "<header>",
+				[NT_FUNCTION] = "<func>",
+				[NT_ARGUMENT] = "<argument>",
+				[NT_NEXT_ARGUMENT] = "<next_arg>",
+				[NT_STATEMENT_LIST] = "<stat_list>",
+				[NT_STATEMENT] = "<stat>",
+				[NT_ELSE] = "<else>",
+				[NT_NEXT_EXPRESSION] = "<next_expr>",
+				[NT_INITIALIZATION] = "<init>",
+				[NT_TYPE] = "<type>",
+				[NT_EXPRESSION] = "<expr>",
+				[NT_LINE_BREAK] = "<line_break>"
 };
 
 bool ParseProgram(void) {
@@ -49,6 +50,7 @@ bool ParseProgram(void) {
 	NTerminal nTerminal;
 	Terminal terminal;
 	PushNT(stack, NT_PROGRAM);
+	PushNT(stack, NT_LINE_BREAK);
 	symbolType = GetSymbolType(stack);
 
 	Code result = ANALYSIS_CONTINUE;
@@ -81,7 +83,7 @@ bool ParseProgram(void) {
 					switch (terminal) {
 						case T_SCOPE:
 							//Nachazime se v hlavnim tele programu
-							mainScope = true;
+							mainScope = !mainScope; //Toggle
 							break;
 
 						case T_RETURN:
@@ -95,7 +97,8 @@ bool ParseProgram(void) {
 								varID = LookupID(value);
 								if (varID) {
 									//Promenna jiz existuje (redeklarace)
-									SemanticError(currentLine, ER_SEMANTIC_VAR_REDECL);
+									SemanticError(currentLine, ER_SEMANTIC_VAR_REDECL, funcID->name);
+									varID = NULL; //Nechceme dale upravovat originalni deklaraci
 								}
 								else {
 									//Deklarace lokalni promenne
@@ -108,12 +111,15 @@ bool ParseProgram(void) {
 									//Chybove stavy
 									if (funcID->declaration == false) {
 										//Pozdni deklarace jiz definovane funkce
-										SemanticError(currentLine, ER_SEMANTIC_DECL_AFTER_DEF);
+										SemanticError(currentLine, ER_SEMANTIC_DECL_AFTER_DEF, funcID->name);
 									}
 									else {
 										//Redeklarace
-										SemanticError(currentLine, ER_SEMANTIC_FUNC_REDECL);
+										SemanticError(currentLine, ER_SEMANTIC_FUNC_REDECL, funcID->name);
 									}
+
+									//Nechceme dale upravovat redeklaraci a pouzivame originalni verzi
+									funcID = NULL;
 								}
 								else {
 									//Funkce zatim nebyla deklarovana ani definovana
@@ -127,16 +133,14 @@ bool ParseProgram(void) {
 									varID = LookupID(value);
 									if (varID) {
 										//Dva parametry funkce se stejnym nazvem
-										SemanticError(currentLine, ER_SEMANTIC_PARAM_REDEF);
+										SemanticError(currentLine, ER_SEMANTIC_PARAM_REDEF, funcID->name);
 									}
 									else {
 										if (funcID && funcID->declaration) {
-											//Kontrola shodneho poctu parametru s deklaraci, pokud existuje
+											//Kontrola shodneho poctu parametru
+											//probehne az pri ukonceni seznamu parametru
+											// (T_RIGHT_BRACKET)
 											paramCount++;
-											if (paramCount > (funcID->argIndex - 1)) {
-												//Definice ma vice parametru nez deklarace
-												SemanticError(currentLine, ER_SEMANTIC_PARAM_COUNT);
-											}
 										}
 										//TODO: nevytvaret novy parametr, pokud nesedi signatury
 										varID = InsertLocalID(value);
@@ -147,7 +151,7 @@ bool ParseProgram(void) {
 									if (funcID) {
 										if (funcID->declaration == false) {
 											//Redefinice
-											SemanticError(currentLine, ER_SEMANTIC_FUNC_REDEF);
+											SemanticError(currentLine, ER_SEMANTIC_FUNC_REDEF, funcID->name);
 										}
 									}
 									else {
@@ -183,8 +187,12 @@ bool ParseProgram(void) {
 									if (declareArg) {
 										if (funcID->declaration) {
 											//Je k dispozici deklarace, porovname typy parametru
-											if (!CompareSignature(funcID, terminal, paramCount)) {
-												SemanticError(currentLine, ER_SEMANTIC_PARAM_MISMATCH);
+											if (paramCount <= (funcID->argIndex - 1)) {
+												//Muzeme porovnavat, pouze pokud parametr
+												//existuje i u deklarace (pokud ne, chyba se projevi dale)
+												if (!CompareSignature(funcID, terminal, paramCount)) {
+													SemanticError(currentLine, ER_SEMANTIC_PARAM_MISMATCH, funcID->name);
+												}
 											}
 										}
 										else {
@@ -196,7 +204,7 @@ bool ParseProgram(void) {
 										if (funcID->declaration) {
 											//Je k dispozici deklarace, porovname navratove typy
 											if (!CompareSignature(funcID, terminal, 0)) {
-												SemanticError(currentLine, ER_SEMANTIC_RETURN_MISMATCH);
+												SemanticError(currentLine, ER_SEMANTIC_RETURN_MISMATCH, funcID->name);
 											}
 										}
 										else {
@@ -221,7 +229,7 @@ bool ParseProgram(void) {
 						case T_FUNCTION:
 							if (!declareFunc) {
 								//Zacatek definice funkce
-								defineFunc = true;
+								defineFunc = !defineFunc; //Toggle
 							}
 							break;
 
@@ -236,7 +244,7 @@ bool ParseProgram(void) {
 							if (defineFunc && funcID && funcID->declaration) {
 								//Pri definici se musi pocet parametru rovnat poctu parametru v deklaraci
 								if (paramCount != (funcID->argIndex - 1)) {
-									SemanticError(currentLine, ER_SEMANTIC_PARAM_COUNT);
+									SemanticError(currentLine, ER_SEMANTIC_PARAM_COUNT, funcID->name);
 								}
 							}
 							paramCount = 0;
@@ -245,7 +253,6 @@ bool ParseProgram(void) {
 						case T_END:
 							if (defineFunc) {
 								//Ukonceni definice funkce
-								defineFunc = false;
 								EndScope();
 							}
 							else if (mainScope) {
@@ -300,9 +307,11 @@ bool ParseProgram(void) {
 		}
 	}
 	ReleaseStack(stack);
+
 	if (result == ANALYSIS_ERROR) {
 		fprintf(stderr, "Syntax error!\n");
+		return false;
 	}
 
-	return result;
+	return true;
 }

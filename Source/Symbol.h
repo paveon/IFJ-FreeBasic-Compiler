@@ -15,6 +15,7 @@ typedef enum NTerminal {
 	NT_NEXT_EXPRESSION = 8,
 	NT_INITIALIZATION = 9,
 	NT_TYPE = 10,
+	NT_LINE_BREAK = 11,
 	NT_EXPRESSION,
 	NT_UNDEFINED
 } NTerminal;
@@ -40,11 +41,12 @@ typedef enum Terminal {
 	T_EQUAL = 17,
 	T_EOL = 18,
 	T_ID = 19,
-	T_LEFT_BRACKET,
-	T_AS,
-	T_WHILE,
-	T_THEN,
-	T_SEMICOLON,
+	T_EOF = 20,
+	T_LEFT_BRACKET = 21,
+	T_AS = 22,
+	T_WHILE = 23,
+	T_THEN = 24,
+	T_SEMICOLON = 25,
 	T_BOTTOM,
 	T_UNDEFINED
 } Terminal;

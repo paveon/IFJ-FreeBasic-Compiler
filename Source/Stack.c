@@ -225,6 +225,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 	PopSymbol(stack);
 	switch (rule) {
 		case 1:
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_SCOPE);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
@@ -237,12 +238,11 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_DECLARE);
 			break;
 		case 3:
-			PushT(stack, T_SCOPE);
-			PushT(stack, T_END);
 			PushNT(stack, NT_PROGRAM);
 			PushNT(stack, NT_FUNCTION);
 			break;
 		case 4:
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_TYPE);
 			PushT(stack, T_AS);
@@ -253,6 +253,8 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_FUNCTION);
 			break;
 		case 5:
+			PushNT(stack, NT_LINE_BREAK);
+			PushT(stack, T_EOL);
 			PushT(stack, T_FUNCTION);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
@@ -270,6 +272,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			break;
 		case 9:
 			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_STATEMENT);
 			break;
@@ -298,6 +301,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 		case 15:
 			PushT(stack, T_LOOP);
 			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_WHILE);
@@ -310,6 +314,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 		case 17:
 			PushNT(stack, NT_ELSE);
 			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushT(stack, T_THEN);
 			PushNT(stack, NT_EXPRESSION);
@@ -319,6 +324,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_IF);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushT(stack, T_ELSE);
 			break;
@@ -344,12 +350,16 @@ bool ExpandTop(Stack* stack, const Token* token) {
 		case 26:
 			PushT(stack, T_DOUBLE);
 			break;
+		case 28:
+			PushNT(stack, NT_LINE_BREAK);
+			PushT(stack, T_EOL);
 
 		case 8:
 		case 10:
 		case 21:
 		case 27:
 		case 23:
+		case 29:
 			//epsilon pravidla
 			break;
 

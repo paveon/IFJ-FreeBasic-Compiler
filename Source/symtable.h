@@ -13,6 +13,7 @@ typedef enum Scope {
 
 typedef struct Identifier {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
+	//TODO: dynamicky spravovat pamet pro signatury
 	bool declaration;
 	char signature[MAX_ARGS];
 	size_t argIndex;

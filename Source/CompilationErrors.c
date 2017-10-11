@@ -20,25 +20,48 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[] = {
-		  {"placeholder...\n",                                     EXIT_CODE_LEXICAL_ANALYSIS},
-		  {"placeholder...\n",                                     EXIT_CODE_SYNTAX_ANALYSIS},
-		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_TYPES},
-		  {"placeholder...\n",                                     EXIT_CODE_SEMANTIC_OTHER},
-		  {"memory allocation failed",                             EXIT_CODE_INTERNAL},
-		  {"variable redeclaration",                               EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"function was declaration after definition",            EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"function was already declared",                        EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"redefinition of existing function",                    EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"redefinition of function parameter",                   EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"function definition has a wrong number of parameters", EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"parameter type mismatch in function signatures",       EXIT_CODE_SEMANTIC_DEFINITIONS},
-		  {"return type mismatch in function signatures",          EXIT_CODE_SEMANTIC_DEFINITIONS}
+				{"placeholder...\n",                                          EXIT_CODE_LEXICAL_ANALYSIS},
+				{"placeholder...\n",                                          EXIT_CODE_SYNTAX_ANALYSIS},
+				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_TYPES},
+				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_OTHER},
+				{"memory allocation failed",                                  EXIT_CODE_INTERNAL},
+				{"variable '%s' redeclaration",                               EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"function '%s' was declaration after definition",            EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"function '%s' was already declared",                        EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"redefinition of existing function '%s'",                    EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"redefinition of function '%s' parameter",                   EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"function '%s' definition has a wrong number of parameters", EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"parameter type mismatch in %s's signatures",                EXIT_CODE_SEMANTIC_DEFINITIONS},
+				{"return type mismatch in %s's signatures",                   EXIT_CODE_SEMANTIC_DEFINITIONS}
 };
 
 
-void SemanticError(size_t line, ErrorCode errorCode) {
-	fprintf(stderr, "Error: %s\nLine no. %zd\n", errors[errorCode].errorMessage, line);
+void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
+	char buffer[256];
+
+	if (extra) {
+		switch (errorCode) {
+			case ER_SEMANTIC_VAR_REDECL:
+			case ER_SEMANTIC_DECL_AFTER_DEF:
+			case ER_SEMANTIC_FUNC_REDECL:
+			case ER_SEMANTIC_FUNC_REDEF:
+			case ER_SEMANTIC_PARAM_REDEF:
+			case ER_SEMANTIC_PARAM_COUNT:
+			case ER_SEMANTIC_PARAM_MISMATCH:
+			case ER_SEMANTIC_RETURN_MISMATCH:
+				sprintf(buffer, errors[errorCode].errorMessage, extra);
+				break;
+
+			default:
+				buffer[0] = 0;
+				break;
+		}
+		fprintf(stderr, "Error: %s\nLine no. %zd\n", buffer, line);
+	}
+	else {
+		fprintf(stderr, "Error: %s\nLine no. %zd\n", errors[errorCode].errorMessage, line);
+	}
 }
 
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
