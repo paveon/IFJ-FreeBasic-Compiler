@@ -2,16 +2,18 @@
 #include "Token.h"
 #include "symtable.h"
 #include "Stack.h"
+#include "TopDown.h"
+
 
 #undef FatalError
 
 typedef enum InternalExitCode {
-	EXIT_CODE_LEXICAL_ANALYSIS = 1,
-	EXIT_CODE_SYNTAX_ANALYSIS = 2,
-	EXIT_CODE_SEMANTIC_DEFINITIONS = 3,
-	EXIT_CODE_SEMANTIC_TYPES = 4,
-	EXIT_CODE_SEMANTIC_OTHER = 6,
-	EXIT_CODE_INTERNAL = 99
+	EC_LEXICAL = 1,
+	EC_SYNTAX = 2,
+	EC_SEMANTIC_DEFINITIONS = 3,
+	EC_SEMANTIC_TYPES = 4,
+	EC_SEMANTIC_OTHER = 6,
+	EC_INTERNAL = 99
 } InternalExitCode;
 
 typedef struct ErrorMetadata {
@@ -20,36 +22,38 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[] = {
-				{"placeholder...\n",                                          EXIT_CODE_LEXICAL_ANALYSIS},
-				{"placeholder...\n",                                          EXIT_CODE_SYNTAX_ANALYSIS},
-				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_TYPES},
-				{"placeholder...\n",                                          EXIT_CODE_SEMANTIC_OTHER},
-				{"memory allocation failed",                                  EXIT_CODE_INTERNAL},
-				{"variable '%s' redeclaration",                               EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"function '%s' was declaration after definition",            EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"function '%s' was already declared",                        EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"redefinition of existing function '%s'",                    EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"redefinition of function '%s' parameter",                   EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"function '%s' definition has a wrong number of parameters", EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"parameter type mismatch in %s's signatures",                EXIT_CODE_SEMANTIC_DEFINITIONS},
-				{"return type mismatch in %s's signatures",                   EXIT_CODE_SEMANTIC_DEFINITIONS}
+				{"placeholder...\n",                                             EC_LEXICAL},
+				{"placeholder...\n",                                             EC_SYNTAX},
+				{"placeholder...\n",                                             EC_SEMANTIC_DEFINITIONS},
+				{"placeholder...\n",                                             EC_SEMANTIC_TYPES},
+				{"placeholder...\n",                                             EC_SEMANTIC_OTHER},
+				{"memory allocation failed",                                     EC_INTERNAL},
+				{"variable '%s' redeclaration",                                  EC_SEMANTIC_DEFINITIONS},
+				{"function '%s' was declared after definition",                  EC_SEMANTIC_DEFINITIONS},
+				{"function '%s' was already declared",                           EC_SEMANTIC_DEFINITIONS},
+				{"redefinition of existing function '%s'",                       EC_SEMANTIC_DEFINITIONS},
+				{"missing definition of function '%s'",                          EC_SEMANTIC_DEFINITIONS},
+				{"parameter of function '%s' was redefined",                     EC_SEMANTIC_DEFINITIONS},
+				{"definition of function '%s' has a wrong number of parameters", EC_SEMANTIC_DEFINITIONS},
+				{"parameter type mismatch in %s's signatures",                   EC_SEMANTIC_DEFINITIONS},
+				{"return type mismatch in %s's signatures",                      EC_SEMANTIC_DEFINITIONS}
 };
 
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
-	char buffer[256];
-
 	if (extra) {
+		char buffer[256];
+
 		switch (errorCode) {
-			case ER_SEMANTIC_VAR_REDECL:
-			case ER_SEMANTIC_DECL_AFTER_DEF:
-			case ER_SEMANTIC_FUNC_REDECL:
-			case ER_SEMANTIC_FUNC_REDEF:
-			case ER_SEMANTIC_PARAM_REDEF:
-			case ER_SEMANTIC_PARAM_COUNT:
-			case ER_SEMANTIC_PARAM_MISMATCH:
-			case ER_SEMANTIC_RETURN_MISMATCH:
+			case ER_SMC_VAR_REDECL:
+			case ER_SMC_FUNC_DECL_AFTER_DEF:
+			case ER_SMC_FUNC_REDECL:
+			case ER_SMC_FUNC_REDEF:
+			case ER_SMC_FUNC_NO_DEF:
+			case ER_SMC_FUNC_PARAM_REDEF:
+			case ER_SMC_FUNC_PARAM_COUNT:
+			case ER_SMC_FUNC_PARAM_TYPE:
+			case ER_SMC_FUNC_RETURN_TYPE:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 
@@ -68,9 +72,10 @@ void FatalError(const char* function, const char* sourceFile, int line, ErrorCod
 	TokenCleanup();
 	TableCleanup(true);
 	StackCleanup();
+	TopDownCleanup();
 
 	fprintf(stderr, "Fatal error: %s\nExiting from: %s\nSource file: %s\nLine no. %d\n",
-	        errors[index].errorMessage, function, sourceFile, line);
+					errors[index].errorMessage, function, sourceFile, line);
 
 	exit(errors[index].exitCode);
 }

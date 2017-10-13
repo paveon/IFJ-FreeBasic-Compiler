@@ -8,8 +8,6 @@
 int main() {
 	printf("Test run started...\n");
 	Token* token;
-	SymbolType symbolType;
-	TokenType tokenType;
 	char tokens[30][20] = {
 			  [T_DECLARE] = "declare",
 			  [T_END] = "end",
@@ -21,8 +19,7 @@ int main() {
 			  [T_DOUBLE] = "double",
 			  [T_ID] = "tmpValue",
 			  [T_RETURN] = "return",
-			  [T_FUNCTION] = "function",
-			  //function id (<argument>) as <type> EOL
+					[T_FUNCTION] = "function"
 	};
 
 	/* Test prazdnych radku pred zacatkem programu */
@@ -135,10 +132,10 @@ int main() {
 	CreateToken();
 	SetEOL();
 
-	CreateToken();
-	SetIdentifier(tokens[T_RETURN]);
-	CreateToken();
-	SetEOL();
+//	CreateToken();
+//	SetIdentifier(tokens[T_RETURN]);
+//	CreateToken();
+//	SetEOL();
 
 	//End
 	CreateToken();
@@ -158,12 +155,11 @@ int main() {
 
 
 	printf("Parsing simple program...\n");
-	//printf("%s\n\t<epsilon>\n%s %s\n\n", tokens[2], tokens[1], tokens[2]);
 	if (ParseProgram()) {
 		printf("Program parsed...\n");
 	}
 	else {
-		printf("Program contains an error!\n");
+		fprintf(stderr, "Program contains an error!\n");
 	}
 
 
@@ -189,9 +185,6 @@ int main() {
 
 	CreateToken();
 	SetIdentifier(id);
-
-	//const void* tmp = GetTokenValue(token);
-	//tmp[0] = '\0';
 
 	CreateToken();
 	SetIdentifier(id);
@@ -251,6 +244,7 @@ int main() {
 	TokenCleanup();
 	TableCleanup(true);
 	StackCleanup();
+	TopDownCleanup();
 	printf("Test run finished, allocated memory should be released...\n");
 	return 0;
 }

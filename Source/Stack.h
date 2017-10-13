@@ -18,11 +18,22 @@ typedef struct Stack Stack;
  */
 SymbolType GetSymbolType(const Stack* stack);
 
+
+/* Vraci terminal z vrcholu zasobniku, programator zodpovida za kontrolu,
+ * ze se na vrcholu opravdu nachazi terminal. Pokud je ukazatel NULL,
+ * vraci T_UNDEFINED
+ */
 Terminal GetTopT(const Stack* stack);
 
+
+/* Vraci neterminal z vrcholu zasobniku, programator zodpovida za kontrolu,
+ * ze se na vrcholu opravdu nachazi neterminal. Pokud je ukazatel NULL,
+ * vraci NT_UNDEFINED
+ */
 NTerminal GetTopNT(const Stack* stack);
 
-/* Vraci symbol na vrcholu zasobniku */
+
+/* Vraci symbol na vrcholu zasobniku, pokud je ukazatel NULL, vraci NULL */
 const Symbol* GetTop(const Stack* stack);
 
 

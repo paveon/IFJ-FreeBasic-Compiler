@@ -15,6 +15,7 @@ typedef struct Identifier {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
 	//TODO: dynamicky spravovat pamet pro signatury
 	bool declaration;
+	size_t declaredOnLine;
 	char signature[MAX_ARGS];
 	size_t argIndex;
 	const char* name; //nazev identifikatoru
