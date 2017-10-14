@@ -6,43 +6,61 @@
 #include <stdlib.h>
 #include "lexical.h"
 #include <stddef.h>
-#include "Token.h"
 
 
-/* Toto je dočasná práce, funkčnost některých funkcí je čistě náhodná, komentáře existují ale jsou velmi dobře ukryty
+
+/* Toto je dočasná práce, funkčnost některých funkcí je čistě náhodná, komentáře existují ale jsou velmi dobře ukryty.
  * V absolutně žádném případě se nepokoušet číst,pochopit či použít jakoukoliv část této knihovny.*/
 
-char* CreateBuffer() //possibly redundant
+char* CreateBuffer()
 {
-    char *ptr = malloc(sizeof(char)*100); //TODO kontrola správnosti
-    ptr[99] = 0;
-    return ptr;
+	char *ptr = malloc(sizeof(char)*100);
+	if (ptr == NULL)
+	{
+		//TODO set allocation error
+		return NULL;
+	}
+	ptr[99] = 0; //null terminate
+	return ptr;
 }
 
 char* AppendToBuff(char* buffPtr,int* lenght,char c)
 {
-    printf("%i - lenght\n",*lenght);
-    if(*lenght%100  == 0)
-    {
-        buffPtr = realloc(buffPtr,(*lenght + 100) * sizeof(char));//TODO kontrola správnosti
-        buffPtr[*lenght + 99]; // přepsat s proměnnýmy hodnotami
-    }
-    buffPtr[*lenght] = c;
-    buffPtr[*lenght +1] = 0;
-    *lenght = *lenght + 1;
+	//printf("%i - lenght\n",*lenght);
+	if(*lenght%100  == 0) //v pripade ze by velikost bufferu prekrocila zadanou hodnotu zvetsit
+	{
+		buffPtr = realloc(buffPtr,(*lenght + 100) * sizeof(char));
+		if(buffPtr == NULL)
+		{
+			return NULL; //TODO set allocation error
+		}
+		//buffPtr[*lenght + 100]; // přepsat s proměnnýmy hodnotami
+	}
+	buffPtr[*lenght] = c;
+	buffPtr[*lenght +1] = 0; //null terminate string
+	*lenght = *lenght + 1;
 
-    //temp
-    printf("%s \n", buffPtr);
+	//temp
+	//printf("%s \n", buffPtr);
 	return buffPtr;
 
 
 }
+
+
+void ClearBuffer(char* buffPtr,int* lenght)
+{
+	*lenght = 0;
+	buffPtr[0] = 0;
+}
+
 
 void SetLex(state* currentState,char chartype,char* buffer,int* lenght)
 {
 	//rozrazeni do stavu
 	if(isspace(chartype))
 	{
+		*currentState = START;
 		//je whitespace pokracovat jako by nebyl
 	}
 	else if(isdigit(chartype)) // zacina cislem
@@ -55,299 +73,374 @@ void SetLex(state* currentState,char chartype,char* buffer,int* lenght)
 		*currentState = WORD;
 		AppendToBuff(buffer,lenght,chartype);
 	}
-	else if(chartype == '!')//je string a zacina
+	else if(chartype == '!')//je string
 	{
 		*currentState = STRING;
 	}
-	else if(chartype == '/')
+	else if(chartype == '/') // jedna se budto o operand '/' nebo o zacatek escape sekvence
 	{
-		*currentState = COMMENTS;
+		*currentState = SLASH;
 	}
-	else if(chartype == '\'')
+	else if(chartype == '\'')//zacina radkova escape sekvence
 	{
 		*currentState = COMMENTP;
 	}
-	else if(chartype == '<' || chartype == '>')
+	else if(chartype == '<' || chartype == '>') //relacni operator
 	{
 		*currentState = RELAT;
 		AppendToBuff(buffer,lenght,chartype);
-	}
-	else if(chartype == ' ')
-	{
-		*currentState = START;
 	}
 
 }
 
 void MakeShortToken(int type, char c)
 {
-	if (type != 8)
+	if (type != 8 && type != 9 && type !=7 && type !=10 && type !=11) //je <, >, /, EOF, tab, nebo mezera, v tom pripade nevytvari token
 		CreateToken();
+	char tmpStr[2] = {c,0};
 	switch(type)
 	{
 		case 1 :
-			SetSemicolon();
+			SetSemicolon(); // je strednik
+			break;
 		case 2:
-			SetOperator(&c);
+
+			SetOperator(tmpStr); // je jeden z operatoru +,-,/,*,\
+			break;
 		case 3:
-			SetComma();
+			SetComma(); // je carka
+			break;
 		case 4:
-			SetLeftBracket();
+			SetLeftBracket(); // je levá závorka
+			break;
 		case 5:
-			SetRightBracket();
+			SetRightBracket(); // je pravá závorka
+			break;
 		case 6:
-			SetEOL();
+			SetEOL(); // je konce radku
+			break;
+		default:
+			break;
 	}
 }
-
-void ClearBuffer(char* buffPtr,int* lenght)
-{
-    *lenght = 0;
-    buffPtr[0] = 0; //dořešit pro reallokované
-}
-
 int IsEnd(char c)
 {
-    switch (c)
-    {//TODO odkomentovat tuhle funkci
-	     //jednoznake operatory
-        case '+':
-            return 2;
-        case '-':
-            return 2;
-	     case '/':
-		      return 2;
-	    case '\\':
-		     return 2;
-	    case '*':
-		     return 2;
-	    case '=':
-            return 2;
-       //viceznake operatory
+	switch (c)
+	{//TODO odkomentovat tuhle funkci
+		//jednoznake operatory - 2
+		case '+':
+			return 2;
+		case '-':
+			return 2;
+		case '/':
+			return 2;
+		case '\\':
+			return 2;
+		case '*':
+			return 2;
+		case '=':
+			return 2;
+			//viceznake operatory
+		case '<':
+			return 8;
+		case '>':
+			return 8;
 
-	    case '<':
-		    return 8;
-	    case '>':
-		    return 8;
+			//zavorky
+		case '(':
+			return 4;
+		case ')':
+			return 5;
 
-		//zavorky
-	    case '(':
-            return 4;
-        case ')':
-            return 5;
+			//zacatek komentare
+		case '\'':
+			return 7;
 
-		//zacatek komentare
-	    case '\'':
-            return 7;
+			//EOL
+		case '\n':
+			return 6;
 
-		//EOL
-	    case '\n':
-		    return 6;
+			//strednik
+		case ';':
+			return 1;
 
-		//strednik
-	    case ';':
-		    return 1;
+			//carka
+		case ',':
+			return 3;
 
-        //carka
-	    case ',':
-		    return 3;
+			//whitespace
+		case ' ':
+			return 9;
+		case '\t':
+			return 10;
 
-		 //whitespace
-	    case ' ':
-		    return 9;
+			//EOF
+		case EOF :
+			return 11;
 
-	    default:
-            return 0;
-
-    }
+			//neni konec tokenu
+		default:
+			return 0;
+	}
 
 }
 
-int Lexical() // doresit / jako operand a eof, kteremu nepredchazi whitespace
+
+int TEST_TOKENS(Token* token)
 {
-    char chartype;
-    char *buffer = CreateBuffer();
-    int assistVariable = 0;
-	int prevVariable = 0;
-	int endVar = 0;
-    int lenght = 0;
-    printf("start\n");
-    state currentState = START;
+	int type = GetTokenType(token);
+	switch(type)
+	{
+		case 0 :
+			printf("Token type is:\t,\t(comma)\n");
+			break;
+		case 1 :
+			printf("Token type is:\t;\t(semicolon)\n");
+			break;
+		case 2 :
+			printf("Token type is:\t(\t(l bracket)\n");
+			break;
+		case 3 :
+			printf("Token type is:\t)\t(r bracket)\n");
+			break;
+		case 4 :
+			printf("Token type is:\tEOL\n");
+			break;
+		case 5 :
+			printf("Token type is:\tEOF\n");
+			return 1;
+		case 6 :
+			printf("Token type is:\toperator :\t(%c) \n", *((char*) GetTokenValue(token)));
+			break;
+		case 7 :
+			printf("Token type is:\tkeyword :\t(%s) \n", (char*) GetTokenValue(token));
+			break;
+		case 8 :
+			printf("Token type is:\tidentifier :\t(%s) \n", (char*) GetTokenValue(token));
+			break;
+		case 9 :
+			printf("Token type is:\tinteger :\t(%i) \n", *((int*) GetTokenValue(token)));
+			break;
+		case 10 :
+			printf("Token type is:\tdouble :\t(%f) \n", *((double *) GetTokenValue(token)));
+			break;
+		case 11 :
+			printf("Token type is:\tstring :\t(%s) \n", (char*) GetTokenValue(token));
+			break;
+		default :
+			printf("Token type is:\tUnidentified \n");
+			break;
+	}
 
- 	 while((chartype = getchar()) != EOF) {
-	     CreateToken();
-	     endVar = IsEnd(chartype);
-	     switch (currentState) {
-		     case START:
-			     if (endVar) { //pokud je tohle konec lexemu posle token
-				     MakeShortToken(endVar, chartype);
-			     }
-			     //rozrazeni do stavu
-			     SetLex(&currentState,chartype,buffer,&lenght);
-			     break;
+	return 0;
 
+}
 
-		     case RELAT:
-			     if(chartype == '=' || (chartype == '>' && buffer[0] == '<'))
-			     {
-				     AppendToBuff(buffer,&lenght,chartype);
-				     CreateToken();
-				     SetIdentifier(buffer);
-				     ClearBuffer(buffer,&lenght);
-				     currentState = START;
-
-			     }
-			     else
-			     {
-				     CreateToken();
-				     SetIdentifier(buffer);
-				     SetLex(&currentState,chartype,buffer,&lenght);
-				     ClearBuffer(buffer,&lenght);
-				     currentState = START;
-			     }
-			     break;
-
-
-		     case WORD:
-			     if (endVar)
-			     {
-				     CreateToken();
-				     if (endVar == 9) //v pripade ukonceni mezerou ji prida na konec stringu
-				     {
-					     AppendToBuff(buffer, &lenght, ' ');
-				     }
-				     SetIdentifier(buffer);
-				     ClearBuffer(buffer, &lenght);
-				     CreateToken();
-				     MakeShortToken(endVar,chartype);
-				     currentState = START;
-				     break;
-			     }
-			     else if(isalnum(chartype) || chartype == '_')
-			     {
-				     AppendToBuff(buffer, &lenght, chartype);
-			     }
-			     else
-			     {
-				     currentState = FAIL;
-			     }
-			     break;
-
-		     case NUMBER:
-			     if(endVar)
-			     {
-				     CreateToken();
-				     SetInteger(buffer);
-				     ClearBuffer(buffer, &lenght);
-				     MakeShortToken(endVar,chartype);
-				     currentState = START;
-
-			     }
-			     else if(chartype == '.' || chartype == 'e' || chartype == 'E')
-			     {
-				     AppendToBuff(buffer,&lenght,chartype);
-				     currentState = FLOAT;
-			     }
-			     else if(isdigit(chartype))
-			     {
-				     AppendToBuff(buffer,&lenght,chartype);
-			     }
-			     else
-			     {
-				     currentState = FAIL;
-			     }
-			     break;
-
-		     case FLOAT:
-			     if (endVar)
-			     {
-				     CreateToken();
-				     SetInteger(buffer);
-				     ClearBuffer(buffer, &lenght);
-				     MakeShortToken(endVar,chartype);
-				     currentState = START;
-
-			     }
-			     else if(isdigit(chartype))
-			     {
-				     AppendToBuff(buffer,&lenght,chartype);
-			     }
-			     else
-			     {
-				     currentState = FAIL;
-			     }
-			     break;
-
-		     case STRING :
-			     if(chartype == '"')
-			     {
-				     if(assistVariable == 0)
-					     assistVariable++;
-				     else
-				     {
-					     assistVariable = 0;
-					     CreateToken();
-					     SetString(buffer);
-					     ClearBuffer(buffer,&lenght);
-					     currentState = START;
-				     }
-			     }
-			     else
-			     {
-				     AppendToBuff(buffer,&lenght,chartype);
-			     }
-			     break;
-
-		     case COMMENTP:
-			     if (chartype == '\n')
-			     {
-				     currentState = START;
-			     }
-			     break;
-
-		     case COMMENTS:
-			     if(chartype == '/')
-			     {
-				     if(assistVariable == 0){
-					     assistVariable = 1;
-				     }
-				     else if(assistVariable == 1 && prevVariable == 0){
-					     prevVariable = 1;
-				     }
-					 else if(prevVariable == 1)
-					 {
-						 currentState = START;
-					 }
-			     }
-			     else if(assistVariable == 0)
-			     {
-				     MakeShortToken(endVar,chartype);
-				     currentState = START;
-			     }
-			     else
-			     {
-				     prevVariable = 0;
-			     }
-
-			     break;
+int Lexical()
+{
+	char chartype; //aktualne zadany znak
+	char *buffer = CreateBuffer();
+	int escapeFlag = 0; // urcuje zda se nachazi v escape sekvenci
+	int prevFlag = 0; // urcuje zda je blokovy komentar a predchozy znak byl '\''
+	int endFlag = 0; //znak ukoncuje lexem
+	int lenght = 0; // delka bufferu
+	int eofFlag = 0; //znaci prichod EOF
+	state currentState = START; //aktualni stav
 
 
-		     case FAIL:
-			     printf("f \n");
-			     //nevim co presne tady delat
-			     break;
-	     }
-     }//cycle that reads input
+	while(!eofFlag)
+	{
+		chartype = getchar(); //nacte znak do chartype
+		endFlag = IsEnd(chartype); // zkontroluje zda je konec tokenu
+		if(chartype == EOF)
+		{
+			eofFlag = 1;
+		}
+		//TODO end temp
+		switch (currentState) { //stavovy automat
+			case START:
+				SetLex(&currentState,chartype,buffer,&lenght); //rozradi podle znaku do stavu
+				if (endFlag && currentState != SLASH) { //pokud je tohle konec lexemu posle token
+					MakeShortToken(endFlag, chartype);
+				}
+				//rozrazeni do stavu
+
+				break;
+
+
+			case RELAT: //relacni stav(<,>,<=,>= apod.)
+				if(chartype == '=' || (chartype == '>' && buffer[0] == '<'))
+				{
+					AppendToBuff(buffer,&lenght,chartype);
+					CreateToken();
+					SetIdentifier(buffer);
+					ClearBuffer(buffer,&lenght);
+					currentState = START;
+				}
+				else   //TODO osetrit chybne vstupy - resit pres endFlag
+				{
+					CreateToken();
+					SetIdentifier(buffer);
+					ClearBuffer(buffer,&lenght);
+					SetLex(&currentState,chartype,buffer,&lenght);
+				}
+				break;
+
+
+			case WORD: //Je identifikator nebo keyword
+				if (endFlag) //znak pro ukonceni tokenu
+				{
+					if (endFlag == 9 || endFlag == 10 || endFlag == 6) //v pripade ukonceni mezerou,tabem ci EOL je prida na konec stringu
+					{
+						AppendToBuff(buffer, &lenght,chartype);
+					}
+					CreateToken();
+					SetIdentifier(buffer);
+					ClearBuffer(buffer, &lenght);
+					MakeShortToken(endFlag,chartype);
+					currentState = START;
+					break;
+				}
+				else if(isalnum(chartype) || chartype == '_') // TODO osetrit __ a ____ ....viz forum
+				{
+					AppendToBuff(buffer, &lenght, chartype);
+				}
+				else
+				{
+					currentState = FAIL;
+				}
+				break;
+
+			case NUMBER:
+				if(endFlag)
+				{
+					CreateToken();
+					SetInteger(buffer);
+					ClearBuffer(buffer, &lenght);
+					MakeShortToken(endFlag, chartype);
+					currentState = START;
+
+				}
+				else if(chartype == '.' || chartype == 'e' || chartype == 'E') //v pripade ze je znak e nebo . prepne se do stavu double/float
+				{
+					AppendToBuff(buffer,&lenght,chartype); // TODO E nebo e
+					currentState = FLOAT;
+				}
+				else if(isdigit(chartype))
+				{
+					AppendToBuff(buffer,&lenght,chartype);
+				}
+				else
+				{
+					currentState = FAIL;
+				}
+				break;
+
+			case FLOAT: //TODO Doplnit moznost desetinych cisel
+				if (endFlag)
+				{
+					CreateToken();
+					SetDouble(buffer);
+					ClearBuffer(buffer, &lenght);
+					MakeShortToken(endFlag, chartype);
+					currentState = START;
+
+				}
+				else if(isdigit(chartype))
+				{
+					AppendToBuff(buffer,&lenght,chartype);
+				}
+				else
+				{
+					currentState = FAIL;
+				}
+				break;
+
+			case STRING :
+				if(chartype == '"') // urcuje zacatek/konec stringu
+				{
+					if(escapeFlag == 0)
+						escapeFlag = 1;
+					else // v pripade konce stringu vytvori jeho token
+					{
+						escapeFlag = 0;
+						CreateToken();
+						SetString(buffer);
+						ClearBuffer(buffer,&lenght);
+						currentState = START;
+					}
+				}
+				else if(escapeFlag == 1)
+				{
+					AppendToBuff(buffer,&lenght,chartype);
+				}
+				else
+				{
+					currentState = FAIL;
+				}
+				break;
+
+			case COMMENTP:
+				if (chartype == '\n') //radkovy komentar, do konce radku ignoruje vsechny vstupy
+				{
+					currentState = START;
+					CreateToken(); //na konci posle EOL Token
+					SetEOL();
+				}
+				break;
+
+			case SLASH: //stav po zadani '/' - muze se jedna o operator nebo o zacatek blokoveho komentare
+				if(chartype == '\'')
+				{
+					currentState = COMMENTS;
+				}
+				else
+				{
+					char tempStr[2] = {chartype,0};
+					CreateToken();
+					SetIdentifier(tempStr);
+					SetLex(&currentState,chartype,buffer,&lenght);
+				}
+				break;
+
+			case COMMENTS: //blokovy komentar
+				if(chartype == '\'' && prevFlag == 0)
+				{
+					prevFlag = 1; //v pripade ze prijde prvni ze znaku ukonceni " '\ " nastavi se flag, v pripade ze bude nasledovat jiny znak
+					              //bude flag zase vypnuta
+				}
+				else if(chartype == '/' && prevFlag == 1)
+				{
+					prevFlag = 0; //v pripade ukonceni komentare se prepne do stavu start
+					currentState = START;
+				}
+				else
+				{
+					prevFlag = 0;
+				}
+				break;
+
+			//TODO Upravit
+			case FAIL: //chybny stav
+				if (endFlag)
+				{
+					ClearBuffer(buffer,&lenght);
+					CreateToken();
+					currentState = START;
+				}
+				//return 1;
+				//nevim co presne tady delat
+				break;
+		}
+	}//cycle that reads input
 	CreateToken();
 	SetEOF();
-    printf("end");
-	free(buffer); //TODO zkontrolovat uspech
-
-    return 0;
+	free(buffer);
+	return 0;
 }
 
-void PrintLexError()
+void PrintLexError() //This is useless
 {
-    printf("this is a temp message\n");
+	printf("this is a temp message\n");
 
 }
