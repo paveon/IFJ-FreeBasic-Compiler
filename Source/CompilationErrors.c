@@ -1,8 +1,8 @@
 #include "CompilationErrors.h"
-#include "Token.h"
 #include "symtable.h"
 #include "Stack.h"
 #include "TopDown.h"
+#include "Lexical.h"
 
 
 #undef FatalError
@@ -69,6 +69,7 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 }
 
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
+	LexCleanup();
 	TokenCleanup();
 	TableCleanup(true);
 	StackCleanup();
