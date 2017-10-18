@@ -301,7 +301,7 @@ bool ParseProgram(void) {
 							else if (mainScope) {
 								//Ukonceni hlavniho tela programu
 								//TODO: nejspis bude potreba dealokaci odlozit...
-								TableCleanup(true);
+								TableCleanup();
 							}
 							else {
 								//Ukonceni bloku (if, while...)

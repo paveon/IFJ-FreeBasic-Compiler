@@ -9,27 +9,34 @@
 #define LEFT(node) node->treeLeft
 #define RIGHT(node) node->treeRight
 #define NEXT(node) node->nextNode
-#define MALLOC_SMALL_CHUNK 20
-#define MALLOC_BIG_CHUNK 100
+#define TABLE_CHUNK 5
+#define NODE_CHUNK 20
 
 #ifdef DEBUG_INFO
 static int scope_index = 0;
 static int scope_level = 0;
 #endif
 
+typedef enum Scope {
+	SCOPE_LOCAL,
+	SCOPE_GLOBAL
+} Scope;
+
 typedef struct Node {
-	uint64_t key;
-	Identifier symbol;
+	uint64_t key; //Klic - hodnota hash funkce pro jmeno identifikatoru
+	Identifier symbol; //Informace o identifikatoru, ktere zajimaji koncoveho uzivatele rozhrani
 	struct Node* treeLeft;
 	struct Node* treeRight;
-	struct Node* nextNode;
-	int height;
+	struct Node* nextNode; //Zretezeny seznam uzlu (kvuli shodam hodnot hash funkce)
+
+	//Urcuje, zda se jedna o globalni nebo lokalni identifikator a tedy v jake tabulce se nachazi
+	Scope scope;
 } Node;
 
 typedef struct IDTable {
-	struct IDTable* parentScope;
-	struct IDTable* olderScope;
-	Node* root;
+	struct IDTable* parentScope; //Ukazatel na rodicovsky scope (NULL pro main funkci)
+	struct IDTable* olderScope; //Ukazatel na stare out-of-scope tabulky (v techto nevyhledavame)
+	Node* root; //Ukazatel na koren samotneho BST
 
 #ifdef DEBUG_INFO
 	int index;
@@ -37,44 +44,51 @@ typedef struct IDTable {
 } IDTable;
 
 typedef struct NodeStash {
-	Node** nodeArray;
-	size_t arraySize, arrayUsed;
+	Node* allocated; //Pole vsech alokovanych uzlu
+	Node** unused; //Pole obsahujici ukazatele na nepouzivane uzly, pripadne NULL
+	size_t size; //Pocet existujicich uzlu
+	size_t used; //Pocet aktivne pouzivanych uzlu
 } NodeStash;
 
 typedef struct TableStash {
-	IDTable** tableArray;
-	size_t arraySize, arrayUsed;
+	IDTable* allocated; //Pole vsech alokovanych tabulek
+	IDTable** unused; //Pole obsahujici ukazatele na pouzivane tabulky, pripadne NULL
+	size_t size; //Pocet existujicich tabulek
+	size_t used; //Pocet aktivne pouzivanych tabulek
 } TableStash;
 
+/* Pomocne struktury pro jednodussi spravu pameti a jeji korektni
+ * uvolnovani pri chybach.
+ */
 static NodeStash g_Nodes;
 static TableStash g_Tables;
 
-
+/* Globalni tabulka symbolu - v soucasnosti se pouziva pouze pro ukladani
+ * deklaraci a definici funkci, pozdeji by mela byt lehce rozsiritelna pro podporu
+ * globalnich promennych. Nepouziva podtabulky (neni potreba).
+ */
 static IDTable g_GlobalSymbols;
+
+/* Lokalni tabulka symbolu - slouzi pro ukladani vsech lokalnich promennych
+ * a parametru funkci. Podporuje vnorovani bloku pomoci podtabulek a invalidaci
+ * starych bloku (pri vynoreni z bloku znepristupnime tabulku, kterou jsme pro dany
+ * blok pouzili).
+ */
 static IDTable g_LocalSymbols;
+
+/* Promenna pro ulozeni informace o aktualni urovni zanoreni, slouzi pro
+ * automatickou praci s podtabulkami pomoci funkci BeginSubScope a EndSubScope.
+ */
 static IDTable* g_ActiveScope = &g_LocalSymbols;
 
 
-void ResizeTableStash(TableStash* stash) {
-	IDTable** tmp = NULL;
-	stash->arraySize += MALLOC_SMALL_CHUNK;
-	if ((tmp = realloc(stash->tableArray, sizeof(IDTable*) * stash->arraySize)) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-	stash->tableArray = tmp;
-}
+/* Vklada novy uzel do binarniho stromu, vraci ukazatel na nove
+ * vytvoreny uzel. Pokud uzel se stejnym nazvem jiz existoval, vraci NULL.
+ */
+Node* InsertNode(const char* name);
 
 
-void ResizeNodeStash(void) {
-	Node** tmp = NULL;
-	g_Nodes.arraySize += MALLOC_BIG_CHUNK;
-	if ((tmp = realloc(g_Nodes.nodeArray, sizeof(Node*) * g_Nodes.arraySize)) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-	g_Nodes.nodeArray = tmp;
-}
-
-
+/* Hash funkce pro prevedeni nazvu identifikatoru na cislo */
 uint64_t HashFunction(const char* str) {
 	uint64_t hash = 5381;
 	int charCode;
@@ -88,22 +102,37 @@ uint64_t HashFunction(const char* str) {
 
 
 void BeginSubScope() {
-	IDTable* newTable = NULL;
+	//Zkontrolujeme, zda mame k dispozici nejakou volnou tabulku
+	if (g_Tables.used == g_Tables.size) {
+		IDTable* tables;
+		IDTable** available;
+		g_Tables.size += TABLE_CHUNK;
+		if ((tables = realloc(g_Tables.allocated, sizeof(IDTable) * g_Tables.size)) == NULL ||
+				(available = realloc(g_Tables.unused, sizeof(IDTable*) * g_Tables.size)) == NULL) {
+			//Pokud selze jedna z alokaci ukoncime program
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		//Priradime nove ukazatele po korektni realokaci
+		g_Tables.allocated = tables;
+		g_Tables.unused = available;
 
-	if ((newTable = malloc(sizeof(IDTable))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
+		//Zkopirujeme ukazatele na nove tabulky do pole nepouzivanych tabulek, aby byly k dispozici
+		for (size_t i = g_Tables.used; i < g_Tables.size; i++) {
+			g_Tables.unused[i] = &g_Tables.allocated[i];
+		}
 	}
-	if (g_Tables.arrayUsed == g_Tables.arraySize) {
-		ResizeTableStash(&g_Tables);
-	}
-	newTable->root = NULL;
-	newTable->parentScope = g_ActiveScope;
-	newTable->olderScope = g_ActiveScope->olderScope;
-	g_ActiveScope->olderScope = newTable;
-	g_ActiveScope = newTable;
 
-	g_Tables.tableArray[g_Tables.arrayUsed++] = newTable;
+	//Pouzijeme prvni volnou tabulku a inkrementujeme pocitadlo pouzitych tabulek
+	IDTable* freeTable = g_Tables.unused[g_Tables.used++];
 
+	//Pred pouzitim (re)inicializujeme tabulku - mohla byt drive pouzivana
+	freeTable->root = NULL;
+	freeTable->parentScope = g_ActiveScope;
+	freeTable->olderScope = g_ActiveScope->olderScope;
+	g_ActiveScope->olderScope = freeTable;
+	g_ActiveScope = freeTable;
+
+	/* Nic se nevraci, modul si interne udrzuje v pameti aktivni tabulku identifikatoru */
 
 #ifdef DEBUG_INFO
 	newTable->index = scope_index;
@@ -117,6 +146,7 @@ void BeginSubScope() {
 }
 
 
+/* Ukoncuje aktualni podblok (if, while apod.), posouvame se do rodicovskeho bloku. */
 void EndSubScope() {
 #ifdef DEBUG_INFO
 	scope_level--;
@@ -126,68 +156,111 @@ void EndSubScope() {
 	printf("End subscope %d\n\n", g_ActiveScope->index);
 #endif
 
+	//Presun zpet na vyssi uroven
 	if (g_ActiveScope->parentScope != NULL) {
 		g_ActiveScope = g_ActiveScope->parentScope;
 	}
 }
 
-
+/* Ukoncuje aktualni blok funkce. Uvolni vsechny lokalni tabulky a identifikatory
+ * pro dalsi pouziti v dalsich funkcich (neprovadi dealokaci).
+ */
 void EndScope(void) {
-	TableCleanup(false);
+	//Uvolnime vsechny lokalni symboly
+	for (size_t i = 0; i < g_Nodes.used; i++) {
+		if (g_Nodes.allocated[i].scope == SCOPE_LOCAL) {
+			g_Nodes.unused[--g_Nodes.used] = &g_Nodes.allocated[i];
+		}
+	}
+
+	//Vsechny alokovane tabulky jsou lokalni - uvolnujeme tedy vsechny
+	for (size_t i = 0; i < g_Tables.used; i++) {
+		g_Tables.unused[i] = &g_Tables.allocated[i];
+	}
+	g_Tables.used = 0;
+
+	g_LocalSymbols.root = NULL;
+	g_LocalSymbols.olderScope = NULL;
+	g_ActiveScope = &g_LocalSymbols;
 }
 
 
 Node* CreateNode(uint64_t key, const char* symbolName) {
-	Node* newNode = NULL;
+	//Zkontrolujeme, zda mame k dispozici nejaky volny alokovany uzel
+	if (g_Nodes.used == g_Nodes.size) {
+		Node* nodes;
+		Node** available;
+		g_Nodes.size += NODE_CHUNK;
+		if ((nodes = realloc(g_Nodes.allocated, sizeof(Node) * g_Nodes.size)) == NULL ||
+				(available = realloc(g_Nodes.unused, sizeof(Node*) * g_Nodes.size)) == NULL) {
+			//Pokud selze jedna z alokaci ukoncime program
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		//Priradime nove ukazatele po korektni realokaci
+		g_Nodes.allocated = nodes;
+		g_Nodes.unused = available;
 
-	//TODO: prepsat na zpusob minimalizujici pocet alokaci ala stack
-	if ((newNode = malloc(sizeof(Node))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-	if (g_Nodes.arrayUsed == g_Nodes.arraySize) {
-		ResizeNodeStash();
-	}
-
-	newNode->key = key;
-	newNode->symbol.declaration = false;
-	newNode->symbol.argIndex = 1;
-	newNode->symbol.name = symbolName;
-	newNode->symbol.scope = SCOPE_LOCAL;
-	LEFT(newNode) = RIGHT(newNode) = NEXT(newNode) = NULL;
-
-	//TODO: casem mozna prepracovat na AVL?
-	newNode->height = 0;
-
-	g_Nodes.nodeArray[g_Nodes.arrayUsed++] = newNode;
-	return newNode;
-}
-
-
-Identifier* InsertGlobalID(const char* name) {
-	//ulozeni aktivniho lokalniho scopu
-	IDTable* inActiveScope = g_ActiveScope;
-	g_ActiveScope = &g_GlobalSymbols;
-
-	Identifier* newSymbol = InsertLocalID(name);
-	if (newSymbol != NULL) {
-		newSymbol->scope = SCOPE_GLOBAL;
+		//Zkopirujeme ukazatele na nove uzly do pole nepouzivanych uzlu, aby byly k dispozici
+		for (size_t i = g_Nodes.used; i < g_Nodes.size; i++) {
+			g_Nodes.unused[i] = &g_Nodes.allocated[i];
+		}
 	}
 
-	//obnoveni scopu
-	g_ActiveScope = inActiveScope;
-	return newSymbol;
+	//Pouzijeme prvni volny uzel a inkrementujeme pocitadlo pouzitych uzlu
+	Node* freeNode = g_Nodes.unused[g_Nodes.used++];
+
+	//Pred pouzitim (re)inicializujeme hodnoty - uzel mohl byt drive pouzivan
+	freeNode->key = key;
+	freeNode->scope = SCOPE_LOCAL;
+	freeNode->symbol.declaration = false;
+	freeNode->symbol.argIndex = 1;
+	freeNode->symbol.name = symbolName;
+	LEFT(freeNode) = RIGHT(freeNode) = NEXT(freeNode) = NULL;
+
+	//Vratime ukazatel na (re)inicializovany nepouzivany uzel
+	return freeNode;
 }
 
 
 Identifier* InsertLocalID(const char* name) {
 	if (!name) { return NULL; }
 
+	//Pokud uzel jiz existoval, vraci funkce NULL
+	Node* newNode = InsertNode(name);
+	if (newNode) {
+		newNode->scope = SCOPE_LOCAL;
+		return &newNode->symbol;
+	}
+	return NULL;
+}
+
+
+Identifier* InsertGlobalID(const char* name) {
+	if (!name) { return NULL; }
+
+	//ulozeni aktivniho lokalniho scopu
+	IDTable* inActiveScope = g_ActiveScope;
+	g_ActiveScope = &g_GlobalSymbols;
+
+	Node* newNode = InsertNode(name); //Pokud uzel jiz existoval, vraci funkce NULL
+	g_ActiveScope = inActiveScope; //obnoveni scopu
+
+	if (newNode) {
+		newNode->scope = SCOPE_GLOBAL;
+		return &newNode->symbol;
+	}
+	return NULL;
+}
+
+
+/* Interni funkce, neprovadi kontrolu ukazatele */
+Node* InsertNode(const char* name) {
 	//Pouzivam hashovani, protoze neustale porovnavani pripadne
 	//velmi dlouhych identifikatoru je pomale a u stromu je riziko kolize minimalni
 	uint64_t hash = HashFunction(name);
 
 	if (g_ActiveScope->root == NULL) {
-		return &(g_ActiveScope->root = CreateNode(hash, name))->symbol;
+		return (g_ActiveScope->root = CreateNode(hash, name));
 	}
 
 	Node* current = g_ActiveScope->root;
@@ -197,7 +270,7 @@ Identifier* InsertLocalID(const char* name) {
 				current = LEFT(current);
 			}
 			else {
-				return &(LEFT(current) = CreateNode(hash, name))->symbol;
+				return (LEFT(current) = CreateNode(hash, name));
 			}
 		}
 		else if (hash > current->key) {
@@ -205,7 +278,7 @@ Identifier* InsertLocalID(const char* name) {
 				current = RIGHT(current);
 			}
 			else {
-				return &(RIGHT(current) = CreateNode(hash, name))->symbol;
+				return (RIGHT(current) = CreateNode(hash, name));
 			}
 		}
 		else {
@@ -214,14 +287,14 @@ Identifier* InsertLocalID(const char* name) {
 
 			while (current) {
 				if (strlen(name) == strlen(current->symbol.name) &&
-				    strcmp(name, current->symbol.name) == 0) {
+						strcmp(name, current->symbol.name) == 0) {
 					return NULL; //Symbol jiz existuje
 				}
 				previous = current;
 				current = NEXT(current);
 			}
 
-			return &(NEXT(previous) = CreateNode(hash, name))->symbol;
+			return (NEXT(previous) = CreateNode(hash, name));
 		}
 	}
 }
@@ -246,7 +319,7 @@ Identifier* LookupID(const char* symbol) {
 			else {
 				while (current) {
 					if (strlen(symbol) == strlen(current->symbol.name) &&
-					    strcmp(symbol, current->symbol.name) == 0) {
+							strcmp(symbol, current->symbol.name) == 0) {
 						//Symbol existuje
 						return &current->symbol;
 					}
@@ -315,49 +388,33 @@ bool CompareSignature(Identifier* id, Terminal type, size_t index) {
 }
 
 
-void TableCleanup(bool allNodes) {
-	if (g_Nodes.nodeArray != NULL) {
-		if (allNodes) {
-			for (size_t i = 0; i < g_Nodes.arrayUsed; i++) {
-				free(g_Nodes.nodeArray[i]);
-			}
-			free(g_Nodes.nodeArray);
-			g_Nodes.arraySize = g_Nodes.arrayUsed = 0;
-			g_Nodes.nodeArray = NULL;
-		}
-		else {
-			//Mazeme pouze lokalni symboly a preskladavame pole, abychom zachovali konzistenci
-			for (size_t i = 0; i < g_Nodes.arrayUsed;) {
-				if (g_Nodes.nodeArray[i]->symbol.scope == SCOPE_LOCAL) {
-					free(g_Nodes.nodeArray[i]);
-					g_Nodes.nodeArray[i] = g_Nodes.nodeArray[g_Nodes.arrayUsed - 1];
-					g_Nodes.nodeArray[g_Nodes.arrayUsed - 1] = NULL;
-					g_Nodes.arrayUsed--;
-				}
-				else {
-					i++;
-				}
-			}
-		}
-	}
-	if (g_Tables.tableArray != NULL) {
-		for (size_t i = 0; i < g_Tables.arrayUsed; i++) {
-			free(g_Tables.tableArray[i]);
+void TableCleanup() {
+	if (g_Nodes.allocated) {
+		//Obe pole se alokuji spolecne, staci kontrolovat jedno
+		free(g_Nodes.allocated);
+		free(g_Nodes.unused);
 
-		}
-		g_Tables.arrayUsed = 0;
-		if (allNodes) {
-			free(g_Tables.tableArray);
-			g_Tables.arraySize = 0;
-			g_Tables.tableArray = NULL;
-		}
+		//Reinicializace pro pripadnou budouci alokaci
+		g_Nodes.allocated = NULL;
+		g_Nodes.unused = NULL;
+		g_Nodes.used = g_Nodes.size = 0;
 	}
 
-	if (allNodes) {
-		g_GlobalSymbols.root = NULL;
-		g_LocalSymbols.olderScope = NULL;
+	if (g_Tables.allocated) {
+		//Obe pole se alokuji spolecne, staci kontrolovat jedno
+		free(g_Tables.allocated);
+		free(g_Tables.unused);
+
+		//Reinicializace pro pripadnou budouci alokaci
+		g_Tables.allocated = NULL;
+		g_Tables.unused = NULL;
+		g_Tables.used = g_Tables.size = 0;
 	}
-	g_LocalSymbols.root = NULL;
-	g_LocalSymbols.olderScope = NULL;
+
+	//Reinicializace ukazatelu nejvyssich urovni tabulek
+	g_LocalSymbols.olderScope = g_GlobalSymbols.olderScope = NULL;
+	g_LocalSymbols.root = g_GlobalSymbols.root = NULL;
+
+	//Aktivni scope je defaultne nejvyssi uroven lokalnich tabulek
 	g_ActiveScope = &g_LocalSymbols;
 }

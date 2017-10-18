@@ -29,8 +29,6 @@ static SymbolStash g_Symbols;
 /* Deklarace privatnich funkci */
 Symbol* CreateSymbol(void);
 
-void ReleaseSymbol(Symbol* symbol);
-
 
 void PushT(Stack* stack, Terminal terminal) {
 	if (!stack) { return; }
@@ -83,7 +81,6 @@ Symbol* CreateSymbol(void) {
 		//Zkopirujeme ukazatele na nove symboly do pole dostupnych symbolu
 		for (size_t i = g_Symbols.used; i < g_Symbols.size; i++) {
 			g_Symbols.unused[i] = &g_Symbols.allocated[i];
-			g_Symbols.unused[i]->used = false;
 		}
 	}
 
@@ -92,20 +89,9 @@ Symbol* CreateSymbol(void) {
 	g_Symbols.unused[g_Symbols.used++] = NULL;
 
 	//Pred pouzitim (re)inicializujeme hodnoty
-	freeSymbol->used = true;
 	freeSymbol->reduceEnd = false;
 	freeSymbol->down = freeSymbol->up = NULL;
 	return freeSymbol;
-}
-
-
-/* interni funkce - nekontroluje se ukazatel */
-void ReleaseSymbol(Symbol* symbol) {
-	if (symbol->used == false || g_Symbols.used == 0) {
-		return; //symbol nelze uvolnit (jiz byl uvolnen / vsechny symboly jsou nepouzite)
-	}
-	symbol->used = false;
-	g_Symbols.unused[--g_Symbols.used] = symbol;
 }
 
 
@@ -138,11 +124,11 @@ Stack* GetStack(void) {
 void ReleaseStack(Stack* stack) {
 	Symbol* current = stack->top;
 	while (current) {
+		g_Symbols.unused[--g_Symbols.used] = current; //Zpristupnime symbol pro dalsi pouziti
 		stack->top = current->down;
-		ReleaseSymbol(current);
-		current = stack->top;
+		current = stack->top; //Posuneme se na dalsi symbol v zasobniku
 	}
-	stack->inUse = false;
+	stack->inUse = false; //Zasobnik se nepouziva
 }
 
 SymbolType GetSymbolType(const Stack* stack) {
@@ -173,7 +159,7 @@ void PopSymbol(Stack* stack) {
 		if (stack->top) {
 			stack->top->up = NULL;
 		}
-		ReleaseSymbol(tmp);
+		g_Symbols.unused[--g_Symbols.used] = tmp; //Zpristupnime symbol pro dalsi pouziti
 	}
 }
 

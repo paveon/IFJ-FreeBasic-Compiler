@@ -11,149 +11,18 @@ int main() {
 	printf("Test run started...\n");
 	Token* token;
 	char tokens[30][20] = {
-			  [T_DECLARE] = "declare",
-			  [T_END] = "end",
-			  [T_SCOPE] = "scope",
-			  [T_DIM] = "dim",
-			  [T_AS] = "as",
-			  [T_STRING] = "string",
-			  [T_INTEGER] = "integer",
-			  [T_DOUBLE] = "double",
-			  [T_ID] = "tmpValue",
-			  [T_RETURN] = "return",
+					[T_DECLARE] = "declare",
+					[T_END] = "end",
+					[T_SCOPE] = "scope",
+					[T_DIM] = "dim",
+					[T_AS] = "as",
+					[T_STRING] = "string",
+					[T_INTEGER] = "integer",
+					[T_DOUBLE] = "double",
+					[T_ID] = "tmpValue",
+					[T_RETURN] = "return",
 					[T_FUNCTION] = "function"
 	};
-
-	/* Test prazdnych radku pred zacatkem programu */
-//	CreateToken();
-//	SetEOL();
-//
-//	/* Deklarace 'declare function Foo() as double' */
-//	CreateToken();
-//	SetIdentifier(tokens[T_DECLARE]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_FUNCTION]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetLeftBracket();
-//	CreateToken();
-//	SetRightBracket();
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_DOUBLE]);
-//	CreateToken();
-//	SetEOL();
-//
-//	/* Vice prazdnych radku za deklaraci */
-//	CreateToken();
-//	SetEOL();
-//
-//	/* Redeklarace 'declare function Foo(var as string) as double' */
-//	CreateToken();
-//	SetIdentifier(tokens[T_DECLARE]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_FUNCTION]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetLeftBracket();
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_STRING]);
-//	CreateToken();
-//	SetRightBracket();
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_DOUBLE]);
-//	CreateToken();
-//	SetEOL();
-//
-//
-//	/* Definice 'function Foo(var as string) as double'
-//	 * Nekompatibilita typu
-//	 */
-//	CreateToken();
-//	SetIdentifier(tokens[T_FUNCTION]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetLeftBracket();
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_STRING]);
-//	CreateToken();
-//	SetRightBracket();
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_DOUBLE]);
-//	CreateToken();
-//	SetEOL();
-//	CreateToken();
-//	SetIdentifier(tokens[T_END]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_FUNCTION]);
-//	CreateToken();
-//	SetEOL();
-//
-//
-//	CreateToken();
-//	SetIdentifier(tokens[T_SCOPE]);
-//	CreateToken();
-//	SetEOL();
-//
-//	//Statements
-//	CreateToken();
-//	SetIdentifier(tokens[T_DIM]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_DOUBLE]);
-//	CreateToken();
-//	SetEOL();
-//
-//	CreateToken();
-//	SetIdentifier(tokens[T_DIM]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_ID]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_AS]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_DOUBLE]);
-//	CreateToken();
-//	SetEOL();
-//
-////	CreateToken();
-////	SetIdentifier(tokens[T_RETURN]);
-////	CreateToken();
-////	SetEOL();
-//
-//	//End
-//	CreateToken();
-//	SetIdentifier(tokens[T_END]);
-//	CreateToken();
-//	SetIdentifier(tokens[T_SCOPE]);
-//
-//	/* Test prazdnych radku na konci programu */
-//	CreateToken();
-//	SetEOL();
-//	CreateToken();
-//	SetEOL();
-//
-//	/* Konec programu */
-//	CreateToken();
-//	SetEOF();
 
 	if (freopen("sampleProgram", "r", stdin) == NULL) {
 		exit(0);
@@ -167,7 +36,6 @@ int main() {
 	else {
 		fprintf(stderr, "Program contains an error!\n");
 	}
-
 
 
 	char keyword[] = "aSc";
@@ -248,7 +116,7 @@ int main() {
 
 
 	TokenCleanup();
-	TableCleanup(true);
+	TableCleanup();
 	StackCleanup();
 	TopDownCleanup();
 	printf("Test run finished, allocated memory should be released...\n");

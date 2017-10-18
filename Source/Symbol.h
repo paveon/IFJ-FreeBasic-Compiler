@@ -62,7 +62,6 @@ typedef struct Symbol {
 	struct Symbol* up;
 	struct Symbol* down;
 	bool reduceEnd;
-	bool used; //Uvolnit lze pouze pouzivany symbol
 	SymbolType type;
 
 	//Nepotrebujeme vyuzivat obe promenne zaraz

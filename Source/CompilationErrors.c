@@ -71,7 +71,7 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 void FatalError(const char* function, const char* sourceFile, int line, ErrorCode index) {
 	LexCleanup();
 	TokenCleanup();
-	TableCleanup(true);
+	TableCleanup();
 	StackCleanup();
 	TopDownCleanup();
 
