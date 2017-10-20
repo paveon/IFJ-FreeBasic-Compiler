@@ -6,15 +6,23 @@
 
 #define MAX_ARGS 20
 
-typedef struct Identifier {
+typedef struct Variable {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
 	//TODO: dynamicky spravovat pamet pro signatury
+	const char* name; //Nazev promenne
+	char type; //Typ promenne
+	size_t codeLine; //Na jakem radku byla promenna deklarovana / definovana
+} Variable;
+
+
+typedef struct Function {
+	const char* name; //Nazev funkce
+	char returnType; //Navratovy typ funkce
+	char parameters[MAX_ARGS]; //Pro ulozeni signatur funkci pomoci textu
+	size_t argCount; //Pocitadlo aktualniho poctu parametru
+	size_t codeLine; //Na jakem radku byla funkce deklarovana / definovana
 	bool declaration; //Zda se jedna o deklaraci funkce
-	size_t declaredOnLine; //Pomocna promenna pro pripadne vypisy nedefinovanych funkci
-	char signature[MAX_ARGS]; //Pro ulozeni signatur funkci pomoci textu
-	size_t argIndex; //Pocitadlo aktualniho poctu parametru, pokud se jedna o funkci
-	const char* name; //nazev identifikatoru
-} Identifier;
+} Function;
 
 
 /* Ukazka prace s BeginSubScope a EndSubScope
@@ -69,47 +77,43 @@ void EndSubScope(void);
 void EndScope(void);
 
 
-/* Vytvori a vlozi novy symbol do globalni tabulky symbolu
- * (pouzivat pro funkce a globalni promenne).
- * Vraci ukazatel na novy symbol. Pokud symbol jiz existuje, vraci NULL.
+/* Vytvori novou funkci v globalni tabulce identifikatoru.
+ * Vraci ukazatel na novou funkci, nebo NULL pokud jiz existuje.
  */
-Identifier* InsertGlobalID(const char* name);
+Function* InsertFunction(const char* name, bool declaration, size_t line);
 
 
-/* Vytvori a vlozi novy symbol do tabulky prislusejici aktualnimu bloku.
- * Vraci ukazatel na novy symbol. Pokud symbol jiz existuje, vraci NULL.
+/* Vytvori novou promennou v aktivnim bloku kodu.
+ * Pokud se ma jednat o globalni promennou, staci specifikovat pomoci
+ * parametru 'global'.
+ * Vraci ukazatel na nove vytvorenou promennou, nebo NULL pokud jiz existuje.
  */
-Identifier* InsertLocalID(const char* name);
+Variable* InsertVariable(const char* name, bool global, size_t line);
 
 
 /* Hleda symbol v aktualnim bloku a pote i nadrazenych blocich.
+ * Pokud promennou nenalezne, prohleda i globalni tabulku.
  * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
  */
-Identifier* LookupID(const char* name);
+Variable* LookupVariable(const char* name, bool allowGlobals);
 
 
-/* Hleda symbol pouze v globalnim scopu.
- * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
+/* Hleda identifikator funkce v globalni tabulce.
+ * Vraci ukazatel na identifikator funkce pokud jej nalezne, jinak NULL.
  */
-Identifier* LookupGlobalID(const char* name);
+Function* LookupFunction(const char* name);
 
 
-/* Nastavi typ nasledujiciho parametru signatury funkce.
- * Struktura identifikatoru si sama pamatuje aktualni pocet parametru.
- * Pokud chceme nastavit navratovou hodnotu, nebo typ promenne, pouzijeme
- * parametr 'returnType' = true
+/* Funkce vraci znakovou reprezentaci terminalu pro datove typy.
+ * Vhodne pro porovnavani signatur funkci a typu promennych.
  */
-bool SetSignature(Identifier* id, Terminal type, bool returnType);
+char TypeAsChar(Terminal type);
 
 
-/* Porovna typ parametru / navratove hodnoty s hodnotou ulozenou ve
- * strukture identifikatoru. Parametr 'index' urcuje s cim se bude
- * porovnavat. Pro porovnani navratovych typu pouzit 'index' = 0
- * */
-bool CompareSignature(Identifier* id, Terminal type, size_t index);
-
-
-/* Interni funkce pro uvolneni pameti, pouzivat pri ukoncovani programu / fatalni chybe */
+/* Funkce pro vycisteni pameti spojene s tabulkami identifikatoru.
+ * Provadi korektni reinicializaci, takze je mozne pozdeji znovu
+ * automaticky alokovat pamet
+ */
 void TableCleanup();
 
 #endif //FREEBASIC_COMPILER_SYMTABLE_H

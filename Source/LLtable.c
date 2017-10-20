@@ -12,7 +12,7 @@ static const char* const Terminals[] = {
 				",", ")", "=", "\n", "ID", "EOF", "(", "AS", "WHILE", "THEN", ";"
 };
 
-static Rule LLTable[12][21] = {
+static Rule g_Rules[12][21] = {
 				{2,  0,  0,  0,  0,  0,  3,  0,  0,  0,  0,  0,  0,  1,  0,  0,  0,  0,  0,  0,  0},
 				{0,  0,  0,  0,  0,  0,  4,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0},
 				{0,  0,  0,  0,  0,  0,  5,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0},
@@ -73,5 +73,5 @@ Rule GetLLRule(NTerminal nTerminal, const Token* token) {
 			return false;
 	}
 
-	return LLTable[nTerminal][column];
+	return g_Rules[nTerminal][column];
 }

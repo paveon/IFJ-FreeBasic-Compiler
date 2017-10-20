@@ -391,6 +391,7 @@ bool Lexical() {
 void LexCleanup() {
 	if (g_Buffer.data) {
 		free(g_Buffer.data);
+		g_Buffer.data = NULL;
 	}
 	g_Buffer.index = g_Buffer.lenght = 0;
 }

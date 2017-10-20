@@ -7,24 +7,16 @@
 #include "Lexical.h"
 
 
-int main() {
+int main(int argc, char* argv[]) {
 	printf("Test run started...\n");
 	Token* token;
-	char tokens[30][20] = {
-					[T_DECLARE] = "declare",
-					[T_END] = "end",
-					[T_SCOPE] = "scope",
-					[T_DIM] = "dim",
-					[T_AS] = "as",
-					[T_STRING] = "string",
-					[T_INTEGER] = "integer",
-					[T_DOUBLE] = "double",
-					[T_ID] = "tmpValue",
-					[T_RETURN] = "return",
-					[T_FUNCTION] = "function"
-	};
 
-	if (freopen("sampleProgram", "r", stdin) == NULL) {
+	if (argc < 2) {
+		printf("Expected source file name, exiting...\n");
+		exit(0);
+	}
+	if (freopen(argv[1], "r", stdin) == NULL) {
+		printf("Couldn't open specified source file (doesn't exist?), exiting...\n");
 		exit(0);
 	}
 
@@ -86,16 +78,32 @@ int main() {
 	CreateToken();
 	SetEOL();
 
-	Identifier* newID;
+	Variable* variable;
+	Function* function;
+	const char* name;
 	while ((token = GetNextToken())) {
 		if (GetTokenType(token) == TOKEN_IDENTIFIER) {
+			name = GetTokenValue(token);
 			BeginSubScope();
-			InsertGlobalID(GetTokenValue(token));
-			newID = InsertLocalID(GetTokenValue(token));
-			newID = LookupID(GetTokenValue(token));
+
+			function = InsertFunction(name, true, 0); //Funkce
+			if (function)
+				function->returnType = 's';
+
+			variable = InsertVariable(name, true, 0); //Globalni promenna
+			if (variable)
+				variable->type = 'i';
+
+			variable = InsertVariable(name, false, 0); //Lokalni promenna
+			if (variable)
+				variable->type = 'd';
+
+			variable = LookupVariable(name, false); //Hledat pouze lokalni promenne
+			variable = LookupVariable(name, true); //I globalni
+			function = LookupFunction(name); //Funkce
 			EndSubScope();
-			newID = LookupID(GetTokenValue(token));
-			newID = LookupGlobalID(GetTokenValue(token));
+			variable = LookupVariable(name, false); //Pouze lokalni promenne
+			variable = LookupVariable(name, true); //I globalni
 		}
 	}
 	EndScope();

@@ -24,12 +24,18 @@ typedef enum Scope {
 
 typedef struct Node {
 	uint64_t key; //Klic - hodnota hash funkce pro jmeno identifikatoru
-	Identifier symbol; //Informace o identifikatoru, ktere zajimaji koncoveho uzivatele rozhrani
 	struct Node* treeLeft;
 	struct Node* treeRight;
 	struct Node* nextNode; //Zretezeny seznam uzlu (kvuli shodam hodnot hash funkce)
 
-	//Urcuje, zda se jedna o globalni nebo lokalni identifikator a tedy v jake tabulce se nachazi
+	bool function; //Zda se jedna o funkci nebo promennou
+	union {
+		//Nepotrebujeme vyuzit obe promenne zaraz
+		Variable var; //Pokud se jedna o promennou
+		Function func; //Pokud se jedna o funkci
+	} data;
+
+	//Urcuje, zda se jedna o globalni nebo lokalni uzel a tedy v jake tabulce se nachazi
 	Scope scope;
 } Node;
 
@@ -82,15 +88,31 @@ static IDTable g_LocalSymbols;
 static IDTable* g_ActiveScope = &g_LocalSymbols;
 
 
-/* Vklada novy uzel do binarniho stromu, vraci ukazatel na nove
- * vytvoreny uzel. Pokud uzel se stejnym nazvem jiz existoval, vraci NULL.
+/* Vlozi novy uzel do aktivni tabulky, pokud chceme vlozit
+ * funkci staci pouzit parametr 'func'. Identifikatory
+ * funkci patri pouze do globalni tabulky, a proto je pred
+ * volanim teto funkce nutne prepnout se do globalni tabulky,
+ * pokud chceme vkladat identifikator funkce nebo globalni promenne.
+ *
+ * Jedna se o interni funkci, neprovadi kontrolu ukazatele.
  */
-Node* InsertNode(const char* name);
+Node* InsertNode(const char* name, bool function);
+
+
+/* Prohleda aktivni tabulku symbolu a pokusi se najit uzel
+ * daneho jmena a typu (funkce / promenna). Funkce se nachazi
+ * pouze v globalni tabulce, proto je nutne prepnout se do
+ * globalni tabulky pred volanim teto funkce, pokud hledame
+ * identifikator funkce.
+ *
+ * Jedna se o interni funkci, neprovadi kontrolu ukazatelu.
+ */
+Node* FindNode(const char* name, bool function, bool allowGlobals);
 
 
 /* Hash funkce pro prevedeni nazvu identifikatoru na cislo */
-uint64_t HashFunction(const char* str) {
-	uint64_t hash = 5381;
+uint_least32_t HashFunction(const char* str) {
+	uint_least32_t hash = 5381;
 	int charCode;
 
 	while ((charCode = *str++)) {
@@ -185,7 +207,7 @@ void EndScope(void) {
 }
 
 
-Node* CreateNode(uint64_t key, const char* symbolName) {
+Node* CreateNode(uint64_t key) {
 	//Zkontrolujeme, zda mame k dispozici nejaky volny alokovany uzel
 	if (g_Nodes.used == g_Nodes.size) {
 		Node* nodes;
@@ -211,10 +233,6 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 
 	//Pred pouzitim (re)inicializujeme hodnoty - uzel mohl byt drive pouzivan
 	freeNode->key = key;
-	freeNode->scope = SCOPE_LOCAL;
-	freeNode->symbol.declaration = false;
-	freeNode->symbol.argIndex = 1;
-	freeNode->symbol.name = symbolName;
 	LEFT(freeNode) = RIGHT(freeNode) = NEXT(freeNode) = NULL;
 
 	//Vratime ukazatel na (re)inicializovany nepouzivany uzel
@@ -222,45 +240,98 @@ Node* CreateNode(uint64_t key, const char* symbolName) {
 }
 
 
-Identifier* InsertLocalID(const char* name) {
+Variable* InsertVariable(const char* name, bool global, size_t line) {
 	if (!name) { return NULL; }
 
-	//Pokud uzel jiz existoval, vraci funkce NULL
-	Node* newNode = InsertNode(name);
-	if (newNode) {
-		newNode->scope = SCOPE_LOCAL;
-		return &newNode->symbol;
+	Node* newNode;
+	if (global) {
+		//Vkladame globalni promennou, prepneme se do globalni tabulky
+		IDTable* inActiveScope = g_ActiveScope;
+		g_ActiveScope = &g_GlobalSymbols;
+		newNode = InsertNode(name, false); //Vytvoreni nove globalni promenne
+		g_ActiveScope = inActiveScope; //Obnoveni scopu
+
+		if (!newNode) {
+			return NULL; //Uzel se stejnym nazevem jiz existoval
+		}
+		newNode->scope = SCOPE_GLOBAL; //Nachazi se v globalni tabulce
 	}
-	return NULL;
+	else {
+		newNode = InsertNode(name, false); //Vytvoreni nove lokalni promenne
+		if (!newNode) {
+			return NULL; //Uzel se stejnym nazevem jiz existoval
+		}
+		newNode->scope = SCOPE_LOCAL; //Nachazi se v lokalni tabulce
+	}
+
+	//Provedem inicializaci specifickou pro promenne
+	newNode->function = false;
+	newNode->data.var.name = name; //Nazev promenne
+	newNode->data.var.type = 0; //Zatim nespecifikovany typ
+	newNode->data.var.codeLine = line; //Radek na kterem se deklarace /definice nachazi
+	return &newNode->data.var;
 }
 
 
-Identifier* InsertGlobalID(const char* name) {
+Function* InsertFunction(const char* name, bool declaration, size_t line) {
 	if (!name) { return NULL; }
 
 	//ulozeni aktivniho lokalniho scopu
 	IDTable* inActiveScope = g_ActiveScope;
 	g_ActiveScope = &g_GlobalSymbols;
 
-	Node* newNode = InsertNode(name); //Pokud uzel jiz existoval, vraci funkce NULL
+	Node* newNode = InsertNode(name, NULL); //Pokud uzel jiz existoval, vraci funkce NULL
 	g_ActiveScope = inActiveScope; //obnoveni scopu
 
 	if (newNode) {
 		newNode->scope = SCOPE_GLOBAL;
-		return &newNode->symbol;
+		newNode->function = true;
+		newNode->data.func.name = name; //Nazev funkce
+		newNode->data.func.declaration = declaration; //Zda se jedna pouze o deklaraci
+		newNode->data.func.argCount = 0; //Prozatim 0 parametru
+		newNode->data.func.returnType = 0; //Prozatim nespecifikovany navratovy typ
+		newNode->data.func.codeLine = line; //Radek na kterem se deklarace /definice nachazi
+		return &newNode->data.func;
 	}
 	return NULL;
 }
 
 
-/* Interni funkce, neprovadi kontrolu ukazatele */
-Node* InsertNode(const char* name) {
+Variable* LookupVariable(const char* symbol, bool allowGlobals) {
+	Node* node = FindNode(symbol, false, allowGlobals);
+	if (node) {
+		//Promenna existuje
+		return &node->data.var;
+	}
+	return NULL;
+}
+
+
+Function* LookupFunction(const char* name) {
+	//Ulozime si aktivni scope a prepneme se do
+	//globalniho scopu, protoze funkce se nemohou nachazet nikde jinde
+	IDTable* inActiveScope = g_ActiveScope;
+	g_ActiveScope = &g_GlobalSymbols;
+
+	Node* node = FindNode(name, true, true);
+
+	//Obnoveni scopu
+	g_ActiveScope = inActiveScope;
+	if (node) {
+		//Funkce existuje
+		return &node->data.func;
+	}
+	return NULL;
+}
+
+
+Node* InsertNode(const char* name, bool function) {
 	//Pouzivam hashovani, protoze neustale porovnavani pripadne
 	//velmi dlouhych identifikatoru je pomale a u stromu je riziko kolize minimalni
-	uint64_t hash = HashFunction(name);
+	uint_least32_t hash = HashFunction(name);
 
 	if (g_ActiveScope->root == NULL) {
-		return (g_ActiveScope->root = CreateNode(hash, name));
+		return (g_ActiveScope->root = CreateNode(hash));
 	}
 
 	Node* current = g_ActiveScope->root;
@@ -270,7 +341,7 @@ Node* InsertNode(const char* name) {
 				current = LEFT(current);
 			}
 			else {
-				return (LEFT(current) = CreateNode(hash, name));
+				return (LEFT(current) = CreateNode(hash));
 			}
 		}
 		else if (hash > current->key) {
@@ -278,32 +349,46 @@ Node* InsertNode(const char* name) {
 				current = RIGHT(current);
 			}
 			else {
-				return (RIGHT(current) = CreateNode(hash, name));
+				return (RIGHT(current) = CreateNode(hash));
 			}
 		}
 		else {
-			//Stejny hash, nutna blizsi kontrola
+			//Uzel s danym hashem existuje, nyni je potreba provest kontrolu
+			//na plnou shodu, jelikoz je umozneno vytvaret funkce a globalni
+			//promenne se stejnym nazvem.
 			Node* previous = NULL;
 
 			while (current) {
-				if (strlen(name) == strlen(current->symbol.name) &&
-						strcmp(name, current->symbol.name) == 0) {
-					return NULL; //Symbol jiz existuje
+				if (function && current->function) {
+					//Vkladame funkci a aktualni uzel je funkce -> moznost kolize
+					if (strcmp(name, current->data.func.name) == 0) {
+						//Funkce se stejnym nazvem jiz existuje
+						return NULL;
+					}
 				}
+				else if (!function && !current->function) {
+					//Vkladame promennou a aktualni uzel je promenna -> moznost kolize
+					if (strcmp(name, current->data.var.name) == 0) {
+						//Promenna se stejnym nazvem jiz existuje.
+						return NULL;
+					}
+				}
+
+				//Nazvy se lisi, posuneme se na dalsi uzel v seznamu
 				previous = current;
 				current = NEXT(current);
 			}
 
-			return (NEXT(previous) = CreateNode(hash, name));
+			return (NEXT(previous) = CreateNode(hash));
 		}
 	}
 }
 
 
-Identifier* LookupID(const char* symbol) {
-	if (!symbol) { return NULL; }
+Node* FindNode(const char* name, bool function, bool allowGlobals) {
+	if (!name) { return NULL; }
 
-	uint64_t hash = HashFunction(symbol);
+	uint_least32_t hash = HashFunction(name);
 	Node* current;
 
 	IDTable* table = g_ActiveScope;
@@ -317,12 +402,26 @@ Identifier* LookupID(const char* symbol) {
 				current = RIGHT(current);
 			}
 			else {
+				//Uzel s danym hashem existuje, nyni je potreba provest kontrolu
+				//na plnou shodu, kvuli mozne existenci globalni promenne i funkce
+				//se stejnym nazvem
 				while (current) {
-					if (strlen(symbol) == strlen(current->symbol.name) &&
-							strcmp(symbol, current->symbol.name) == 0) {
-						//Symbol existuje
-						return &current->symbol;
+					if (function && current->function) {
+						//Hledame funkci, porovname jmena
+						if (strcmp(name, current->data.func.name) == 0) {
+							//Funkce existuje
+							return current;
+						}
 					}
+					else if (!function && !current->function) {
+						//Hledame promennou, porovname jmena
+						if (strcmp(name, current->data.var.name) == 0) {
+							//Promenna existuje
+							return current;
+						}
+					}
+
+					//Jmeno se neshodovalo, posuneme se dale v seznamu uzlu
 					current = NEXT(current);
 				}
 				break;
@@ -331,59 +430,30 @@ Identifier* LookupID(const char* symbol) {
 
 		//Prohledame vyssi tabulku
 		table = table->parentScope;
+
+		if (allowGlobals) {
+			//Pokud se aktualne nenachazime v globalni tabulce, rodicovska tabulka neexistuje a
+			//symbol jsme stale nenasli, zkusime vyhledat v globalni tabulce
+			if (!table && g_ActiveScope != &g_GlobalSymbols) {
+				table = &g_GlobalSymbols;
+			}
+		}
 	}
 
 	return NULL;
 }
 
 
-Identifier* LookupGlobalID(const char* name) {
-	//Ulozeni aktivniho lokalniho scopu
-	IDTable* inActiveScope = g_ActiveScope;
-	g_ActiveScope = &g_GlobalSymbols;
-
-	Identifier* symbol = LookupID(name);
-
-	//Obnoveni scopu
-	g_ActiveScope = inActiveScope;
-	return symbol;
-}
-
-
-bool SetSignature(Identifier* id, Terminal type, bool returnType) {
-	if (!id || id->argIndex == MAX_ARGS) { return false; }
-	size_t index = returnType ? 0 : id->argIndex;
+char TypeAsChar(Terminal type) {
 	switch (type) {
 		case T_INTEGER:
-			id->signature[index] = 'i';
-			break;
+			return 'i';
 		case T_DOUBLE:
-			id->signature[index] = 'd';
-			break;
+			return 'd';
 		case T_STRING:
-			id->signature[index] = 's';
-			break;
+			return 's';
 		default:
-			return false;
-	}
-	if (!returnType) {
-		id->argIndex++;
-	}
-	return true;
-}
-
-
-bool CompareSignature(Identifier* id, Terminal type, size_t index) {
-	if (!id || id->argIndex < index) { return false; }
-	switch (type) {
-		case T_INTEGER:
-			return id->signature[index] == 'i';
-		case T_DOUBLE:
-			return id->signature[index] == 'd';
-		case T_STRING:
-			return id->signature[index] == 's';
-		default:
-			return false;
+			return 0;
 	}
 }
 

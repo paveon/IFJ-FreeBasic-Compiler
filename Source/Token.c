@@ -10,6 +10,7 @@
 #define OPERATOR_MAX_LEN 2
 #define MALLOC_SMALL_CHUNK 20
 #define STASH_CHUNK 200
+#define BUFFER_CHUNK 1024
 
 struct Token {
 	void* value;
@@ -19,13 +20,11 @@ struct Token {
 
 typedef struct ReadOnlyData {
 	int* integers;
+	char* textBuffer;
 	double* doubles;
-	char** strings;
-	char** symbols;
 	size_t intsSize, intsUsed;
 	size_t doublesSize, doublesUsed;
-	size_t stringsSize, stringsUsed;
-	size_t symbolsSize, symbolsUsed;
+	size_t bufferSize, bufferIndex;
 } ReadOnlyData;
 
 
@@ -41,19 +40,19 @@ static ReadOnlyData Data;
 static Token* Current;
 
 static char* const Keywords[] = {
-		  "AS", "ASC", "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "CHR",
-		  "FUNCTION", "IF", "INPUT", "INTEGER", "LENGTH", "LOOP", "PRINT", "RETURN",
-		  "SCOPE", "STRING", "SUBSTR", "THEN", "WHILE",
-		  "AND", "BOOLEAN", "CONTINUE", "ELSEIF", "EXIT", "FALSE", "FOR", "NEXT",
-		  "NOT", "OR", "SHARED", "STATIC", "TRUE"
+				"AS", "ASC", "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "CHR",
+				"FUNCTION", "IF", "INPUT", "INTEGER", "LENGTH", "LOOP", "PRINT", "RETURN",
+				"SCOPE", "STRING", "SUBSTR", "THEN", "WHILE",
+				"AND", "BOOLEAN", "CONTINUE", "ELSEIF", "EXIT", "FALSE", "FOR", "NEXT",
+				"NOT", "OR", "SHARED", "STATIC", "TRUE"
 };
 static char* const Operators[] = {
-		  "*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
+				"*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
 };
 
 
 static char* Miscellaneous[] = {
-		  ",", ";", "(", ")", "\n"
+				",", ";", "(", ")", "\n"
 };
 
 
@@ -74,6 +73,16 @@ void StrToLower(char* str) {
 		}
 		str++;
 	}
+}
+
+
+void ResizeBuffer() {
+	char* newBuffer;
+	Data.bufferSize += BUFFER_CHUNK;
+	if ((newBuffer = realloc(Data.textBuffer, sizeof(char) * Data.bufferSize)) == NULL) {
+		FatalError(ER_FATAL_INTERNAL);
+	}
+	Data.textBuffer = newBuffer;
 }
 
 
@@ -215,33 +224,16 @@ void SetIdentifier(char* symbol) {
 	StrToLower(symbol);
 	Current->type = TOKEN_IDENTIFIER;
 
-	//Pokus o recyklaci identifikatoru
-	for (size_t i = 0; i < Data.symbolsUsed; i++) {
-		if (strcmp(Data.symbols[i], symbol) == 0) {
-			Current->value = Data.symbols[i];
-			Current = NULL;
-			return;
-		}
+	//Pokud by se novy retezec nevlezl do bufferu, rozsirime buffer
+	while ((Data.bufferIndex + length + 1) > Data.bufferSize) {
+		ResizeBuffer();
 	}
 
-	if (Data.symbolsUsed == Data.symbolsSize) {
-		char** tmp = NULL;
-		Data.symbolsSize += MALLOC_SMALL_CHUNK;
-		if ((tmp = realloc(Data.symbols, sizeof(char**) * Data.symbolsSize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
-		}
-		Data.symbols = tmp;
-	}
-
-	char* newSymbol = NULL;
-	if ((newSymbol = malloc(sizeof(char) * (length + 1))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-
-	memcpy(newSymbol, symbol, length);
-	newSymbol[length] = '\0';
-	Data.symbols[Data.symbolsUsed++] = newSymbol;
-	Current->value = newSymbol;
+	char* tmp = &Data.textBuffer[Data.bufferIndex];
+	memcpy(tmp, symbol, length);
+	tmp[length++] = 0;
+	Data.bufferIndex += length;
+	Current->value = tmp;
 	Current = NULL;
 }
 
@@ -303,38 +295,21 @@ void SetDouble(const char* number) {
 
 void SetString(const char* string) {
 	if (!Current || !string) { return; }
-	Token* token = Current;
+
+	Current->type = TOKEN_STRING;
+	size_t length = strlen(string);
+
+	//Pokud by se novy retezec nevlezl do bufferu, rozsirime buffer
+	while ((Data.bufferIndex + length + 1) > Data.bufferSize) {
+		ResizeBuffer();
+	}
+
+	char* tmp = &Data.textBuffer[Data.bufferIndex];
+	memcpy(tmp, string, length);
+	tmp[length++] = 0;
+	Data.bufferIndex += length;
+	Current->value = tmp;
 	Current = NULL;
-
-	token->type = TOKEN_STRING;
-
-	for (size_t i = 0; i < Data.stringsUsed; i++) {
-		if (strcmp(Data.strings[i], string) == 0) {
-			token->value = Data.strings[i];
-			return;
-		}
-	}
-
-	if (Data.stringsUsed == Data.stringsSize) {
-		char** tmp = NULL;
-		Data.stringsSize += MALLOC_SMALL_CHUNK;
-		if ((tmp = realloc(Data.strings, sizeof(char**) * Data.stringsSize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
-		}
-		Data.strings = tmp;
-	}
-	size_t stringLength = strlen(string);
-	char* newString = NULL;
-	if ((newString = malloc(sizeof(char) * (stringLength + 1))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
-	}
-
-	//Ukladam string literaly do pole, abychom je mohli pripadne jednoduse recyklovat
-	//a zaroven jednoduse hlidat memory leaky
-	memcpy(newString, string, stringLength);
-	newString[stringLength] = '\0';
-	Data.strings[Data.stringsUsed++] = newString;
-	token->value = newString;
 }
 
 
@@ -354,15 +329,27 @@ void SetEOF(void) {
 
 
 void TokenCleanup(void) {
-	for (size_t i = 0; i < Data.stringsUsed; i++) {
-		free(Data.strings[i]);
+	//Uvolnime pamet
+	if (Data.integers) {
+		free(Data.integers);
+		Data.integers = NULL;
 	}
-	for (size_t i = 0; i < Data.symbolsUsed; i++) {
-		free(Data.symbols[i]);
+	if (Data.doubles) {
+		free(Data.doubles);
+		Data.doubles = NULL;
 	}
-	free(Data.integers);
-	free(Data.doubles);
-	free(Data.strings);
-	free(Data.symbols);
-	free(Stash.tokenArray);
+	if (Data.textBuffer) {
+		free(Data.textBuffer);
+		Data.textBuffer = NULL;
+	}
+	if (Stash.tokenArray) {
+		free(Stash.tokenArray);
+		Stash.tokenArray = NULL;
+	}
+
+	//Reinicializujeme hodnoty pro pripadnou pristi alokaci
+	Data.intsUsed = Data.intsSize = 0;
+	Data.doublesUsed = Data.doublesSize = 0;
+	Data.bufferIndex = Data.bufferSize = 0;
+	Stash.activeToken = Stash.arrayUsed = Stash.arraySize = 0;
 }
