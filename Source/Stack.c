@@ -164,6 +164,95 @@ void PopSymbol(Stack* stack) {
 }
 
 
+/* Ukazatel na stack nebude nikdy NULL a stack bude vzdy obsahovat terminal
+ * (minimalne terminal znacici konec vyrazu => EOL nebo ;)
+ */
+Terminal GetFirstTerminal(Stack *stack){
+	Symbol *tmp = stack->top;
+	Terminal term;
+	while(GetSymbolType(tmp) != SYMBOL_TERMINAL){
+		tmp = tmp->down;
+	}
+	term = tmp->data.terminal;
+	return term;
+}
+
+
+/* TODO nevim jak to okomentovat
+ */
+bool IsEndOfReduction(Stack *stack){
+	return stack->top->reduceEnd;
+}
+
+
+/* Sprostredkovava pruchod zasobnikem s cilem nalezt T_FUNCTION.
+ * Nepocita s tim, ze ukazatel na zasobnik bude NULL
+ */
+bool ContainingFunction(Stack *stack){
+	SymbolType symbolType = GetSymbolType(stack);
+	Symbol *symbol = stack->top;
+	while(symbol){
+		if(symbolType == SYMBOL_TERMINAL){
+			if((symbol->data.terminal) == T_FUNCTION){
+				return true;
+			}
+		}
+		symbol = symbol->down;
+		symbolType = symbol->type;
+	}
+	return false;
+}
+
+
+/* Prochazi stack a hleda zanoreni (jako index) prvniho terminalu v zasobniku.
+ * Nekontroluje zda je ukazatel na stack NULL! A take nepocita s tim,
+ * ze zasobnik neobsahuje terminal.
+ */
+size_t LastSymBeforeFirstTerm(Stack *stack){
+	SymbolType symbolType = GetSymbolType(stack);
+	Symbol *symbol = stack->top;
+	size_t idx = 0;
+	while(symbolType != SYMBOL_TERMINAL){
+		symbol = symbol->down;
+		symbolType = symbol->type;
+		idx++;
+	}
+	return idx;
+}
+
+
+/* Provadi nastaveni priznaku reductionEnd podle zadaneho indexu zanoreni.
+ * Nekontroluje NULL ukazatel.
+ */
+void SetReduction(Stack *stack, size_t idx){
+	Symbol *symbol = stack->top;
+	for(int i = 0; i < idx; i++){
+		symbol = symbol->down;
+	}
+	symbol->reduceEnd = true;
+}
+
+
+/* Zjistuje pocet vyskytu terminalu T_FUNCTION v zasobniku.
+ * Funkce nekontroluje zasobnik s ukazatelem NULL.
+ */
+int CountOfFunc(Stack *stack){
+	int count = 0;
+	Symbol *symbol = stack->top;
+	SymbolType symbolType = symbol->type;
+	while(symbolType != SYMBOL_BOTTOM){
+		if(symbolType == SYMBOL_TERMINAL){
+			if(symbol->data.terminal == T_FUNCTION){
+				count++;
+			}
+		}
+		symbol = symbol->down;
+		symbolType = symbol->type;
+	}
+	return count;
+}
+
+
 /* Provadi dealokaci vsech symbolu a zasobniku, slouzi
  * primarne pro uvolneni pameti pri ukonceni programu,
  * ale je prizpusobeno i pro pripadnou realokaci

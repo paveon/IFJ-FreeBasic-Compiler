@@ -19,7 +19,10 @@ typedef enum ErrorCode {
 	ER_SMC_FUNC_PARAM_REDEF, //Dva parametry se stejnym nazvem
 	ER_SMC_FUNC_PARAM_COUNT, //Pocet parametru v definici funkce neodpovida deklaraci
 	ER_SMC_FUNC_PARAM_TYPE, //Nekompatibilita typu parametru u deklarace a defince
-	ER_SMC_FUNC_RETURN_TYPE //Nekompatibilita navratoveho typu u deklarace a definice
+	ER_SMC_FUNC_RETURN_TYPE, //Nekompatibilita navratoveho typu u deklarace a definice
+	ER_SMC_VAR_UNDEF, // Nedefinovana promenna ve vyrazech
+	ER_SMC_MISSING_OP, // Chybejici operator ve vyrazu
+	ER_SMC_UNKNOWN_EXPR, // Nenalezeno vhodne pravidlo v tabulce
 } ErrorCode;
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra);

@@ -36,7 +36,10 @@ static ErrorMetadata errors[] = {
 				{"parameter of function '%s' was redefined",                     EC_SEMANTIC_DEFINITIONS},
 				{"definition of function '%s' has a wrong number of parameters", EC_SEMANTIC_DEFINITIONS},
 				{"parameter type mismatch in %s's signatures",                   EC_SEMANTIC_DEFINITIONS},
-				{"return type mismatch in %s's signatures",                      EC_SEMANTIC_DEFINITIONS}
+				{"return type mismatch in %s's signatures",                      EC_SEMANTIC_DEFINITIONS},
+				{"undefined variable",                                           EC_SEMANTIC_DEFINITIONS},
+				{"missing operator in expression",                               EC_SEMANTIC_DEFINITIONS},
+				{"unknown expression",                                           EC_SEMANTIC_DEFINITIONS},
 };
 
 
@@ -54,6 +57,9 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_FUNC_PARAM_COUNT:
 			case ER_SMC_FUNC_PARAM_TYPE:
 			case ER_SMC_FUNC_RETURN_TYPE:
+			case ER_SMC_VAR_UNDEF:
+			case ER_SMC_MISSING_OP:
+			case ER_SMC_UNKNOWN_EXPR:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 

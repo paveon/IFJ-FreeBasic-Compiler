@@ -33,6 +33,38 @@ Terminal GetTopT(const Stack* stack);
 NTerminal GetTopNT(const Stack* stack);
 
 
+/* Vraci typ prvniho nalezeneho terminalu v zasobniku. Funkce vytvorena pro
+ * precedencni analyzu => nekontroluje prazdny zasobnik.
+ */
+Terminal GetFirstTerminal(Stack *stack);
+
+
+/* Vraci bool hodnotu znacici konec redukce => true pokud narazi na konec redukce */
+bool IsEndOfReduction(Stack *stack);
+
+
+/* Funkce vraci true, pokud nalezla nekde v zasobniku terminal T_FUNCTION, ktery
+ * vykazuje nalezeni pouziti funkce a tedy ze jsme stale jeste v zapisu funkce =>
+ * => mohou se pouzivat carky v zavorce
+ */
+bool ContainingFunction(Stack *stack);
+
+
+/* Funkce vracejici index (hloubku) prvniho terminalu na zasobniku */
+size_t LastSymBeforeFirstTerm(Stack *stack);
+
+
+/* Funkce nastavuje priznak reductionEnd na true v danem zanoreni zasobniku.
+ * Pri pouzivani spolu s funkci LastSymBeforeFirstTerm() nezapomenout provest
+ * PushT() pred pouzitim teto funkce (vraci index terminalu ne prvku pred nim).
+ */
+void SetReduction(Stack *stack, size_t idx);
+
+
+/* Funkce vraci pocet vyskytu T_FUNCTION v zasobniku */
+int CountOfFunc(Stack *stack);
+
+
 /* Vraci symbol na vrcholu zasobniku, pokud je ukazatel NULL, vraci NULL */
 const Symbol* GetTop(const Stack* stack);
 
