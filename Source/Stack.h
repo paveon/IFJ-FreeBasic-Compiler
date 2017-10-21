@@ -2,6 +2,7 @@
 #define FREEBASIC_COMPILER_STACK_H
 
 #include <stdbool.h>
+#include <stdlib.h>
 #include "Token.h"
 #include "Symbol.h"
 

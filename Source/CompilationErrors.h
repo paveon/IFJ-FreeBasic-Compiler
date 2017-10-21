@@ -23,6 +23,7 @@ typedef enum ErrorCode {
 	ER_SMC_VAR_UNDEF, // Nedefinovana promenna ve vyrazech
 	ER_SMC_MISSING_OP, // Chybejici operator ve vyrazu
 	ER_SMC_UNKNOWN_EXPR, // Nenalezeno vhodne pravidlo v tabulce
+	ER_SMC_UNEXPECT_SYM, // Neocekavany symbol (';' bez printu apod.)
 } ErrorCode;
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra);

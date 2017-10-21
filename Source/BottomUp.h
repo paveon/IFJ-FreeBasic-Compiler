@@ -7,10 +7,13 @@
 
 #include "PrecedentTable.h"
 
-extern int g_err_counter;
 
-bool BottomUp(size_t line_num);
+/* Funkce zpracovavajici syntaktickou analyzu zdola nahoru.
+ * Prebira radek, na kterem se vyraz nachazi a take klicove slovo jemu predchazejici
+ * (T_PRINT, T_IF, T_WHILE, T_EQUAL), aby byl schopny urcit s cim pracuje
+ */
+bool BottomUp(size_t line_num, Terminal keyword);
 
-int FuncParams(Stack *s, IdxTerminalPair value_pair, size_t line_num);
+int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keyword);
 
 #endif //FREEBASIC_COMPILER_BOTTOMUP_H

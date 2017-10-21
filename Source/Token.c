@@ -139,6 +139,10 @@ double GetTokenDouble(const Token* token) {
 	return NAN;
 }
 
+bool GetTrailSpace(const Token* token){
+	return token->trailSpace;
+}
+
 
 void SetOperator(const char* operator) {
 	size_t length = strlen(operator);

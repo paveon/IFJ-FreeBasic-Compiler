@@ -21,43 +21,63 @@ void PrecErrorCleaning(Stack *s){
 	ReleaseStack(s);
 }
 
-bool BottomUp(size_t line_num){
+bool BottomUp(size_t line_num, Terminal keyword){
 	Stack *stack = GetStack();
 	PushT(stack, T_EOL);
-	IdxTerminalPair value_pair;
+	IdxTerminalPair values;
 	bool return_val = true;
 	size_t idx = 0;
-	value_pair.cell_value = FINDING_FAILURE;
-	value_pair.incoming_term = T_UNDEFINED;
+	values.cell_value = FINDING_FAILURE_NO_KEYWORD;
+	values.incoming_term = T_UNDEFINED;
 	int end_func_val = 0;
 
+	if((keyword != T_WHILE) && (keyword != T_IF) && (keyword != T_PRINT) && (keyword != T_EQUAL)){
+		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+		PrecErrorCleaning(stack);
+		return false;
+	}
 	while(1){
 		if(g_err_counter >= MAX_ERR_COUNT){
 			PrecErrorCleaning(stack);
 			return false;
 		}
-		FindInTable(stack, &value_pair, line_num, false);
-		if((value_pair.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) && (LastSymBeforeFirstTerm(stack) == 1)){ // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
+		FindInTable(stack, &values, line_num, false, keyword);
+//		if(values.incoming_term == T_STRING){  // TODO
+//
+//		}
+		if((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) && (LastSymBeforeFirstTerm(stack) == 1)){ // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
-		switch (value_pair.cell_value){
+		if(values.error == FINDING_FAILURE_SEMI){
+			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
+			PrecErrorCleaning(stack);
+			return false;
+		}
+		switch (values.cell_value){
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(stack);
-				PushT(stack, value_pair.incoming_term);
+				PushT(stack, values.incoming_term);
 				SetReduction(stack, idx);
 				break;
 			case SKIP_PR:
-				PushT(stack, value_pair.incoming_term);
+				PushT(stack, values.incoming_term);
 				break;
 			case LOWER_PR:
 				return_val = ApplyPrecRule(stack, false, line_num);
-				if(!return_val && (value_pair.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL)){
+				if(!return_val && (values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL)){
 					SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 					PrecErrorCleaning(stack);
 					return false;
 				}
+				if(values.incoming_term != T_EOL){
+					ReturnToken();
+				}
 				break;
-			case FINDING_FAILURE:
+			case FINDING_FAILURE_NO_KEYWORD:
+				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+				PrecErrorCleaning(stack);
+				return false;
+			case FINDING_FAILURE_IF:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 				PrecErrorCleaning(stack);
 				return false;
@@ -67,7 +87,7 @@ bool BottomUp(size_t line_num){
 				return false;
 		}
 		if(ContainingFunction(stack)){
-			end_func_val = FuncParams(stack, value_pair, line_num);
+			end_func_val = FuncParams(stack, values, line_num, keyword);
 			if(end_func_val == FUNC_NEST_LEAVE){
 				PrecErrorCleaning(stack);
 				return false;
@@ -83,7 +103,7 @@ bool BottomUp(size_t line_num){
 /*
  * TODO Nejake returny jdou upravit na FUNC_SMALL_ERROR a pokracovat v prohlizeni
  */
-int FuncParams(Stack *s, IdxTerminalPair value_pair, size_t line_num){
+int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keyword){
 	size_t parametres_count = 0;
 	int end_value = 0;
 	bool is_in_func = true;
@@ -96,39 +116,45 @@ int FuncParams(Stack *s, IdxTerminalPair value_pair, size_t line_num){
 			PrecErrorCleaning(s);
 			return FUNC_NEST_LEAVE;
 		}
-		FindInTable(s, &value_pair, line_num, is_in_func);
-		switch (value_pair.cell_value) {
+		FindInTable(s, &values, line_num, is_in_func, keyword);
+		if(values.error == FINDING_FAILURE_SEMI){
+			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
+			return FUNC_NEST_LEAVE;
+		}
+		switch (values.cell_value) {
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(s);
-				PushT(s, value_pair.incoming_term);
+				PushT(s, values.incoming_term);
 				SetReduction(s, idx);
 				break;
 			case SKIP_PR:
-				PushT(s, value_pair.incoming_term);
+				PushT(s, values.incoming_term);
 				break;
 			case LOWER_PR:
 				return_val = ApplyPrecRule(s, is_in_func, line_num);
-				if (!return_val && (value_pair.incoming_term == T_EOL) &&
-				    (GetFirstTerminal(s) == T_EOL)) {
+				if (!return_val && (values.incoming_term == T_EOL) && (GetFirstTerminal(s) == T_EOL)) {
 					SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-					PrecErrorCleaning(s);
 					return FUNC_NEST_LEAVE;
 				}
 				break;
-			case FINDING_FAILURE:
+			case FINDING_FAILURE_NO_KEYWORD:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				PrecErrorCleaning(s);
+				return FUNC_NEST_LEAVE;
+			case FINDING_FAILURE_SEMI:
+				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+				return FUNC_NEST_LEAVE;
+			case FINDING_FAILURE_IF:
+				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 				return FUNC_NEST_LEAVE;
 			case EXPR_ERROR:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				PrecErrorCleaning(s);
 				return FUNC_NEST_LEAVE;
 		}
-		if((value_pair.incoming_term == T_COMMA) || (value_pair.incoming_term == T_RIGHT_BRACKET)){ // TODO kontrola parametru funkce
+		if((values.incoming_term == T_COMMA) || (values.incoming_term == T_RIGHT_BRACKET)){ // TODO kontrola parametru funkce
 			parametres_count++;
 		}
-		if (value_pair.incoming_term == T_FUNCTION) {
-			end_value = FuncParams(s, value_pair, line_num);
+		if (values.incoming_term == T_FUNCTION) {
+			end_value = FuncParams(s, values, line_num, keyword);
 			if(end_value == FUNC_NEST_LEAVE){
 				return FUNC_NEST_LEAVE;
 			}

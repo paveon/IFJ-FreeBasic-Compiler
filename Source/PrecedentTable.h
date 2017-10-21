@@ -10,14 +10,21 @@
 #include "Stack.h"
 #include "symtable.h"
 #include "CompilationErrors.h"
+#include <stdlib.h>
 
-#define FINDING_FAILURE 10
-#define MAX_ERR_COUNT 3
 
+#define FINDING_FAILURE_NO_KEYWORD 10
+#define FINDING_FAILURE_IF 11
+#define FINDING_FAILURE_SEMI 12
+#define FINDING_FAILURE_FUNC_SPACE 13
+#define MAX_ERR_COUNT 5
+
+extern int g_err_counter;
 
 typedef struct IdxTerminalPair {
 	size_t cell_value;
 	Terminal incoming_term;
+	int error;
 }IdxTerminalPair;
 
 
@@ -51,7 +58,7 @@ typedef enum PrecOperators {
 	FUNCTION_IDENTIFIER = 14,
 	OPERATOR_COMMA = 15,
 	END_SYMBOL = 16,
-};
+}PrecOperators;
 
 
 /* Funkce hledajici pravidlo v precedencni tabulce. Hodnoty navraci do promenne "field" predane parametrem.
@@ -59,7 +66,7 @@ typedef enum PrecOperators {
  * Pri nedefinovane promenne vypise error, dale pokracuje, ale nerozlisuje zda byla promenna funkce ci identifikator.
  * Pokud nebyla definovana, tak se bere jako identifikator.
  */
-void FindInTable(Stack *s, struct IdxTerminalPair *field, size_t line_num, bool is_in_func);
+void FindInTable(Stack *s, struct IdxTerminalPair *field, size_t line_num, bool is_in_func, Terminal keyword);
 
 
 /* Funkce, ktera vybira ze stacku symboly a uklada je do bufferu, dokud nenarazi na reductionEnd. Po nalezeni

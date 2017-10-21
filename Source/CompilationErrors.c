@@ -40,6 +40,7 @@ static ErrorMetadata errors[] = {
 				{"undefined variable",                                           EC_SEMANTIC_DEFINITIONS},
 				{"missing operator in expression",                               EC_SEMANTIC_DEFINITIONS},
 				{"unknown expression",                                           EC_SEMANTIC_DEFINITIONS},
+				{"unexpected symbol '%s' in expression",                           EC_SEMANTIC_DEFINITIONS},
 };
 
 
@@ -60,6 +61,7 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_VAR_UNDEF:
 			case ER_SMC_MISSING_OP:
 			case ER_SMC_UNKNOWN_EXPR:
+			case ER_SMC_UNEXPECT_SYM:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 

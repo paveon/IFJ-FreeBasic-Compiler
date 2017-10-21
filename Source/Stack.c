@@ -170,7 +170,7 @@ void PopSymbol(Stack* stack) {
 Terminal GetFirstTerminal(Stack *stack){
 	Symbol *tmp = stack->top;
 	Terminal term;
-	while(GetSymbolType(tmp) != SYMBOL_TERMINAL){
+	while(tmp->type != SYMBOL_TERMINAL){
 		tmp = tmp->down;
 	}
 	term = tmp->data.terminal;
@@ -191,7 +191,7 @@ bool IsEndOfReduction(Stack *stack){
 bool ContainingFunction(Stack *stack){
 	SymbolType symbolType = GetSymbolType(stack);
 	Symbol *symbol = stack->top;
-	while(symbol){
+	while(symbolType == SYMBOL_BOTTOM){
 		if(symbolType == SYMBOL_TERMINAL){
 			if((symbol->data.terminal) == T_FUNCTION){
 				return true;
@@ -226,7 +226,7 @@ size_t LastSymBeforeFirstTerm(Stack *stack){
  */
 void SetReduction(Stack *stack, size_t idx){
 	Symbol *symbol = stack->top;
-	for(int i = 0; i < idx; i++){
+	for(size_t i = 0; i < idx; i++){
 		symbol = symbol->down;
 	}
 	symbol->reduceEnd = true;

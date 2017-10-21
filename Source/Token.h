@@ -67,6 +67,8 @@ int GetTokenInt(const Token*);
 /* Vraci primo hodnotu, pokud token odkazuje na double. Jinak vraci NAN */
 double GetTokenDouble(const Token*);
 
+/* Vraci hodnotu trailSpace */
+bool GetTrailSpace(const Token* token);
 
 /* Set funkce modifikuji data tokenu maximalne 1, pote je potreba vytvorit novy token */
 
