@@ -19,9 +19,6 @@
 
 const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "<", "<=", ">", ">=", "<>", "="};
 
-//TODO kontrolovat z vnejsi funkce
-int g_err_counter = 0; // promenna ve ktere se pocita pocet erroru pri zpracovavani vyrazu, pokud presahne hodnotu MAX_ERR_COUNT automaticky se vyraz vyhodnoti jako chybny a preskakuje se
-
 // g_PrecedentTable[11][15] se muze rovnat i 3 (carka ve volani funkce)
 static unsigned char g_PrecedentTable[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
 		  {1, 1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 1},
@@ -73,7 +70,7 @@ bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num){
 		main_counter--;
 	}
 
-	while(!IsEndOfReduction(s)){ // TODO otestovat zda se nemuze stat ze bude pouze ukonceni redukce bez zacatku
+	while(!IsEndOfReduction(s)){
 		if(top_type == SYMBOL_NONTERMINAL){
 			buffer[buff_idx] = GetTopNT(s);
 		}
@@ -82,6 +79,10 @@ bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num){
 		}
 		buff_idx++;
 		PopSymbol(s);
+		if(buff_idx > 3){
+			SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+			return false;
+		}
 	}
 	if(top_type == SYMBOL_NONTERMINAL){
 		buffer[buff_idx] = GetTopNT(s);
@@ -108,8 +109,6 @@ bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num){
 	else {
 		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO nevim jestli muze nastat
 	}
-	PushNT(s, NT_EXPRESSION);
-	g_err_counter++;
 	return false;
 }
 
@@ -137,57 +136,56 @@ void FindInTable(Stack *s, IdxTerminalPair *field, size_t line_num, bool is_in_f
 		case TOKEN_IDENTIFIER:
 			column = IDENTIFIER;
 			field->incoming_term = T_ID;
-//			id_func = LookupFunction(token_val);
-//			id_id = LookupVariable(token_val, true);
-//			if(id_func && id_id){
-//				token = GetNextToken();
-//				tokenType = GetTokenType(token);
-//				if(tokenType == TOKEN_L_BRACKET){
-//					column = FUNCTION_IDENTIFIER;
-//					field->incoming_term = T_FUNCTION;
-//				}
-//				else{
-//					column = IDENTIFIER;
-//					field->incoming_term = T_ID;
-//				}
-//				ReturnToken();
-//			}
-//			else{
-//				if(!id_func){ // neni to funkce
-//					if(!id_id){ // neni to promenna ani funkce
-//						token = GetNextToken();
-//						tokenType = GetTokenType(token);
-//						if(tokenType == TOKEN_L_BRACKET){ // pokud je nasledujici token leva zavorka, predpoklada se ze mel nasledovat zapis funkce
-//							if(GetTrailSpace(token)){
-//								field->error = FINDING_FAILURE_FUNC_SPACE;
-//							}
-//							else{
-//								column = FUNCTION_IDENTIFIER; // TODO napsat error jelikoz nezname pocet parametru
-//								field->incoming_term = T_FUNCTION;
-//							}
-//						}
-//						else{ // pokud nenasledovala zavorka asi to bude klasicka promenna
-//							column = IDENTIFIER;
-//							field->incoming_term = T_ID;
-//						}
-//						ReturnToken();
-//						SemanticError(line_num, ER_SMC_VAR_UNDEF, NULL);
-//					}
-//					else{ // neni funkce ale je promenna
-//						column = IDENTIFIER;
-//						field->incoming_term = T_ID;
-//					}
-//				}
-//				else{ // je to funkce
-//					if(GetTrailSpace(token)){
-//						field->error = FINDING_FAILURE_FUNC_SPACE;
-//					}
-//					else{
-//						column = FUNCTION_IDENTIFIER; // TODO napsat error jelikoz nezname pocet parametru
-//						field->incoming_term = T_FUNCTION;
-//					}
-//				}
-//			}
+			id_func = LookupFunction(token_val);
+			id_id = LookupVariable(token_val, true);
+			if(id_func && id_id){
+				token = GetNextToken();
+				tokenType = GetTokenType(token);
+				if(tokenType == TOKEN_L_BRACKET){
+					column = FUNCTION_IDENTIFIER;
+					field->incoming_term = T_FUNCTION;
+				}
+				else{
+					column = IDENTIFIER;
+					field->incoming_term = T_ID;
+				}
+				ReturnToken();
+			}
+			else{
+				if(!id_func){ // neni to funkce
+					if(!id_id){ // neni to promenna ani funkce
+						token = GetNextToken();
+						tokenType = GetTokenType(token);
+						if(tokenType == TOKEN_L_BRACKET){ // pokud je nasledujici token leva zavorka, predpoklada se ze mel nasledovat zapis funkce
+							if(GetTrailSpace(token)){
+								SemanticError(line_num, ER_SMC_UNEXP_FUNC_SPACE, token_val);
+							}
+							SemanticError(line_num, ER_SMC_FUNC_UNDECL, token_val);
+						}
+						else{ // pokud nenasledovala zavorka asi to bude klasicka promenna
+							SemanticError(line_num, ER_SMC_VAR_UNDEF, token_val);
+						}
+						field->error = FINDING_FAILURE;
+						ReturnToken(); // kdyby byl nasledujici znak EOL nebo ';' uz bych se to nedozvedel
+						return;
+					}
+					else{ // neni funkce ale je promenna
+						column = IDENTIFIER;
+						field->incoming_term = T_ID;
+					}
+				}
+				else{ // je to funkce
+					if(GetTrailSpace(token)){
+						SemanticError(line_num, ER_SMC_UNEXP_FUNC_SPACE, token_val);
+						field->error = FINDING_FAILURE;
+						return;
+					}
+					else{
+						column = FUNCTION_IDENTIFIER;
+						field->incoming_term = T_FUNCTION;
+					}
+				}
+			}
 			break;
 		case TOKEN_INTEGER:
 			column = IDENTIFIER;
@@ -211,7 +209,8 @@ void FindInTable(Stack *s, IdxTerminalPair *field, size_t line_num, bool is_in_f
 		case TOKEN_OPERATOR:
 			for(op_field_idx = 0; (op_field_idx < NUM_OF_OPERATORS) && (strcmp(token_val, OperatorField[op_field_idx]) != 0); op_field_idx++);
 			if((keyword != T_IF) && (keyword != T_WHILE) && (op_field_idx > 4)){
-				field->cell_value = FINDING_FAILURE_IF;
+				SemanticError(line_num, ER_SMC_COMPARATIVE_EXPR, NULL);
+				field->cell_value = FINDING_FAILURE;
 				return;
 			}
 			column = op_field_idx;
@@ -219,7 +218,7 @@ void FindInTable(Stack *s, IdxTerminalPair *field, size_t line_num, bool is_in_f
 			break;
 		case TOKEN_SEMICOLON:
 			if(keyword != T_PRINT){
-				field->error = FINDING_FAILURE_SEMI;
+				field->error = FINDING_FAILURE;
 			}
 			column = END_SYMBOL;
 			field->incoming_term = T_EOL;   // nehraje roli zda prijde ';' nebo EOL, oba ukoncuji expression a kontrola ukoncovaciho znaku neni na expression syntax kontrole
@@ -231,8 +230,7 @@ void FindInTable(Stack *s, IdxTerminalPair *field, size_t line_num, bool is_in_f
 			ReturnToken();
 			break;
 		default:
-			field->cell_value = FINDING_FAILURE_NO_KEYWORD;
-			g_err_counter++;
+			field->cell_value = FINDING_FAILURE;
 			return;
 	}
 	// Druhy switch rozdelujici pouze podle nejvrchnejsiho terminalu zasobniku

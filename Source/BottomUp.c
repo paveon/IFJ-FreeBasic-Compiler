@@ -27,7 +27,7 @@ bool BottomUp(size_t line_num, Terminal keyword){
 	IdxTerminalPair values;
 	bool return_val = true;
 	size_t idx = 0;
-	values.cell_value = FINDING_FAILURE_NO_KEYWORD;
+	values.cell_value = FINDING_FAILURE;
 	values.incoming_term = T_UNDEFINED;
 	int end_func_val = 0;
 
@@ -37,10 +37,6 @@ bool BottomUp(size_t line_num, Terminal keyword){
 		return false;
 	}
 	while(1){
-		if(g_err_counter >= MAX_ERR_COUNT){
-			PrecErrorCleaning(stack);
-			return false;
-		}
 		FindInTable(stack, &values, line_num, false, keyword);
 //		if(values.incoming_term == T_STRING){  // TODO
 //
@@ -48,7 +44,7 @@ bool BottomUp(size_t line_num, Terminal keyword){
 		if((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) && (LastSymBeforeFirstTerm(stack) == 1)){ // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
-		if(values.error == FINDING_FAILURE_SEMI){
+		if(values.error == FINDING_FAILURE){
 			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
 			PrecErrorCleaning(stack);
 			return false;
@@ -73,11 +69,7 @@ bool BottomUp(size_t line_num, Terminal keyword){
 					ReturnToken();
 				}
 				break;
-			case FINDING_FAILURE_NO_KEYWORD:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				PrecErrorCleaning(stack);
-				return false;
-			case FINDING_FAILURE_IF:
+			case FINDING_FAILURE:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 				PrecErrorCleaning(stack);
 				return false;
@@ -112,12 +104,8 @@ int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	nested++;
 
 	while (1) {
-		if (g_err_counter >= MAX_ERR_COUNT) {
-			PrecErrorCleaning(s);
-			return FUNC_NEST_LEAVE;
-		}
 		FindInTable(s, &values, line_num, is_in_func, keyword);
-		if(values.error == FINDING_FAILURE_SEMI){
+		if(values.error == FINDING_FAILURE){
 			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
 			return FUNC_NEST_LEAVE;
 		}
@@ -137,13 +125,7 @@ int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keywo
 					return FUNC_NEST_LEAVE;
 				}
 				break;
-			case FINDING_FAILURE_NO_KEYWORD:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				return FUNC_NEST_LEAVE;
-			case FINDING_FAILURE_SEMI:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				return FUNC_NEST_LEAVE;
-			case FINDING_FAILURE_IF:
+			case FINDING_FAILURE:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 				return FUNC_NEST_LEAVE;
 			case EXPR_ERROR:
