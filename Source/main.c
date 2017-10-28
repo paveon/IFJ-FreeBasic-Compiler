@@ -5,29 +5,16 @@
 #include "TopDown.h"
 #include "symtable.h"
 #include "Lexical.h"
+#include "BottomUp.h"
 
 
 int main(int argc, char* argv[]) {
 	printf("Test run started...\n");
 	Token* token;
-
-	if (argc < 2) {
-		printf("Expected source file name, exiting...\n");
-		exit(0);
-	}
-	if (freopen(argv[1], "r", stdin) == NULL) {
-		printf("Couldn't open specified source file (doesn't exist?), exiting...\n");
-		exit(0);
-	}
-
-	bool result = Lexical();
-	printf("Parsing simple program...\n");
-	if (ParseProgram()) {
-		printf("Program parsed...\n");
-	}
-	else {
-		fprintf(stderr, "Program contains an error!\n");
-	}
+	freopen("test.txt", "r", stdin);
+	bool lex = Lexical();
+	bool bottom = BottomUp(1, T_PRINT);
+	printf("brah");
 
 
 	char keyword[] = "aSc";

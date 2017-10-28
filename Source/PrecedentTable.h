@@ -51,7 +51,8 @@ typedef enum PrecOperators {
 	IDENTIFIER = 13,
 	FUNCTION_IDENTIFIER = 14,
 	OPERATOR_COMMA = 15,
-	END_SYMBOL = 16,
+	STRING = 16,
+	END_SYMBOL = 17,
 }PrecOperators;
 
 

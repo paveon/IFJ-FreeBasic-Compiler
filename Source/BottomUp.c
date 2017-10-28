@@ -5,13 +5,17 @@
 #include "BottomUp.h"
 
 #define FUNC_NEST_LEAVE 100
-#define FUNC_SMALL_ERROR 10
 #define FUNC_OK 1
 
 static size_t nested = 0;
 
 void PrecErrorCleaning(Stack *s){
 	Token *token = GetNextToken();
+	if(!token){
+		ReturnToken();
+		ReleaseStack(s);
+		return;
+	}
 	TokenType tokenType = GetTokenType(token);
 	while((tokenType != TOKEN_EOL) && (tokenType != TOKEN_SEMICOLON)) {
 		token = GetNextToken();
@@ -29,23 +33,14 @@ bool BottomUp(size_t line_num, Terminal keyword){
 	size_t idx = 0;
 	values.cell_value = FINDING_FAILURE;
 	values.incoming_term = T_UNDEFINED;
-	int end_func_val = 0;
+	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 
-	if((keyword != T_WHILE) && (keyword != T_IF) && (keyword != T_PRINT) && (keyword != T_EQUAL)){
-		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-		PrecErrorCleaning(stack);
-		return false;
-	}
 	while(1){
 		FindInTable(stack, &values, line_num, false, keyword);
-//		if(values.incoming_term == T_STRING){  // TODO
-//
-//		}
 		if((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) && (LastSymBeforeFirstTerm(stack) == 1)){ // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
 		if(values.error == FINDING_FAILURE){
-			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
 			PrecErrorCleaning(stack);
 			return false;
 		}
@@ -60,21 +55,16 @@ bool BottomUp(size_t line_num, Terminal keyword){
 				break;
 			case LOWER_PR:
 				return_val = ApplyPrecRule(stack, false, line_num);
-				if(!return_val && (values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL)){
-					SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+				if(!return_val){
 					PrecErrorCleaning(stack);
 					return false;
 				}
-				if(values.incoming_term != T_EOL){
+				if((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)){
 					ReturnToken();
 				}
 				break;
-			case FINDING_FAILURE:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				PrecErrorCleaning(stack);
-				return false;
-			case EXPR_ERROR:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+			case EXPR_ERROR:  // nebylo pravidlo v tabulce
+				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 				PrecErrorCleaning(stack);
 				return false;
 		}
@@ -100,14 +90,27 @@ int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	int end_value = 0;
 	bool is_in_func = true;
 	size_t idx = 0;
-	bool return_val = true;
+	bool return_val;
+	int l_brackets = 1, r_brackets = 0;
 	nested++;
 
 	while (1) {
 		FindInTable(s, &values, line_num, is_in_func, keyword);
 		if(values.error == FINDING_FAILURE){
-			SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
 			return FUNC_NEST_LEAVE;
+		}
+
+		 /* Pocitani zavorek k zjisteni posledniho parametru */
+		if(values.incoming_term == T_LEFT_BRACKET){
+			l_brackets++;
+		}
+		else if(values.incoming_term == T_RIGHT_BRACKET){
+			r_brackets++;
+		}
+		/*****************************************************/
+
+		if((values.incoming_term == T_COMMA) || (l_brackets == r_brackets)){ // TODO kontrola parametru funkce
+			parametres_count++;
 		}
 		switch (values.cell_value) {
 			case HIGHER_PR:
@@ -120,20 +123,13 @@ int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				break;
 			case LOWER_PR:
 				return_val = ApplyPrecRule(s, is_in_func, line_num);
-				if (!return_val && (values.incoming_term == T_EOL) && (GetFirstTerminal(s) == T_EOL)) {
-					SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+				if (!return_val) {
 					return FUNC_NEST_LEAVE;
 				}
 				break;
-			case FINDING_FAILURE:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
-				return FUNC_NEST_LEAVE;
 			case EXPR_ERROR:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
+				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 				return FUNC_NEST_LEAVE;
-		}
-		if((values.incoming_term == T_COMMA) || (values.incoming_term == T_RIGHT_BRACKET)){ // TODO kontrola parametru funkce
-			parametres_count++;
 		}
 		if (values.incoming_term == T_FUNCTION) {
 			end_value = FuncParams(s, values, line_num, keyword);
