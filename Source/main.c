@@ -5,6 +5,7 @@
 #include "TopDown.h"
 #include "symtable.h"
 #include "Lexical.h"
+#include "BottomUp.h"
 
 
 int main(int argc, char* argv[]) {

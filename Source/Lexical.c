@@ -98,6 +98,11 @@ void SetLex(State* currentState, int firstChar) {
 		*currentState = NUMBER;
 		AppendToBuff(firstChar);
 	}
+	else if (firstChar == '<' || firstChar == '>') {
+		//relacni operator
+		*currentState = RELAT;
+		AppendToBuff(firstChar);
+	}
 	else if (isalpha(firstChar) || firstChar == '_') {
 		// zacina pismenem
 		*currentState = WORD;
@@ -115,10 +120,8 @@ void SetLex(State* currentState, int firstChar) {
 		//zacina radkova escape sekvence
 		*currentState = COMMENTP;
 	}
-	else if (firstChar == '<' || firstChar == '>') {
-		//relacni operator
-		*currentState = RELAT;
-		AppendToBuff(firstChar);
+	else {
+		*currentState = START;
 	}
 
 }
@@ -235,14 +238,14 @@ bool Lexical() {
 				if (currentChar == '=' || (currentChar == '>' && g_Buffer.data[0] == '<')) {
 					AppendToBuff(currentChar);
 					CreateToken();
-					SetIdentifier(g_Buffer.data);
+					SetOperator(g_Buffer.data);
 					ClearBuffer();
 					currentState = START;
 				}
 				else   //TODO osetrit chybne vstupy - resit pres endFlag
 				{
 					CreateToken();
-					SetIdentifier(g_Buffer.data);
+					SetOperator(g_Buffer.data);
 					ClearBuffer();
 					SetLex(&currentState, currentChar);
 				}
@@ -366,6 +369,10 @@ bool Lexical() {
 					currentState = START;
 				}
 				else {
+					if (currentChar == '\n') {
+						CreateToken();
+						SetEOL();
+					}
 					commentFlag = false;
 				}
 				break;

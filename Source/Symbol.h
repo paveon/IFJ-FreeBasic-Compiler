@@ -18,6 +18,7 @@ typedef enum NTerminal {
 	NT_LINE_BREAK = 11,
 	NT_SCOPE = 12,
 	NT_EXPRESSION,
+	NT_STRING,
 	NT_UNDEFINED
 } NTerminal;
 

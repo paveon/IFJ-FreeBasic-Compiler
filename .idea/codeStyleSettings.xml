@@ -5,10 +5,11 @@
       <value>
         <option name="RIGHT_MARGIN" value="100" />
         <Objective-C>
-          <option name="INDENT_NAMESPACE_MEMBERS" value="3" />
-          <option name="INDENT_C_STRUCT_MEMBERS" value="3" />
-          <option name="INDENT_CLASS_MEMBERS" value="3" />
-          <option name="INDENT_INSIDE_CODE_BLOCK" value="3" />
+          <option name="INDENT_NAMESPACE_MEMBERS" value="2" />
+          <option name="INDENT_C_STRUCT_MEMBERS" value="2" />
+          <option name="INDENT_CLASS_MEMBERS" value="2" />
+          <option name="INDENT_INSIDE_CODE_BLOCK" value="2" />
+          <option name="ALIGN_INIT_LIST_IN_COLUMNS" value="false" />
           <option name="SPACE_BEFORE_POINTER_IN_DECLARATION" value="false" />
           <option name="SPACE_AFTER_POINTER_IN_DECLARATION" value="true" />
         </Objective-C>
@@ -40,10 +41,9 @@
         <codeStyleSettings language="ObjectiveC">
           <option name="ELSE_ON_NEW_LINE" value="true" />
           <indentOptions>
-            <option name="INDENT_SIZE" value="3" />
-            <option name="TAB_SIZE" value="3" />
+            <option name="INDENT_SIZE" value="2" />
+            <option name="TAB_SIZE" value="2" />
             <option name="USE_TAB_CHARACTER" value="true" />
-            <option name="SMART_TABS" value="true" />
           </indentOptions>
         </codeStyleSettings>
       </value>

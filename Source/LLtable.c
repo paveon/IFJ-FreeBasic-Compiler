@@ -12,100 +12,100 @@ typedef struct Pair {
 } Pair;
 
 static Pair g_NT_PROGRAM[] = {
-				{T_DECLARE, RULE_FUNC_DECL},
-				{T_FUNCTION, RULE_FUNC_DEF},
-				{T_SCOPE, RULE_MAIN_SCOPE},
-				{T_DIM, RULE_VAR_GLOBAL},
+				{T_DECLARE,   RULE_FUNC_DECL},
+				{T_FUNCTION,  RULE_FUNC_DEF},
+				{T_SCOPE,     RULE_MAIN_SCOPE},
+				{T_DIM,       RULE_VAR_GLOBAL},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_SCOPE[] = {
-				{T_SCOPE, RULE_NEW_SCOPE},
+				{T_SCOPE,     RULE_NEW_SCOPE},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_HEADER[] = {
-				{T_FUNCTION, RULE_FUNC_HEADER},
+				{T_FUNCTION,  RULE_FUNC_HEADER},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_FUNCTION[] = {
-				{T_FUNCTION, RULE_FUNC_BODY},
+				{T_FUNCTION,  RULE_FUNC_BODY},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_ARGUMENT[] = {
-				{T_ID, RULE_FUNC_ARG},
+				{T_ID,            RULE_FUNC_ARG},
 				{T_RIGHT_BRACKET, 27}, //epsilon
-				{T_UNDEFINED, 0}
+				{T_UNDEFINED,     0}
 };
 static Pair g_NT_NEXT_ARGUMENT[] = {
-				{T_COMMA, RULE_FUNC_NEXT_ARG},
+				{T_COMMA,         RULE_FUNC_NEXT_ARG},
 				{T_RIGHT_BRACKET, 8}, //epsilon
-				{T_UNDEFINED, 0}
+				{T_UNDEFINED,     0}
 };
 static Pair g_NT_STATEMENT_LIST[] = {
-				{T_DIM, RULE_ST_LIST},
-				{T_STATIC, RULE_ST_LIST},
-				{T_SCOPE, RULE_ST_LIST},
-				{T_ID, RULE_ST_LIST},
-				{T_DO, RULE_ST_LIST},
-				{T_IF, RULE_ST_LIST},
-				{T_ELSE, 10}, //epsilon
-				{T_END, 10}, //epsilon
-				{T_INPUT, RULE_ST_LIST},
-				{T_LOOP, 10}, //epsilon
-				{T_PRINT, RULE_ST_LIST},
-				{T_RETURN, RULE_ST_LIST},
+				{T_DIM,       RULE_ST_LIST},
+				{T_STATIC,    RULE_ST_LIST},
+				{T_SCOPE,     RULE_ST_LIST},
+				{T_ID,        RULE_ST_LIST},
+				{T_DO,        RULE_ST_LIST},
+				{T_IF,        RULE_ST_LIST},
+				{T_ELSE,      10}, //epsilon
+				{T_END,       10}, //epsilon
+				{T_INPUT,     RULE_ST_LIST},
+				{T_LOOP,      10}, //epsilon
+				{T_PRINT,     RULE_ST_LIST},
+				{T_RETURN,    RULE_ST_LIST},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_STATEMENT[] = {
-				{T_DIM, RULE_ST_VAR_DECL},
-				{T_STATIC, RULE_ST_VAR_STATIC},
-				{T_SCOPE, RULE_NEW_SCOPE},
-				{T_ID, RULE_ST_FUNC_CALL},
-				{T_IF, RULE_ST_IF},
-				{T_DO, RULE_ST_WHILE},
-				{T_INPUT, RULE_ST_INPUT},
-				{T_PRINT, RULE_ST_PRINT},
-				{T_RETURN, RULE_ST_RETURN},
+				{T_DIM,       RULE_ST_VAR_DECL},
+				{T_STATIC,    RULE_ST_VAR_STATIC},
+				{T_SCOPE,     RULE_NEW_SCOPE},
+				{T_ID,        RULE_ST_FUNC_CALL},
+				{T_IF,        RULE_ST_IF},
+				{T_DO,        RULE_ST_WHILE},
+				{T_INPUT,     RULE_ST_INPUT},
+				{T_PRINT,     RULE_ST_PRINT},
+				{T_RETURN,    RULE_ST_RETURN},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_ELSE[] = {
-				{T_ELSE, RULE_ST_ELSE},
-				{T_END, RULE_ST_END_IF},
+				{T_ELSE,      RULE_ST_ELSE},
+				{T_END,       RULE_ST_END_IF},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_NEXT_EXPRESSION[] = {
-				{T_EOL, 21}, //epsilon
+				{T_EOL,       21}, //epsilon
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_INITIALIZATION[] = {
 				{T_OPERATOR_EQUAL, RULE_VAR_INIT},
-				{T_EOL, 23}, //epsilon
-				{T_UNDEFINED, 0}
+				{T_EOL,            23}, //epsilon
+				{T_UNDEFINED,      0}
 };
 static Pair g_NT_TYPE[] = {
-				{T_DOUBLE, RULE_TYPE_DOUBLE},
-				{T_INTEGER, RULE_TYPE_INT},
-				{T_STRING, RULE_TYPE_STRING},
+				{T_DOUBLE,    RULE_TYPE_DOUBLE},
+				{T_INTEGER,   RULE_TYPE_INT},
+				{T_STRING,    RULE_TYPE_STRING},
 				{T_UNDEFINED, 0}
 };
 static Pair g_NT_LINE_BREAK[] = {
-				{T_EOL, RULE_LINE_BREAK},
+				{T_EOL,       RULE_LINE_BREAK},
 
 				/* Epsilon pravidlo */
-				{T_DECLARE, 29},
-				{T_DIM, 29},
-				{T_STATIC, 29},
-				{T_DO, 29},
-				{T_ELSE, 29},
-				{T_END, 29},
-				{T_FUNCTION, 29},
-				{T_IF, 29},
-				{T_INPUT, 29},
-				{T_LOOP, 29},
-				{T_PRINT, 29},
-				{T_RETURN, 29},
-				{T_SCOPE, 29},
-				{T_ID, 29},
-				{T_EOF, 29},
+				{T_DECLARE,   29},
+				{T_DIM,       29},
+				{T_STATIC,    29},
+				{T_DO,        29},
+				{T_ELSE,      29},
+				{T_END,       29},
+				{T_FUNCTION,  29},
+				{T_IF,        29},
+				{T_INPUT,     29},
+				{T_LOOP,      29},
+				{T_PRINT,     29},
+				{T_RETURN,    29},
+				{T_SCOPE,     29},
+				{T_ID,        29},
+				{T_EOF,       29},
 				{T_UNDEFINED, 0}
 };
 

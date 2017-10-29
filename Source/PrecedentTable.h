@@ -13,13 +13,7 @@
 #include <stdlib.h>
 
 
-#define FINDING_FAILURE_NO_KEYWORD 10
-#define FINDING_FAILURE_IF 11
-#define FINDING_FAILURE_SEMI 12
-#define FINDING_FAILURE_FUNC_SPACE 13
-#define MAX_ERR_COUNT 5
-
-extern int g_err_counter;
+#define FINDING_FAILURE 10
 
 typedef struct IdxTerminalPair {
 	size_t cell_value;
@@ -57,7 +51,8 @@ typedef enum PrecOperators {
 	IDENTIFIER = 13,
 	FUNCTION_IDENTIFIER = 14,
 	OPERATOR_COMMA = 15,
-	END_SYMBOL = 16,
+	STRING = 16,
+	END_SYMBOL = 17,
 }PrecOperators;
 
 

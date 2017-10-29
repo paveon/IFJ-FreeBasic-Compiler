@@ -24,6 +24,11 @@ typedef enum ErrorCode {
 	ER_SMC_MISSING_OP, // Chybejici operator ve vyrazu
 	ER_SMC_UNKNOWN_EXPR, // Nenalezeno vhodne pravidlo v tabulce
 	ER_SMC_UNEXPECT_SYM, // Neocekavany symbol (';' bez printu apod.)
+	ER_SMC_UNEXP_FUNC_SPACE, // Mezera za identifikatorem funkce
+	ER_SMC_FUNC_UNDECL, // Nedeklarovana funkce
+	ER_SMC_COMPARATIVE_EXPR, // Pouzivani porovnavacich operatoru v klasickych vyrazech
+	ER_SMC_STRING_NO_PRINT, // Pred terminalem T_STRING nebylo klicove slovo Print
+	ER_SMC_STR_AND_NUM, // Spojeni retezce a cisel do jednoho vyrazu
 } ErrorCode;
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra);

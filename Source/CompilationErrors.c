@@ -22,25 +22,77 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[] = {
-				{"placeholder...\n",                                             EC_LEXICAL},
-				{"placeholder...\n",                                             EC_SYNTAX},
-				{"placeholder...\n",                                             EC_SEMANTIC_DEFINITIONS},
-				{"placeholder...\n",                                             EC_SEMANTIC_TYPES},
-				{"placeholder...\n",                                             EC_SEMANTIC_OTHER},
-				{"memory allocation failed",                                     EC_INTERNAL},
-				{"variable '%s' redeclaration",                                  EC_SEMANTIC_DEFINITIONS},
-				{"undefined variable '%s'", EC_SEMANTIC_DEFINITIONS},
-				{"function '%s' was declared after definition",                  EC_SEMANTIC_DEFINITIONS},
-				{"function '%s' was already declared",                           EC_SEMANTIC_DEFINITIONS},
-				{"redefinition of existing function '%s'",                       EC_SEMANTIC_DEFINITIONS},
-				{"missing definition of function '%s'",                          EC_SEMANTIC_DEFINITIONS},
-				{"parameter of function '%s' was redefined",                     EC_SEMANTIC_DEFINITIONS},
-				{"definition of function '%s' has a wrong number of parameters", EC_SEMANTIC_DEFINITIONS},
-				{"parameter type mismatch in %s's signatures",                   EC_SEMANTIC_DEFINITIONS},
-				{"return type mismatch in %s's signatures",                      EC_SEMANTIC_DEFINITIONS},
-				{"missing operator in expression",                               EC_SEMANTIC_DEFINITIONS},
-				{"unknown expression",                                           EC_SEMANTIC_DEFINITIONS},
-				{"unexpected symbol '%s' in expression", EC_SEMANTIC_DEFINITIONS},
+				{"placeholder...\n",
+								EC_LEXICAL},
+
+				{"placeholder...\n",
+								EC_SYNTAX},
+
+				{"placeholder...\n",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"placeholder...\n",
+								EC_SEMANTIC_TYPES},
+
+				{"placeholder...\n",
+								EC_SEMANTIC_OTHER},
+
+				{"memory allocation failed",
+								EC_INTERNAL},
+
+				{"variable '%s' redeclaration",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"undefined variable '%s'",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"function '%s' was declared after definition",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"function '%s' was already declared",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"redefinition of existing function '%s'",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"missing definition of function '%s'",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"parameter of function '%s' was redefined",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"definition of function '%s' has a wrong number of parameters",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"parameter type mismatch in %s's signatures",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"return type mismatch in %s's signatures",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"missing operator in expression",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"unknown expression",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"unexpected symbol '%s' in expression",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"unexpected space after function identifier '%s'",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"function '%s' is undeclared",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"usage of comparative operators in non condition based expressions",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"missing keyword 'print' before string expression",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"invalid combination of string and number in one expression",
+								EC_SEMANTIC_DEFINITIONS},
 };
 
 
@@ -59,9 +111,8 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_FUNC_PARAM_TYPE:
 			case ER_SMC_FUNC_RETURN_TYPE:
 			case ER_SMC_VAR_UNDEF:
-			case ER_SMC_MISSING_OP:
-			case ER_SMC_UNKNOWN_EXPR:
 			case ER_SMC_UNEXPECT_SYM:
+			case ER_SMC_FUNC_UNDECL:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 
