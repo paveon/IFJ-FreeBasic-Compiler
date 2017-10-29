@@ -19,6 +19,7 @@ typedef enum NTerminal {
 	NT_SCOPE = 12,
 	NT_EXPRESSION,
 	NT_STRING,
+	NT_ELSEIF,
 	NT_UNDEFINED
 } NTerminal;
 

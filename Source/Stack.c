@@ -13,7 +13,7 @@ struct Stack {
 };
 
 typedef struct StackStash {
-	Stack* array;
+	Stack** array;
 	size_t size;
 } StackStash;
 static StackStash g_Stacks;
@@ -99,7 +99,7 @@ Stack* GetStack(void) {
 	Stack* freeStack;
 	//Pokusime se najit nepouzity stack
 	for (size_t i = 0; i < g_Stacks.size; i++) {
-		freeStack = &g_Stacks.array[i];
+		freeStack = g_Stacks.array[i];
 		if (freeStack->inUse == false) {
 			PushT(freeStack, T_BOTTOM);
 			return freeStack; //Volny stack existuje
@@ -107,12 +107,14 @@ Stack* GetStack(void) {
 	}
 
 	//Vytvorime novy stack
+	Stack** tmp;
 	g_Stacks.size++;
-	if ((freeStack = realloc(g_Stacks.array, sizeof(Stack) * g_Stacks.size)) == NULL) {
+	if ((tmp = realloc(g_Stacks.array, sizeof(Stack*) * g_Stacks.size)) == NULL ||
+			(freeStack = malloc(sizeof(Stack))) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	g_Stacks.array = freeStack;
-	freeStack = &g_Stacks.array[g_Stacks.size - 1];
+	g_Stacks.array = tmp;
+	g_Stacks.array[g_Stacks.size - 1] = freeStack;
 	freeStack->top = NULL;
 	freeStack->inUse = true;
 	PushT(freeStack, T_BOTTOM);
@@ -368,7 +370,7 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_INPUT);
 			break;
 		case RULE_ST_PRINT:
-			PushNT(stack, NT_NEXT_ARGUMENT);
+			PushNT(stack, NT_NEXT_EXPRESSION);
 			PushT(stack, T_SEMICOLON);
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_PRINT);
@@ -388,6 +390,7 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			break;
 		case RULE_ST_IF:
 			PushNT(stack, NT_ELSE);
+			PushNT(stack, NT_ELSEIF);
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
@@ -395,7 +398,16 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_IF);
 			break;
-		case RULE_ST_ELSE:
+		case RULE_ELSEIF:
+			PushNT(stack, NT_ELSEIF);
+			PushNT(stack, NT_STATEMENT_LIST);
+			PushNT(stack, NT_LINE_BREAK);
+			PushT(stack, T_EOL);
+			PushT(stack, T_THEN);
+			PushNT(stack, NT_EXPRESSION);
+			PushT(stack, T_ELSEIF);
+			break;
+		case RULE_ELSE:
 			PushT(stack, T_IF);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
@@ -403,7 +415,7 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_EOL);
 			PushT(stack, T_ELSE);
 			break;
-		case RULE_ST_END_IF:
+		case RULE_END_IF:
 			PushT(stack, T_IF);
 			PushT(stack, T_END);
 			break;
@@ -448,16 +460,10 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_STATIC);
 			break;
 
-		case 8:
-		case 10:
-		case 21:
-		case 27:
-		case 23:
-		case 29:
-			//epsilon pravidla
+		case RULE_EPSILON:
 			break;
 
-		case 0:
+		case RULE_MISSING:
 		default:
 			//Neexistujici pravidlo - chyba syntaxe
 			return false;

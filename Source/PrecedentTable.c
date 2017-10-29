@@ -265,6 +265,15 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 			field->incoming_term = T_EOL;   // nehraje roli zda prijde ';' nebo EOL, oba ukoncuji expression a kontrola ukoncovaciho znaku neni na expression syntax kontrole
 			ReturnToken();
 			break;
+		case TOKEN_KEYWORD:
+			if (keyword != T_IF || GetTokenTerminal(token) != T_THEN) {
+				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, token_val);
+				field->error = FINDING_FAILURE;
+			}
+			column = END_SYMBOL;
+			field->incoming_term = T_EOL;
+			ReturnToken();
+			break;
 		case TOKEN_EOL:
 			if (keyword == T_PRINT) {
 				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, "EOL");

@@ -2,8 +2,7 @@
 #include "CompilationErrors.h"
 #include "TopDown.h"
 #include "Stack.h"
-#include "LLtable.h"
-#include "symtable.h"
+#include "BottomUp.h"
 
 #define CHUNK 20
 
@@ -27,7 +26,8 @@ const char* NTerminalText[20] = {
 				[NT_TYPE] = "<type>",
 				[NT_EXPRESSION] = "<expr>",
 				[NT_LINE_BREAK] = "<line_break>",
-				[NT_SCOPE] = "<scope>"
+				[NT_SCOPE] = "<scope>",
+				[NT_ELSEIF] = "<elseif>"
 };
 
 
@@ -106,6 +106,7 @@ bool ParseProgram(void) {
 	SymbolType symbolType;
 	NTerminal nTerminal;
 	Terminal terminal;
+	Terminal preExp = T_WHILE;
 	PushNT(stack, NT_PROGRAM);
 	PushNT(stack, NT_LINE_BREAK);
 	symbolType = GetSymbolType(stack);
@@ -115,18 +116,20 @@ bool ParseProgram(void) {
 	Code result = ANALYSIS_CONTINUE;
 	while (result == ANALYSIS_CONTINUE) {
 		switch (symbolType) {
-			case SYMBOL_BOTTOM:
+			case SYMBOL_BOTTOM: //Dno zasobniku
 				tokenType = GetTokenType(token);
 				if (tokenType == TOKEN_EOF) {
+					//Zasobnik je prazdny a token je EOF -> vse OK
 					printf("-- Syntactically correct --\n");
 					result = ANALYSIS_SUCCESS;
 				}
 				else {
+					//Zasobnik je prazdny ale vstup neni ukoncen -> chyba
 					result = ANALYSIS_ERROR;
 				}
 				break;
 
-			case SYMBOL_TERMINAL:
+			case SYMBOL_TERMINAL: //Na vrcholu se nachazi terminal
 				value = TerminalText[GetTopT(stack)];
 				if (*value == '\n') {
 					printf("-- Comparing terminal\t[EOL]\n");
@@ -138,6 +141,7 @@ bool ParseProgram(void) {
 					printf("-- Comparing terminal\t[%s]\n", value);
 				}
 
+				//Porovname terminal na vrcholu zasobniku s terminalem na vstupu
 				if (CompareTop(stack, terminal)) {
 
 					//Dodatecne operace podle typu terminalu
@@ -172,7 +176,12 @@ bool ParseProgram(void) {
 
 						case T_RETURN:
 							//Volani return v hlavni funkci znamena chybu
-							if (mainScope) { result = ANALYSIS_ERROR; }
+							if (mainScope) {
+								result = ANALYSIS_ERROR;
+								break;
+							}
+							preExp = T_RETURN;
+							//BottomUp(currentLine, terminal);
 							break;
 
 
@@ -183,7 +192,22 @@ bool ParseProgram(void) {
 							else {
 								BeginSubScope();
 							}
+							preExp = T_IF;
+							//BottomUp(currentLine, terminal);
 							break;
+
+						case T_WHILE:
+						case T_PRINT:
+						case T_OPERATOR_EQUAL:
+							preExp = terminal;
+							break;
+						case T_SEMICOLON:
+							preExp = T_PRINT;
+							break;
+						case T_ELSEIF:
+							preExp = T_IF;
+							break;
+
 						case T_LOOP:
 							EndSubScope();
 							break;
@@ -300,7 +324,7 @@ bool ParseProgram(void) {
 						case T_DOUBLE:
 						case T_STRING:
 							if (declareVar) {
-								//Typ promenne
+								//Typy promennych
 								if (variable) {
 									//Nastavime typ promenne
 									variable->type = TypeAsChar(terminal);
@@ -436,14 +460,24 @@ bool ParseProgram(void) {
 			case SYMBOL_NONTERMINAL:
 				//Na vrcholu zasobniku se nachazi neterminal, pokusime se jej derivovat
 				nTerminal = GetTopNT(stack);
-				printf("-- Derivating\t\t\t[%s]\n", NTerminalText[nTerminal]);
-				if (ExpandTop(stack, terminal)) {
-					//Derivace uspela, ziskame typ noveho vrcholu zasobnik
+				if (nTerminal == NT_EXPRESSION) {
+					ReturnToken();
+					BottomUp(currentLine, preExp);
+					PopSymbol(stack);
 					symbolType = GetSymbolType(stack);
+					token = GetNextToken();
+					terminal = GetTokenTerminal(token);
 				}
 				else {
-					//Derivace selhala -> neexistuje derivacni pravidlo
-					result = ANALYSIS_ERROR;
+					printf("-- Derivating\t\t\t[%s]\n", NTerminalText[nTerminal]);
+					if (ExpandTop(stack, terminal)) {
+						//Derivace uspela, ziskame typ noveho vrcholu zasobnik
+						symbolType = GetSymbolType(stack);
+					}
+					else {
+						//Derivace selhala -> neexistuje derivacni pravidlo
+						result = ANALYSIS_ERROR;
+					}
 				}
 				break;
 
