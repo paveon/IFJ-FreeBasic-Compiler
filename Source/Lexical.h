@@ -1,7 +1,5 @@
 #ifndef LEXICAL_H
 #define LEXICAL_H
-#include "Token.h"
-
 
 //TODO napsat rozsahlejsi komentare
 
@@ -18,11 +16,5 @@ bool Lexical();
 /* Funkce pro uklid pameti, pouziva se i pri kriticke chybe */
 void LexCleanup();
 
-
-/*
- * @brief testovaci funkce, vypise na stdout vsechny vyrvorene tokeny
- *
- */
-int TEST_TOKENS(Token* token);
 
 #endif //LEXICAL_H

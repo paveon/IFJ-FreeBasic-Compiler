@@ -98,12 +98,12 @@ int main(int argc, char* argv[]) {
 			if (variable)
 				variable->type = 'd';
 
-			variable = LookupVariable(name, false); //Hledat pouze lokalni promenne
-			variable = LookupVariable(name, true); //I globalni
+			variable = LookupVariable(name, NULL, false); //Hledat pouze lokalni promenne
+			variable = LookupVariable(name, NULL, true); //I globalni
 			function = LookupFunction(name); //Funkce
 			EndSubScope();
-			variable = LookupVariable(name, false); //Pouze lokalni promenne
-			variable = LookupVariable(name, true); //I globalni
+			variable = LookupVariable(name, NULL, false); //Pouze lokalni promenne
+			variable = LookupVariable(name, NULL, true); //I globalni
 		}
 	}
 	EndScope();

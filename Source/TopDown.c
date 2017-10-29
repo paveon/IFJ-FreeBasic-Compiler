@@ -26,7 +26,41 @@ const char* NTerminalText[20] = {
 				[NT_INITIALIZATION] = "<init>",
 				[NT_TYPE] = "<type>",
 				[NT_EXPRESSION] = "<expr>",
-				[NT_LINE_BREAK] = "<line_break>"
+				[NT_LINE_BREAK] = "<line_break>",
+				[NT_SCOPE] = "<scope>"
+};
+
+
+static const char* const TerminalText[29] = {
+				[T_DECLARE] = "DECLARE",
+				[T_DIM] = "DIM",
+				[T_DO] = "DO",
+				[T_DOUBLE] = "DOUBLE",
+				[T_ELSE] = "ELSE",
+				[T_ELSEIF] = "ELSEIF",
+				[T_END] = "END",
+				[T_FUNCTION] = "FUNCTION",
+				[T_IF] = "IF",
+				[T_INPUT] = "INPUT",
+				[T_INTEGER] = "INTEGER",
+				[T_LOOP] = "LOOP",
+				[T_PRINT] = "PRINT",
+				[T_RETURN] = "RETURN",
+				[T_SCOPE] = "SCOPE",
+				[T_STRING] = "STRING",
+				[T_SHARED] = "SHARED",
+				[T_STATIC] = "STATIC",
+				[T_COMMA] = ",",
+				[T_LEFT_BRACKET] = "(",
+				[T_OPERATOR_EQUAL] = "=",
+				[T_EOL] = "\n",
+				[T_ID] = "ID",
+				[T_EOF] = "EOF",
+				[T_RIGHT_BRACKET] = ")",
+				[T_AS] = "AS",
+				[T_WHILE] = "WHILE",
+				[T_THEN] = "THEN",
+				[T_SEMICOLON] = ";"
 };
 
 
@@ -58,6 +92,7 @@ bool ParseProgram(void) {
 	bool declareFunc = false;
 	bool declareVar = false;
 	bool declareArg = false;
+	bool staticFlag = false;
 	bool endFlag = false;
 	size_t paramCount = 0;
 
@@ -74,6 +109,8 @@ bool ParseProgram(void) {
 	PushNT(stack, NT_PROGRAM);
 	PushNT(stack, NT_LINE_BREAK);
 	symbolType = GetSymbolType(stack);
+	terminal = GetTokenTerminal(token);
+
 
 	Code result = ANALYSIS_CONTINUE;
 	while (result == ANALYSIS_CONTINUE) {
@@ -90,29 +127,45 @@ bool ParseProgram(void) {
 				break;
 
 			case SYMBOL_TERMINAL:
-				value = GetTerminalValue(GetTopT(stack));
+				value = TerminalText[GetTopT(stack)];
 				if (*value == '\n') {
 					printf("-- Comparing terminal\t[EOL]\n");
+				}
+				else if (terminal == T_ID) {
+					printf("-- Comparing terminal\t[%s - identifier]\n", (char*) GetTokenValue(token));
 				}
 				else {
 					printf("-- Comparing terminal\t[%s]\n", value);
 				}
 
-				if (CompareTop(stack, token)) {
-					terminal = GetTopT(stack);
+				if (CompareTop(stack, terminal)) {
 
 					//Dodatecne operace podle typu terminalu
 					switch (terminal) {
 						case T_SCOPE:
-							//Nachazime se v hlavnim tele programu
-							mainScope = !mainScope; //Toggle
-
-							//Pri vstupu do main scopu zkontrolujeme, zda byly
-							// vsechny deklarovane funkce definovany
-							if (mainScope) {
-								for (size_t i = 0; i < g_Decls.used; i++) {
-									Function* func = g_Decls.array[i];
-									SemanticError(func->codeLine, ER_SMC_FUNC_NO_DEF, func->name);
+							if (endFlag) {
+								//Terminal END ve spojeni s terminalem SCOPE ukoncuje aktualni blok.
+								EndSubScope();
+							}
+							else {
+								if (defineFunc) {
+									//Nachazime se ve funkci, provedeme zanoreni
+									BeginSubScope();
+								}
+								else {
+									if (!mainScope) {
+										//Pri vstupu do hlavniho tela zkontrolujeme, zda byly
+										// vsechny deklarovane funkce definovany
+										for (size_t i = 0; i < g_Decls.used; i++) {
+											Function* func = g_Decls.array[i];
+											SemanticError(func->codeLine, ER_SMC_FUNC_NO_DEF, func->name);
+										}
+										mainScope = true;
+									}
+									else {
+										//Jiz se nachazime v hlavnim tele, provedeme zanoreni
+										BeginSubScope();
+									}
 								}
 							}
 							break;
@@ -142,7 +195,16 @@ bool ParseProgram(void) {
 						case T_ID:
 							value = GetTokenValue(token);
 							if (declareVar) {
-								variable = LookupVariable(value, NULL);
+								if (mainScope || defineFunc) {
+									//Deklarace lokalni promenne v hlavnim tele programu nebo
+									//ve funkci. Muze prekryt globalni promenne
+									variable = LookupVariable(value, true, false);
+								}
+								else {
+									//Deklarace globalni promenne. Nachazime se na globalni
+									//urovni a proto je lokalni tabulka prazdna -> nedojde ke kolizi
+									variable = LookupVariable(value, true, true);
+								}
 								if (variable) {
 									//Promenna jiz existuje (redeklarace)
 									SemanticError(currentLine, ER_SMC_VAR_REDECL, variable->name);
@@ -152,7 +214,11 @@ bool ParseProgram(void) {
 									//Vytvorime novou promennou, pouzijeme informaci o tom, zda se
 									//nachazime v hlavnim tele programu a na zaklade teto informace
 									//vytvorime lokalni / globalni promennou
-									variable = InsertVariable(value, !mainScope, currentLine);
+									variable = InsertVariable(value, (!defineFunc && !mainScope), currentLine);
+									if (staticFlag) {
+										variable->staticVariable = true;
+										staticFlag = false;
+									}
 								}
 							}
 							else if (declareFunc && !declareArg) {
@@ -180,7 +246,7 @@ bool ParseProgram(void) {
 							else if (defineFunc) {
 								if (declareArg) {
 									//Identifikator parametru funkce, hledame pouze lokalni promenne
-									variable = LookupVariable(value, false);
+									variable = LookupVariable(value, true, false);
 									if (variable) {
 										//Dva parametry funkce se stejnym nazvem
 										SemanticError(currentLine, ER_SMC_FUNC_PARAM_REDEF, function->name);
@@ -284,6 +350,16 @@ bool ParseProgram(void) {
 							}
 							break;
 
+
+						case T_STATIC:
+							if (mainScope) {
+								//Staticke promenne nelze deklarovat v hlavnim tele, jedna se o chybu syntaxe.
+								//Pro ucely zjednoduseni gramatiky je tento problem resen podminkou
+								result = ANALYSIS_ERROR;
+								break;
+							}
+							staticFlag = true;
+							//Propadnuti je zamerne
 						case T_DIM:
 							//Zacatek deklarace promenne
 							declareVar = true;
@@ -295,9 +371,17 @@ bool ParseProgram(void) {
 							break;
 
 						case T_FUNCTION:
-							if (!declareFunc) {
-								//Zacatek definice funkce
-								defineFunc = !defineFunc; //Toggle
+							if (endFlag) {
+								//Terminal END ve spojeni s terminalem FUNCTION ukoncuje definici funkce.
+								//Provede se vycisteni lokalnich tabulek.
+								defineFunc = false;
+								EndScope();
+							}
+							else {
+								if (!declareFunc) {
+									//Zacatek definice funkce
+									defineFunc = !defineFunc; //Toggle
+								}
 							}
 							break;
 
@@ -320,21 +404,6 @@ bool ParseProgram(void) {
 							break;
 
 						case T_END:
-							if (defineFunc) {
-								//Ukonceni definice funkce
-								//TODO: zavolat semantickou analyzu a generovat kod pred cistenim
-								EndScope();
-							}
-							else if (mainScope) {
-								//Ukonceni hlavniho tela programu
-								//TODO: zavolat semantickou analyzu a generovat kod pred cistenim
-								TableCleanup();
-							}
-							else {
-								//Ukonceni bloku (if, while...)
-								//TODO: zavolat semantickou analyzu a generovat kod pred cistenim
-								//EndSubScope();
-							}
 							endFlag = true;
 							break;
 
@@ -356,6 +425,7 @@ bool ParseProgram(void) {
 					PopSymbol(stack);
 					symbolType = GetSymbolType(stack);
 					token = GetNextToken();
+					terminal = GetTokenTerminal(token);
 				}
 				else {
 					//Porovnani tokenu a vrcholu zasobniku selhalo -> syntakticka chyba
@@ -367,7 +437,7 @@ bool ParseProgram(void) {
 				//Na vrcholu zasobniku se nachazi neterminal, pokusime se jej derivovat
 				nTerminal = GetTopNT(stack);
 				printf("-- Derivating\t\t\t[%s]\n", NTerminalText[nTerminal]);
-				if (ExpandTop(stack, token)) {
+				if (ExpandTop(stack, terminal)) {
 					//Derivace uspela, ziskame typ noveho vrcholu zasobnik
 					symbolType = GetSymbolType(stack);
 				}

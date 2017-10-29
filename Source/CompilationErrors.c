@@ -29,6 +29,7 @@ static ErrorMetadata errors[] = {
 				{"placeholder...\n",                                             EC_SEMANTIC_OTHER},
 				{"memory allocation failed",                                     EC_INTERNAL},
 				{"variable '%s' redeclaration",                                  EC_SEMANTIC_DEFINITIONS},
+				{"undefined variable '%s'", EC_SEMANTIC_DEFINITIONS},
 				{"function '%s' was declared after definition",                  EC_SEMANTIC_DEFINITIONS},
 				{"function '%s' was already declared",                           EC_SEMANTIC_DEFINITIONS},
 				{"redefinition of existing function '%s'",                       EC_SEMANTIC_DEFINITIONS},
@@ -37,10 +38,9 @@ static ErrorMetadata errors[] = {
 				{"definition of function '%s' has a wrong number of parameters", EC_SEMANTIC_DEFINITIONS},
 				{"parameter type mismatch in %s's signatures",                   EC_SEMANTIC_DEFINITIONS},
 				{"return type mismatch in %s's signatures",                      EC_SEMANTIC_DEFINITIONS},
-				{"undefined variable",                                           EC_SEMANTIC_DEFINITIONS},
 				{"missing operator in expression",                               EC_SEMANTIC_DEFINITIONS},
 				{"unknown expression",                                           EC_SEMANTIC_DEFINITIONS},
-				{"unexpected symbol '%s' in expression",                           EC_SEMANTIC_DEFINITIONS},
+				{"unexpected symbol '%s' in expression", EC_SEMANTIC_DEFINITIONS},
 };
 
 

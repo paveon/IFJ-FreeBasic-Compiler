@@ -82,7 +82,7 @@ void PopSymbol(Stack* stack);
  * jinak vraci "true" (kvuli rozpoznani derivacni chyby).
  * Vzdy provede POP neterminalu na vrcholu zasobniku.
  */
-bool ExpandTop(Stack* stack, const Token* token);
+bool ExpandTop(Stack* stack, Terminal tokenTerminal);
 
 
 /* Porovna terminal na vrcholu zasobniku s poskytnutym tokenem.
@@ -91,7 +91,7 @@ bool ExpandTop(Stack* stack, const Token* token);
  * <<!!>>NEPROVADI<<!!>> POP neterminalu na vrcholu zasobniku,
  * tato povinnost je na programatorovi.
  */
-bool CompareTop(const Stack* stack, const Token* token);
+bool CompareTop(const Stack* stack, Terminal tokenTerminal);
 
 
 /* Vlozi terminal na vrchol zasobniku.

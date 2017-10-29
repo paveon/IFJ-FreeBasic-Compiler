@@ -18,6 +18,8 @@
  */
 
 
+#include "Symbol.h"
+
 /* Pouzivaji se pro indexaci, proto natvrdo zadane hodnoty */
 typedef enum TokenType {
 	TOKEN_COMMA = 0,
@@ -50,22 +52,25 @@ void CreateToken(void);
 
 
 /* Vraci typ tokenu, pouzivejte enumeraci TokenType pro porovnavani */
-TokenType GetTokenType(const Token*);
+TokenType GetTokenType(const Token* token);
 
 
 /* Vraci ukazatel na konstatni data tokenu. Nastavovat data tokenu
  * je povoleno pouze skrze odpovidajici funkce.
  * Pri potrebe menit data si vytvorte lokalni kopii dat
  */
-const void* GetTokenValue(const Token*);
+const void* GetTokenValue(const Token* token);
+
+
+Terminal GetTokenTerminal(const Token* token);
 
 
 /* Vraci primo hodnotu, pokud token odkazuje na integer. Jinak vraci -1 */
-int GetTokenInt(const Token*);
+int GetTokenInt(const Token* token);
 
 
 /* Vraci primo hodnotu, pokud token odkazuje na double. Jinak vraci NAN */
-double GetTokenDouble(const Token*);
+double GetTokenDouble(const Token* token);
 
 /* Vraci hodnotu trailSpace */
 bool GetTrailSpace(const Token* token);

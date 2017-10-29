@@ -31,7 +31,8 @@ bool BottomUp(size_t line_num, Terminal keyword){
 	values.incoming_term = T_UNDEFINED;
 	int end_func_val = 0;
 
-	if((keyword != T_WHILE) && (keyword != T_IF) && (keyword != T_PRINT) && (keyword != T_EQUAL)){
+	if ((keyword != T_WHILE) && (keyword != T_IF) && (keyword != T_PRINT) &&
+			(keyword != T_OPERATOR_EQUAL)) {
 		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO co udelat kdyz prichozi token neni zadne z klicovych slov vyrazu
 		PrecErrorCleaning(stack);
 		return false;

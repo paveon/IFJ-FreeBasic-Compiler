@@ -11,6 +11,7 @@ typedef struct Variable {
 	//TODO: dynamicky spravovat pamet pro signatury
 	const char* name; //Nazev promenne
 	char type; //Typ promenne
+	bool staticVariable;
 	size_t codeLine; //Na jakem radku byla promenna deklarovana / definovana
 } Variable;
 
@@ -91,11 +92,12 @@ Function* InsertFunction(const char* name, bool declaration, size_t line);
 Variable* InsertVariable(const char* name, bool global, size_t line);
 
 
-/* Hleda symbol v aktualnim bloku a pote i nadrazenych blocich.
+/* Hleda symbol v aktualnim bloku a pote i nadrazenych blocich, pokud je argument
+ * 'onlyCurrentScope' false.
  * Pokud promennou nenalezne, prohleda i globalni tabulku.
  * Vraci ukazatel na prislusny symbol, pokud jej nalezne, jinak NULL.
  */
-Variable* LookupVariable(const char* name, bool allowGlobals);
+Variable* LookupVariable(const char* name, bool onlyCurrentScope, bool allowGlobals);
 
 
 /* Hleda identifikator funkce v globalni tabulce.

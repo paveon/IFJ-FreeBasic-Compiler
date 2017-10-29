@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include "Lexical.h"
+#include "Token.h"
 #include "CompilationErrors.h"
 
 #define CHUNK 100
@@ -28,18 +29,18 @@ typedef enum State {
 } State;
 
 typedef enum Type {
-	T_NO_TYPE = 0,
-	T_SEMICOLON = 1,
-	T_SHORT_OP = 2,
-	T_COMMA = 3,
-	T_L_BRACKET = 4,
-	T_R_BRACKET = 5,
-	T_EOL = 6,
-	T_COMMENT = 7,
-	T_LONG_OP = 8,
-	T_SPACE = 9,
-	T_TAB = 10,
-	T_EOF = 11
+	LEX_NO_TYPE = 0,
+	LEX_SEMICOLON = 1,
+	LEX_SHORT_OP = 2,
+	LEX_COMMA = 3,
+	LEX_L_BRACKET = 4,
+	LEX_R_BRACKET = 5,
+	LEX_EOL = 6,
+	LEX_COMMENT = 7,
+	LEX_LONG_OP = 8,
+	LEX_SPACE = 9,
+	LEX_TAB = 10,
+	LEX_EOF = 11
 } Type;
 
 
@@ -130,28 +131,28 @@ void SetLex(State* currentState, int firstChar) {
  * */
 void MakeShortToken(Type tokenType, int firstChar) {
 	//Musi byt <, >, /, EOF, tab, nebo mezera
-	if (tokenType == 0 || tokenType > T_EOL)
+	if (tokenType == 0 || tokenType > LEX_EOL)
 		return;
 
 	char tmpStr[2] = {(char) firstChar, 0};
 	CreateToken();
 	switch (tokenType) {
-		case T_SEMICOLON:
+		case LEX_SEMICOLON:
 			SetSemicolon(); // je strednik
 			return;
-		case T_SHORT_OP:
+		case LEX_SHORT_OP:
 			SetOperator(tmpStr); // je jeden z operatoru +,-,/,*,'\'
 			return;
-		case T_COMMA:
+		case LEX_COMMA:
 			SetComma(); // je carka
 			return;
-		case T_L_BRACKET:
+		case LEX_L_BRACKET:
 			SetLeftBracket(); // je levá závorka
 			return;
-		case T_R_BRACKET:
+		case LEX_R_BRACKET:
 			SetRightBracket(); // je pravá závorka
 			return;
-		case T_EOL:
+		case LEX_EOL:
 			SetEOL(); // je konce radku
 			return;
 
@@ -168,36 +169,36 @@ void MakeShortToken(Type tokenType, int firstChar) {
 Type IsEnd(int currentChar) {
 	switch (currentChar) {
 		case ';':
-			return T_SEMICOLON;
+			return LEX_SEMICOLON;
 		case '+':
 		case '-':
 		case '/':
 		case '\\':
 		case '*':
 		case '=':
-			return T_SHORT_OP; //jednoznake operatory - 2
+			return LEX_SHORT_OP; //jednoznake operatory - 2
 		case ',':
-			return T_COMMA;
+			return LEX_COMMA;
 		case '(':
-			return T_L_BRACKET;
+			return LEX_L_BRACKET;
 		case ')':
-			return T_R_BRACKET;
+			return LEX_R_BRACKET;
 		case '\n':
-			return T_EOL; //Konec radku
+			return LEX_EOL; //Konec radku
 		case '\'':
-			return T_COMMENT; //zacatek komentare
+			return LEX_COMMENT; //zacatek komentare
 		case '<':
 		case '>':
-			return T_LONG_OP; //viceznake operatory
+			return LEX_LONG_OP; //viceznake operatory
 		case ' ':
-			return T_SPACE;
+			return LEX_SPACE;
 		case '\t':
-			return T_TAB;
+			return LEX_TAB;
 		case EOF :
-			return T_EOF; //Konec vstupu
+			return LEX_EOF; //Konec vstupu
 
 		default:
-			return T_NO_TYPE; //Neni ukoncujici znak
+			return LEX_NO_TYPE; //Neni ukoncujici znak
 	}
 }
 
@@ -397,6 +398,10 @@ void LexCleanup() {
 }
 
 
+/*
+ * @brief testovaci funkce, vypise na stdout vsechny vyrvorene tokeny
+ *
+ */
 int TEST_TOKENS(Token* token) {
 	int type = GetTokenType(token);
 	switch (type) {

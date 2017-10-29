@@ -274,49 +274,49 @@ void StackCleanup(void) {
 	g_Symbols.size = g_Symbols.used = 0;
 }
 
-bool CompareTop(const Stack* stack, const Token* token) {
+bool CompareTop(const Stack* stack, Terminal tokenTerminal) {
 	Symbol* symbol;
-	if (!stack || !token || !(symbol = stack->top) || symbol->type != SYMBOL_TERMINAL) {
+	if (!stack || !(symbol = stack->top) || symbol->type != SYMBOL_TERMINAL) {
 		return false;
 	}
-	Terminal terminal = symbol->data.terminal;
+	Terminal stackTerminal = symbol->data.terminal;
 
-	if (terminal == T_ID && GetTokenType(token) == TOKEN_IDENTIFIER) {
-		return true;
-	}
-	else if (strcmp(GetTerminalValue(terminal), GetTokenValue(token)) == 0) {
+	if (stackTerminal == tokenTerminal) {
 		return true;
 	}
 	return false;
 }
 
-bool ExpandTop(Stack* stack, const Token* token) {
+bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 	Symbol* nterm;
-	if (!stack || !token || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
+	if (!stack || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
 		return true; //false hodnota vyhrazena pro derivacni chybu
 	}
 
-	Rule rule = GetLLRule(nterm->data.nonTerminal, token);
+	Rule rule = GetLLRule(nterm->data.nonTerminal, tokenTerminal);
 	PopSymbol(stack);
 	switch (rule) {
-		case 1:
+		case RULE_MAIN_SCOPE:
 			PushNT(stack, NT_LINE_BREAK);
+			PushNT(stack, NT_SCOPE);
+			break;
+		case RULE_NEW_SCOPE:
 			PushT(stack, T_SCOPE);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushT(stack, T_EOL);
 			PushT(stack, T_SCOPE);
 			break;
-		case 2:
+		case RULE_FUNC_DECL:
 			PushNT(stack, NT_PROGRAM);
 			PushNT(stack, NT_HEADER);
 			PushT(stack, T_DECLARE);
 			break;
-		case 3:
+		case RULE_FUNC_DEF:
 			PushNT(stack, NT_PROGRAM);
 			PushNT(stack, NT_FUNCTION);
 			break;
-		case 4:
+		case RULE_FUNC_HEADER:
 			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_TYPE);
@@ -327,7 +327,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_ID);
 			PushT(stack, T_FUNCTION);
 			break;
-		case 5:
+		case RULE_FUNC_BODY:
 			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushT(stack, T_FUNCTION);
@@ -335,45 +335,45 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushNT(stack, NT_HEADER);
 			break;
-		case 6:
+		case RULE_FUNC_ARG:
 			PushNT(stack, NT_NEXT_ARGUMENT);
 			PushNT(stack, NT_TYPE);
 			PushT(stack, T_AS);
 			PushT(stack, T_ID);
 			break;
-		case 7:
+		case RULE_FUNC_NEXT_ARG:
 			PushNT(stack, NT_ARGUMENT);
 			PushT(stack, T_COMMA);
 			break;
-		case 9:
+		case RULE_ST_LIST:
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
 			PushNT(stack, NT_STATEMENT);
 			break;
-		case 11:
+		case RULE_ST_VAR_DECL:
 			PushNT(stack, NT_INITIALIZATION);
 			PushNT(stack, NT_TYPE);
 			PushT(stack, T_AS);
 			PushT(stack, T_ID);
 			PushT(stack, T_DIM);
 			break;
-		case 12:
+		case RULE_ST_FUNC_CALL:
 			PushNT(stack, NT_EXPRESSION);
-			PushT(stack, T_EQUAL);
+			PushT(stack, T_OPERATOR_EQUAL);
 			PushT(stack, T_ID);
 			break;
-		case 13:
+		case RULE_ST_INPUT:
 			PushT(stack, T_ID);
 			PushT(stack, T_INPUT);
 			break;
-		case 14:
+		case RULE_ST_PRINT:
 			PushNT(stack, NT_NEXT_ARGUMENT);
 			PushT(stack, T_SEMICOLON);
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_PRINT);
 			break;
-		case 15:
+		case RULE_ST_WHILE:
 			PushT(stack, T_LOOP);
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushNT(stack, NT_LINE_BREAK);
@@ -382,11 +382,11 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_WHILE);
 			PushT(stack, T_DO);
 			break;
-		case 16:
+		case RULE_ST_RETURN:
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_RETURN);
 			break;
-		case 17:
+		case RULE_ST_IF:
 			PushNT(stack, NT_ELSE);
 			PushNT(stack, NT_STATEMENT_LIST);
 			PushNT(stack, NT_LINE_BREAK);
@@ -395,7 +395,7 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_IF);
 			break;
-		case 18:
+		case RULE_ST_ELSE:
 			PushT(stack, T_IF);
 			PushT(stack, T_END);
 			PushNT(stack, NT_STATEMENT_LIST);
@@ -403,31 +403,50 @@ bool ExpandTop(Stack* stack, const Token* token) {
 			PushT(stack, T_EOL);
 			PushT(stack, T_ELSE);
 			break;
-		case 19:
+		case RULE_ST_END_IF:
 			PushT(stack, T_IF);
 			PushT(stack, T_END);
 			break;
-		case 20:
+		case RULE_NEXT_EXPR:
 			PushNT(stack, NT_EXPRESSION);
 			PushT(stack, T_SEMICOLON);
 			PushNT(stack, NT_EXPRESSION);
 			break;
-		case 22:
+		case RULE_VAR_INIT:
 			PushNT(stack, NT_EXPRESSION);
-			PushT(stack, T_EQUAL);
+			PushT(stack, T_OPERATOR_EQUAL);
 			break;
-		case 24:
+		case RULE_TYPE_STRING:
 			PushT(stack, T_STRING);
 			break;
-		case 25:
+		case RULE_TYPE_INT:
 			PushT(stack, T_INTEGER);
 			break;
-		case 26:
+		case RULE_TYPE_DOUBLE:
 			PushT(stack, T_DOUBLE);
 			break;
-		case 28:
+		case RULE_LINE_BREAK:
 			PushNT(stack, NT_LINE_BREAK);
 			PushT(stack, T_EOL);
+			break;
+		case RULE_VAR_GLOBAL:
+			PushNT(stack, NT_PROGRAM);
+			PushNT(stack, NT_LINE_BREAK);
+			PushT(stack, T_EOL);
+			PushNT(stack, NT_INITIALIZATION);
+			PushNT(stack, NT_TYPE);
+			PushT(stack, T_AS);
+			PushT(stack, T_ID);
+			PushT(stack, T_SHARED);
+			PushT(stack, T_DIM);
+			break;
+		case RULE_ST_VAR_STATIC:
+			PushNT(stack, NT_INITIALIZATION);
+			PushNT(stack, NT_TYPE);
+			PushT(stack, T_AS);
+			PushT(stack, T_ID);
+			PushT(stack, T_STATIC);
+			break;
 
 		case 8:
 		case 10:

@@ -107,7 +107,7 @@ Node* InsertNode(const char* name, bool function);
  *
  * Jedna se o interni funkci, neprovadi kontrolu ukazatelu.
  */
-Node* FindNode(const char* name, bool function, bool allowGlobals);
+Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allowGlobals);
 
 
 /* Hash funkce pro prevedeni nazvu identifikatoru na cislo */
@@ -268,6 +268,7 @@ Variable* InsertVariable(const char* name, bool global, size_t line) {
 	newNode->function = false;
 	newNode->data.var.name = name; //Nazev promenne
 	newNode->data.var.type = 0; //Zatim nespecifikovany typ
+	newNode->data.var.staticVariable = false;
 	newNode->data.var.codeLine = line; //Radek na kterem se deklarace /definice nachazi
 	return &newNode->data.var;
 }
@@ -297,8 +298,8 @@ Function* InsertFunction(const char* name, bool declaration, size_t line) {
 }
 
 
-Variable* LookupVariable(const char* symbol, bool allowGlobals) {
-	Node* node = FindNode(symbol, false, allowGlobals);
+Variable* LookupVariable(const char* symbol, bool onlyCurrentScope, bool allowGlobals) {
+	Node* node = FindNode(symbol, false, onlyCurrentScope, allowGlobals);
 	if (node) {
 		//Promenna existuje
 		return &node->data.var;
@@ -313,7 +314,7 @@ Function* LookupFunction(const char* name) {
 	IDTable* inActiveScope = g_ActiveScope;
 	g_ActiveScope = &g_GlobalSymbols;
 
-	Node* node = FindNode(name, true, true);
+	Node* node = FindNode(name, true, true, true);
 
 	//Obnoveni scopu
 	g_ActiveScope = inActiveScope;
@@ -385,7 +386,7 @@ Node* InsertNode(const char* name, bool function) {
 }
 
 
-Node* FindNode(const char* name, bool function, bool allowGlobals) {
+Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allowGlobals) {
 	if (!name) { return NULL; }
 
 	uint_least32_t hash = HashFunction(name);
@@ -428,15 +429,21 @@ Node* FindNode(const char* name, bool function, bool allowGlobals) {
 			}
 		}
 
-		//Prohledame vyssi tabulku
-		table = table->parentScope;
+		//Prohledavame vyssi tabulky, pouze pokud je to povoleno argumentem
+		if (!onlyCurrentScope) {
+			table = table->parentScope;
+		}
+		else {
+			table = NULL;
+		}
 
-		if (allowGlobals) {
+		if (allowGlobals && !table) {
 			//Pokud se aktualne nenachazime v globalni tabulce, rodicovska tabulka neexistuje a
 			//symbol jsme stale nenasli, zkusime vyhledat v globalni tabulce
-			if (!table && g_ActiveScope != &g_GlobalSymbols) {
-				table = &g_GlobalSymbols;
-			}
+			table = &g_GlobalSymbols;
+
+			//Zabranime nekonecnemu cyklu, globalni tabulka ma pouze jednu uroven
+			allowGlobals = false;
 		}
 	}
 

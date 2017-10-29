@@ -14,6 +14,7 @@
 
 struct Token {
 	void* value;
+	Terminal terminal;
 	TokenType type;
 	bool trailSpace;
 };
@@ -39,20 +40,71 @@ static TokenStash Stash;
 static ReadOnlyData Data;
 static Token* Current;
 
-static char* const Keywords[] = {
-				"AS", "ASC", "DECLARE", "DIM", "DO", "DOUBLE", "ELSE", "END", "CHR",
-				"FUNCTION", "IF", "INPUT", "INTEGER", "LENGTH", "LOOP", "PRINT", "RETURN",
-				"SCOPE", "STRING", "SUBSTR", "THEN", "WHILE",
-				"AND", "BOOLEAN", "CONTINUE", "ELSEIF", "EXIT", "FALSE", "FOR", "NEXT",
-				"NOT", "OR", "SHARED", "STATIC", "TRUE"
+typedef struct Pair {
+	char* value;
+	Terminal terminal;
+} Pair;
+
+
+static const Pair Keywords[] = {
+				{"AS", T_AS},
+				{"ASC", T_UNDEFINED},
+				{"DECLARE", T_DECLARE},
+				{"DIM", T_DIM},
+				{"DO", T_DO},
+				{"DOUBLE", T_DOUBLE},
+				{"ELSE", T_ELSE},
+				{"END", T_END},
+				{"CHR", T_UNDEFINED},
+				{"FUNCTION", T_FUNCTION},
+				{"IF", T_IF},
+				{"INPUT", T_INPUT},
+				{"INTEGER", T_INTEGER},
+				{"LENGTH", T_UNDEFINED},
+				{"LOOP", T_LOOP},
+				{"PRINT", T_PRINT},
+				{"RETURN", T_RETURN},
+				{"SCOPE", T_SCOPE},
+				{"STRING", T_STRING},
+				{"SUBSTR", T_UNDEFINED},
+				{"THEN", T_THEN},
+				{"WHILE", T_WHILE},
+				{"AND", T_UNDEFINED},
+				{"BOOLEAN", T_UNDEFINED},
+				{"CONTINUE", T_UNDEFINED},
+				{"ELSEIF", T_ELSEIF},
+				{"EXIT", T_UNDEFINED},
+				{"FALSE", T_UNDEFINED},
+				{"FOR", T_UNDEFINED},
+				{"NEXT", T_UNDEFINED},
+				{"NOT", T_UNDEFINED},
+				{"OR", T_UNDEFINED},
+				{"SHARED", T_SHARED},
+				{"STATIC", T_STATIC},
+				{"TRUE", T_UNDEFINED},
 };
-static char* const Operators[] = {
-				"*", "/", "\\", "+", "-", "=", "<>", "<", "<=", ">", ">="
+
+static const Pair Operators[] = {
+				{"*", T_OPERATOR_MULTIPLY},
+				{"/", T_OPERATOR_REAL_DIVIDE},
+				{"\\", T_OPERATOR_INT_DIVIDE},
+				{"+", T_OPERATOR_PLUS},
+				{"-", T_OPERATOR_MINUS},
+				{"=", T_OPERATOR_EQUAL},
+				{"<>", T_OPERATOR_NOT_EQ},
+				{"<", T_OPERATOR_LESS},
+				{"<=", T_OPERATOR_LESS_EQ},
+				{">", T_OPERATOR_GRT},
+				{">=", T_OPERATOR_GRT_EQ}
 };
 
 
-static char* Miscellaneous[] = {
-				",", ";", "(", ")", "\n"
+static char* Miscellaneous[5] = {
+				[TOKEN_COMMA] = ",",
+				[TOKEN_SEMICOLON] = ";",
+				[TOKEN_L_BRACKET] = "(",
+				[TOKEN_R_BRACKET] = ")",
+				[TOKEN_EOL] = "\n"
 };
 
 
@@ -128,6 +180,11 @@ const void* GetTokenValue(const Token* token) {
 }
 
 
+Terminal GetTokenTerminal(const Token* token) {
+	return token->terminal;
+}
+
+
 int GetTokenInt(const Token* token) {
 	if (token->type == TOKEN_INTEGER) { return *(int*) token->value; }
 	return -1;
@@ -139,7 +196,7 @@ double GetTokenDouble(const Token* token) {
 	return NAN;
 }
 
-bool GetTrailSpace(const Token* token){
+bool GetTrailSpace(const Token* token) {
 	return token->trailSpace;
 }
 
@@ -153,10 +210,11 @@ void SetOperator(const char* operator) {
 
 	size_t arraySize = (sizeof(Operators) / sizeof(char*));
 	for (size_t i = 0; i < arraySize; i++) {
-		if (strcmp(Operators[i], operator) == 0) {
+		if (strcmp(Operators[i].value, operator) == 0) {
 			//Operator byl nalezen
 			Current->type = TOKEN_OPERATOR;
-			Current->value = Operators[i];
+			Current->value = Operators[i].value;
+			Current->terminal = Operators[i].terminal;
 			Current = NULL;
 			return;
 		}
@@ -169,6 +227,7 @@ void SetComma(void) {
 
 	Current->type = TOKEN_COMMA;
 	Current->value = Miscellaneous[TOKEN_COMMA];
+	Current->terminal = T_COMMA;
 	Current = NULL;
 }
 
@@ -178,6 +237,7 @@ void SetSemicolon(void) {
 
 	Current->type = TOKEN_SEMICOLON;
 	Current->value = Miscellaneous[TOKEN_SEMICOLON];
+	Current->terminal = T_SEMICOLON;
 	Current = NULL;
 }
 
@@ -187,6 +247,7 @@ void SetLeftBracket(void) {
 
 	Current->type = TOKEN_L_BRACKET;
 	Current->value = Miscellaneous[TOKEN_L_BRACKET];
+	Current->terminal = T_LEFT_BRACKET;
 	Current = NULL;
 }
 
@@ -195,6 +256,7 @@ void SetRightBracket(void) {
 
 	Current->type = TOKEN_R_BRACKET;
 	Current->value = Miscellaneous[TOKEN_R_BRACKET];
+	Current->terminal = T_RIGHT_BRACKET;
 	Current = NULL;
 }
 
@@ -214,11 +276,12 @@ void SetIdentifier(char* symbol) {
 	//Mohlo by se jednat o klicove slovo
 	if (length <= KEYWORD_MAX_LEN) {
 		StrToUpper(symbol);
-		size_t arraySize = (sizeof(Keywords) / sizeof(char*));
+		size_t arraySize = (sizeof(Keywords) / sizeof(Pair));
 		for (size_t i = 0; i < arraySize; i++) {
-			if (strcmp(Keywords[i], symbol) == 0) {
+			if (strcmp(Keywords[i].value, symbol) == 0) {
 				Current->type = TOKEN_KEYWORD;
-				Current->value = Keywords[i];
+				Current->value = Keywords[i].value;
+				Current->terminal = Keywords[i].terminal;
 				Current = NULL;
 				return;
 			}
@@ -238,6 +301,7 @@ void SetIdentifier(char* symbol) {
 	tmp[length++] = 0;
 	Data.bufferIndex += length;
 	Current->value = tmp;
+	Current->terminal = T_ID;
 	Current = NULL;
 }
 
@@ -252,6 +316,7 @@ void SetInteger(const char* number) {
 	//TODO: vymyslet nejake reseni pro prilis velka cisla
 	value = (int) strtol(number, NULL, 10);
 	Current->type = TOKEN_INTEGER;
+	Current->terminal = T_INTEGER;
 
 	for (size_t i = 0; i < Data.intsUsed; i++) {
 		if (value == Data.integers[i]) {
@@ -293,6 +358,7 @@ void SetDouble(const char* number) {
 	Data.doubles[Data.doublesUsed] = strtod(number, NULL);
 	Current->type = TOKEN_DOUBLE;
 	Current->value = &Data.doubles[Data.doublesUsed++];
+	Current->terminal = T_DOUBLE;
 	Current = NULL;
 }
 
@@ -301,6 +367,7 @@ void SetString(const char* string) {
 	if (!Current || !string) { return; }
 
 	Current->type = TOKEN_STRING;
+	Current->terminal = T_STRING;
 	size_t length = strlen(string);
 
 	//Pokud by se novy retezec nevlezl do bufferu, rozsirime buffer
@@ -321,6 +388,7 @@ void SetEOL(void) {
 	if (!Current) { return; }
 	Current->type = TOKEN_EOL;
 	Current->value = Miscellaneous[TOKEN_EOL];
+	Current->terminal = T_EOL;
 	Current = NULL;
 }
 
@@ -328,6 +396,7 @@ void SetEOL(void) {
 void SetEOF(void) {
 	if (!Current) { return; }
 	Current->type = TOKEN_EOF;
+	Current->terminal = T_EOF;
 	Current = NULL;
 }
 
