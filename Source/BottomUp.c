@@ -31,6 +31,7 @@ bool BottomUp(size_t line_num, Terminal keyword) {
 	IdxTerminalPair values;
 	bool return_val = true;
 	size_t idx = 0;
+	values.error = 0;
 	values.cell_value = FINDING_FAILURE;
 	values.incoming_term = T_UNDEFINED;
 	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci

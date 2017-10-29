@@ -261,6 +261,9 @@ int CountOfFunc(Stack *stack){
  */
 void StackCleanup(void) {
 	if (g_Stacks.array != NULL) {
+		for (size_t i = 0; i < g_Stacks.size; i++) {
+			free(g_Stacks.array[i]);
+		}
 		free(g_Stacks.array);
 	}
 	g_Stacks.array = NULL;
