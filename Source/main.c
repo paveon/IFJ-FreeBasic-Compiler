@@ -12,11 +12,7 @@ int main(int argc, char* argv[]) {
 	printf("Test run started...\n");
 	Token* token;
 
-	if (argc < 2) {
-		printf("Expected source file name, exiting...\n");
-		exit(0);
-	}
-	if (freopen(argv[1], "r", stdin) == NULL) {
+	if (freopen("sampleProgram.txt", "r", stdin) == NULL) {
 		printf("Couldn't open specified source file (doesn't exist?), exiting...\n");
 		exit(0);
 	}
@@ -89,22 +85,22 @@ int main(int argc, char* argv[]) {
 
 			function = InsertFunction(name, true, 0); //Funkce
 			if (function)
-				function->returnType = 's';
+				function->returnType = T_STRING;
 
 			variable = InsertVariable(name, true, 0); //Globalni promenna
 			if (variable)
-				variable->type = 'i';
+				variable->type = T_INTEGER;
 
 			variable = InsertVariable(name, false, 0); //Lokalni promenna
 			if (variable)
-				variable->type = 'd';
+				variable->type = T_DOUBLE;
 
-			variable = LookupVariable(name, NULL, false); //Hledat pouze lokalni promenne
-			variable = LookupVariable(name, NULL, true); //I globalni
+			variable = LookupVariable(name, false, false); //Hledat pouze lokalni promenne
+			variable = LookupVariable(name, false, true); //I globalni
 			function = LookupFunction(name); //Funkce
 			EndSubScope();
-			variable = LookupVariable(name, NULL, false); //Pouze lokalni promenne
-			variable = LookupVariable(name, NULL, true); //I globalni
+			variable = LookupVariable(name, false, false); //Pouze lokalni promenne
+			variable = LookupVariable(name, false, true); //I globalni
 		}
 	}
 	EndScope();

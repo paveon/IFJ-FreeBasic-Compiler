@@ -18,6 +18,8 @@
 typedef struct IdxTerminalPair {
 	size_t cell_value;
 	Terminal incoming_term;
+	Terminal type;
+	Terminal *func_params;
 	int error;
 }IdxTerminalPair;
 

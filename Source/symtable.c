@@ -267,7 +267,7 @@ Variable* InsertVariable(const char* name, bool global, size_t line) {
 	//Provedem inicializaci specifickou pro promenne
 	newNode->function = false;
 	newNode->data.var.name = name; //Nazev promenne
-	newNode->data.var.type = 0; //Zatim nespecifikovany typ
+	newNode->data.var.type = T_UNDEFINED; //Zatim nespecifikovany typ
 	newNode->data.var.staticVariable = false;
 	newNode->data.var.codeLine = line; //Radek na kterem se deklarace /definice nachazi
 	return &newNode->data.var;
@@ -290,7 +290,7 @@ Function* InsertFunction(const char* name, bool declaration, size_t line) {
 		newNode->data.func.name = name; //Nazev funkce
 		newNode->data.func.declaration = declaration; //Zda se jedna pouze o deklaraci
 		newNode->data.func.argCount = 0; //Prozatim 0 parametru
-		newNode->data.func.returnType = 0; //Prozatim nespecifikovany navratovy typ
+		newNode->data.func.returnType = T_UNDEFINED; //Prozatim nespecifikovany navratovy typ
 		newNode->data.func.codeLine = line; //Radek na kterem se deklarace /definice nachazi
 		return &newNode->data.func;
 	}
@@ -450,19 +450,21 @@ Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allo
 	return NULL;
 }
 
-
-char TypeAsChar(Terminal type) {
-	switch (type) {
-		case T_INTEGER:
-			return 'i';
-		case T_DOUBLE:
-			return 'd';
-		case T_STRING:
-			return 's';
-		default:
-			return 0;
-	}
-}
+/*
+ * TODO pripadne smazat => pravdepodobne USELESS
+ */
+//char TypeAsChar(Terminal type) {
+//	switch (type) {
+//		case T_INTEGER:
+//			return 'i';
+//		case T_DOUBLE:
+//			return 'd';
+//		case T_STRING:
+//			return 's';
+//		default:
+//			return 0;
+//	}
+//}
 
 
 void TableCleanup() {

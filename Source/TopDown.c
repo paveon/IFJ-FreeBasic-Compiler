@@ -327,18 +327,18 @@ bool ParseProgram(void) {
 								//Typy promennych
 								if (variable) {
 									//Nastavime typ promenne
-									variable->type = TypeAsChar(terminal);
+									variable->type = terminal;
 								}
 							}
 							else if (function) {
 								if (declareFunc) {
 									if (declareArg) {
 										//Specifikace typu parametru pri deklaraci
-										function->parameters[function->argCount++] = TypeAsChar(terminal);
+										function->parameters[function->argCount++] = terminal;
 									}
 									else {
 										//Specifikace navratoveho typu pri deklaraci
-										function->returnType = TypeAsChar(terminal);
+										function->returnType = terminal;
 									}
 								}
 								else if (defineFunc) {
@@ -348,26 +348,26 @@ bool ParseProgram(void) {
 											if (paramCount <= (function->argCount)) {
 												//Muzeme porovnavat, pouze pokud parametr
 												//existuje i u deklarace (pokud ne, chyba se projevi dale)
-												if (function->parameters[paramCount] != TypeAsChar(terminal)) {
+												if (function->parameters[paramCount] != terminal) {
 													SemanticError(currentLine, ER_SMC_FUNC_PARAM_TYPE, function->name);
 												}
 											}
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme parametr automaticky
-											function->parameters[function->argCount++] = TypeAsChar(terminal);
+											function->parameters[function->argCount++] = terminal;
 										}
 									}
 									else {
 										if (function->declaration) {
 											//Je k dispozici deklarace, porovname navratove typy
-											if (function->returnType != TypeAsChar(terminal)) {
+											if (function->returnType != terminal) {
 												SemanticError(currentLine, ER_SMC_FUNC_RETURN_TYPE, function->name);
 											}
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme navratovy typ automaticky
-											function->returnType = TypeAsChar(terminal);
+											function->returnType = terminal;
 										}
 									}
 								}

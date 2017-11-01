@@ -10,7 +10,7 @@ typedef struct Variable {
 	//TODO: popremyslet, co vsechno bude semanticky analyzator potrebovat
 	//TODO: dynamicky spravovat pamet pro signatury
 	const char* name; //Nazev promenne
-	char type; //Typ promenne
+	Terminal type; //Typ promenne
 	bool staticVariable;
 	size_t codeLine; //Na jakem radku byla promenna deklarovana / definovana
 } Variable;
@@ -18,8 +18,8 @@ typedef struct Variable {
 
 typedef struct Function {
 	const char* name; //Nazev funkce
-	char returnType; //Navratovy typ funkce
-	char parameters[MAX_ARGS]; //Pro ulozeni signatur funkci pomoci textu
+	Terminal returnType; //Navratovy typ funkce
+	Terminal parameters[MAX_ARGS]; //Pro ulozeni signatur funkci pomoci textu
 	size_t argCount; //Pocitadlo aktualniho poctu parametru
 	size_t codeLine; //Na jakem radku byla funkce deklarovana / definovana
 	bool declaration; //Zda se jedna o deklaraci funkce
@@ -109,7 +109,10 @@ Function* LookupFunction(const char* name);
 /* Funkce vraci znakovou reprezentaci terminalu pro datove typy.
  * Vhodne pro porovnavani signatur funkci a typu promennych.
  */
-char TypeAsChar(Terminal type);
+/*
+ * TODO pravdepodobne smazat...
+ */
+//char TypeAsChar(Terminal type);
 
 
 /* Funkce pro vycisteni pameti spojene s tabulkami identifikatoru.

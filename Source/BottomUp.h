@@ -12,7 +12,7 @@
  * Prebira radek, na kterem se vyraz nachazi a take klicove slovo jemu predchazejici
  * (T_PRINT, T_IF, T_WHILE, T_EQUAL), aby byl schopny urcit s cim pracuje
  */
-bool BottomUp(size_t line_num, Terminal keyword);
+Terminal BottomUp(size_t line_num, Terminal keyword);
 
 int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keyword);
 

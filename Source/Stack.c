@@ -193,7 +193,7 @@ bool IsEndOfReduction(Stack *stack){
 bool ContainingFunction(Stack *stack){
 	SymbolType symbolType = GetSymbolType(stack);
 	Symbol *symbol = stack->top;
-	while(symbolType == SYMBOL_BOTTOM){
+	while(symbolType != SYMBOL_BOTTOM){
 		if(symbolType == SYMBOL_TERMINAL){
 			if((symbol->data.terminal) == T_FUNCTION){
 				return true;

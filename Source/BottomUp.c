@@ -25,7 +25,7 @@ void PrecErrorCleaning(Stack* s) {
 	ReleaseStack(s);
 }
 
-bool BottomUp(size_t line_num, Terminal keyword) {
+Terminal BottomUp(size_t line_num, Terminal keyword) {
 	Stack* stack = GetStack();
 	PushT(stack, T_EOL);
 	IdxTerminalPair values;
@@ -85,16 +85,14 @@ bool BottomUp(size_t line_num, Terminal keyword) {
 }
 
 
-/*
- * TODO Nejake returny jdou upravit na FUNC_SMALL_ERROR a pokracovat v prohlizeni
- */
 int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keyword) {
 	size_t parametres_count = 0;
 	int end_value = 0;
 	bool is_in_func = true;
 	size_t idx = 0;
 	bool return_val;
-	int l_brackets = 1, r_brackets = 0;
+	int l_brackets = 0, r_brackets = 0;
+	Terminal *params = values.func_params;
 	nested++;
 
 	while (1) {
@@ -103,19 +101,6 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			return FUNC_NEST_LEAVE;
 		}
 
-		/* Pocitani zavorek k zjisteni posledniho parametru */
-		if (values.incoming_term == T_LEFT_BRACKET) {
-			l_brackets++;
-		}
-		else if (values.incoming_term == T_RIGHT_BRACKET) {
-			r_brackets++;
-		}
-		/*****************************************************/
-
-		if ((values.incoming_term == T_COMMA) ||
-				(l_brackets == r_brackets)) { // TODO kontrola parametru funkce
-			parametres_count++;
-		}
 		switch (values.cell_value) {
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(s);
@@ -130,11 +115,29 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				if (!return_val) {
 					return FUNC_NEST_LEAVE;
 				}
+				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
+					if ((values.incoming_term == T_COMMA) ||
+							(l_brackets == r_brackets)) { // TODO kontrola parametru funkce
+						parametres_count++;
+						printf("func: %d, parameter: %d\n", nested, parametres_count);
+					}
+					ReturnToken();
+				}
 				break;
 			case EXPR_ERROR:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 				return FUNC_NEST_LEAVE;
 		}
+
+		/* Pocitani zavorek k zjisteni posledniho parametru */
+		if (values.incoming_term == T_LEFT_BRACKET) {
+			l_brackets++;
+		}
+		else if (values.incoming_term == T_RIGHT_BRACKET) {
+			r_brackets++;
+		}
+		/*****************************************************/
+
 		if (values.incoming_term == T_FUNCTION) {
 			end_value = FuncParams(s, values, line_num, keyword);
 			if (end_value == FUNC_NEST_LEAVE) {
@@ -142,6 +145,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			}
 		}
 		if (nested > CountOfFunc(s)) {
+			nested--;
 			return FUNC_OK;
 		}
 	}
