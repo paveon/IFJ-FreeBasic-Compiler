@@ -88,9 +88,6 @@ static ErrorMetadata errors[] = {
 				{"usage of comparative operators in non condition based expressions",
 								EC_SEMANTIC_DEFINITIONS},
 
-				{"missing keyword 'print' before string expression",
-								EC_SEMANTIC_DEFINITIONS},
-
 				{"invalid combination of string and number in one expression",
 								EC_SEMANTIC_DEFINITIONS},
 };
@@ -113,6 +110,8 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_VAR_UNDEF:
 			case ER_SMC_UNEXPECT_SYM:
 			case ER_SMC_FUNC_UNDECL:
+			case ER_SMC_COMPARATIVE_EXPR:
+			case ER_SMC_STR_AND_NUM:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 

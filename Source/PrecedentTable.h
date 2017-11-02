@@ -20,6 +20,7 @@ typedef struct IdxTerminalPair {
 	Terminal incoming_term;
 	Terminal type;
 	Terminal *func_params;
+	char rule;
 	int error;
 }IdxTerminalPair;
 
@@ -70,7 +71,7 @@ void FindInTable(Stack *s, struct IdxTerminalPair *field, size_t line_num, bool 
  * zkontroluje zda k vybranym symbolum sedi jedno z pravidel. Pokud ano vraci true bez chybove hlasky.
  * Pokud nenajde vhodne pravidlo vypise error, ze se jedna o neznamy zapis vyrazu a vraci false.
  */
-bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num);
+bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num, IdxTerminalPair* field);
 
 
 #endif //FREEBASIC_COMPILER_PRECEDENTTABLE_H

@@ -91,11 +91,11 @@ static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
 				{NT_STRING,				T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //20
 };
 
-bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num) {
+bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* field) {
 	SymbolType top_type = GetSymbolType(s);
 	int buff_idx = 0;
 	int buffer[4] = {NO_NEXT_VAL_FOR_RULE};
-	int i = 0, j = 0;
+	char i = 0, j = 0;
 	int main_counter = NUM_OF_RULES;
 	bool is_string = false;
 	// Pokud neni program ve funkci, tak se zpracovava pouze 17 pravidel
@@ -155,7 +155,8 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num) {
 			else {
 				PushNT(s, NT_EXPRESSION);
 			}
-			printf("Rule %s was used\n", pole_err[i]);
+			printf("***********Rule %s was used********\n", pole_err[i]);
+			field->rule = i;
 			return true;
 		}
 	}
@@ -261,21 +262,17 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 			break;
 		case TOKEN_INTEGER:
 			column = IDENTIFIER;
+			field->type = T_INTEGER;
 			field->incoming_term = T_ID;
 			break;
 		case TOKEN_DOUBLE:
 			column = IDENTIFIER;
+			field->type = T_DOUBLE;
 			field->incoming_term = T_ID;
 			break;
 		case TOKEN_STRING:
-			if(!is_in_func) {
-				if (keyword != T_PRINT) {
-					SemanticError(line_num, ER_SMC_STRING_NO_PRINT, NULL);
-					field->error = FINDING_FAILURE;
-					return;
-				}
-			}
 			column = STRING;
+			field->type = T_STRING;
 			field->incoming_term = T_STRING;
 			break;
 		case TOKEN_L_BRACKET:
