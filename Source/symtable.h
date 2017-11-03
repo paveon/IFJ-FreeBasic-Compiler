@@ -19,7 +19,7 @@ typedef struct Variable {
 typedef struct Function {
 	const char* name; //Nazev funkce
 	Terminal returnType; //Navratovy typ funkce
-	Terminal parameters[MAX_ARGS]; //Pro ulozeni signatur funkci pomoci textu
+	Terminal* parameters; //Pro ulozeni signatur funkci pomoci textu
 	size_t argCount; //Pocitadlo aktualniho poctu parametru
 	size_t codeLine; //Na jakem radku byla funkce deklarovana / definovana
 	bool declaration; //Zda se jedna o deklaraci funkce
@@ -106,13 +106,7 @@ Variable* LookupVariable(const char* name, bool onlyCurrentScope, bool allowGlob
 Function* LookupFunction(const char* name);
 
 
-/* Funkce vraci znakovou reprezentaci terminalu pro datove typy.
- * Vhodne pro porovnavani signatur funkci a typu promennych.
- */
-/*
- * TODO pravdepodobne smazat...
- */
-//char TypeAsChar(Terminal type);
+void AddParameter(Function* function, Terminal parameter);
 
 
 /* Funkce pro vycisteni pameti spojene s tabulkami identifikatoru.

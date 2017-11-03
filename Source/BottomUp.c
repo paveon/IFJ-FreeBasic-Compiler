@@ -154,7 +154,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 
 		if (((values.incoming_term == T_COMMA) && can_count) || (l_brackets == r_brackets && can_count)) { // TODO kontrola parametru funkce
 			parametres_count++;
-			printf("func: %d, parameter: %d\n", nested, parametres_count);
+			printf("func: %d, parameter: %d\n", (int) nested, (int) parametres_count);
 		}
 
 		if (values.incoming_term == T_FUNCTION) {

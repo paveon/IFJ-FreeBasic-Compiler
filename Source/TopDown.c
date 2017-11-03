@@ -334,7 +334,7 @@ bool ParseProgram(void) {
 								if (declareFunc) {
 									if (declareArg) {
 										//Specifikace typu parametru pri deklaraci
-										function->parameters[function->argCount++] = terminal;
+										AddParameter(function, terminal);
 									}
 									else {
 										//Specifikace navratoveho typu pri deklaraci
@@ -345,7 +345,7 @@ bool ParseProgram(void) {
 									if (declareArg) {
 										if (function->declaration) {
 											//Je k dispozici deklarace, porovname typy parametru
-											if (paramCount <= (function->argCount)) {
+											if (paramCount < (function->argCount)) {
 												//Muzeme porovnavat, pouze pokud parametr
 												//existuje i u deklarace (pokud ne, chyba se projevi dale)
 												if (function->parameters[paramCount] != terminal) {
@@ -355,7 +355,7 @@ bool ParseProgram(void) {
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme parametr automaticky
-											function->parameters[function->argCount++] = terminal;
+											AddParameter(function, terminal);
 										}
 									}
 									else {

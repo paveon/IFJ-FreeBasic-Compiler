@@ -12,7 +12,11 @@ int main(int argc, char* argv[]) {
 	printf("Test run started...\n");
 	Token* token;
 
-	if (freopen("sampleProgram.txt", "r", stdin) == NULL) {
+	if (argc < 2) {
+		printf("Expected source file name, exiting...\n");
+		exit(0);
+	}
+	if (freopen(argv[1], "r", stdin) == NULL) {
 		printf("Couldn't open specified source file (doesn't exist?), exiting...\n");
 		exit(0);
 	}

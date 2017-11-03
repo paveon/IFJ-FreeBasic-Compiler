@@ -11,6 +11,7 @@
 #define NEXT(node) node->nextNode
 #define TABLE_CHUNK 5
 #define NODE_CHUNK 20
+#define PARAM_CHUNK 20
 
 #ifdef DEBUG_INFO
 static int scope_index = 0;
@@ -290,6 +291,7 @@ Function* InsertFunction(const char* name, bool declaration, size_t line) {
 		newNode->data.func.name = name; //Nazev funkce
 		newNode->data.func.declaration = declaration; //Zda se jedna pouze o deklaraci
 		newNode->data.func.argCount = 0; //Prozatim 0 parametru
+		newNode->data.func.parameters = NULL;
 		newNode->data.func.returnType = T_UNDEFINED; //Prozatim nespecifikovany navratovy typ
 		newNode->data.func.codeLine = line; //Radek na kterem se deklarace /definice nachazi
 		return &newNode->data.func;
@@ -450,26 +452,31 @@ Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allo
 	return NULL;
 }
 
-/*
- * TODO pripadne smazat => pravdepodobne USELESS
- */
-//char TypeAsChar(Terminal type) {
-//	switch (type) {
-//		case T_INTEGER:
-//			return 'i';
-//		case T_DOUBLE:
-//			return 'd';
-//		case T_STRING:
-//			return 's';
-//		default:
-//			return 0;
-//	}
-//}
+
+void AddParameter(Function* function, Terminal parameter) {
+	//Abychom si nemuseli pamatovat celkovou velikost pole
+	if (function->argCount % PARAM_CHUNK == 0) {
+		Terminal* tmp = NULL;
+		size_t newSize = function->argCount + PARAM_CHUNK;
+		if ((tmp = realloc(function->parameters, sizeof(Terminal) * newSize)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		function->parameters = tmp;
+	}
+	function->parameters[function->argCount++] = parameter;
+}
 
 
 void TableCleanup() {
 	if (g_Nodes.allocated) {
 		//Obe pole se alokuji spolecne, staci kontrolovat jedno
+		Node* node;
+		for (size_t i = 0; i < g_Nodes.used; i++) {
+			node = &g_Nodes.allocated[i];
+			if (node->function && node->data.func.parameters != NULL) {
+				free(node->data.func.parameters);
+			}
+		}
 		free(g_Nodes.allocated);
 		free(g_Nodes.unused);
 

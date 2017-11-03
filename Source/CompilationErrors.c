@@ -119,10 +119,10 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 				buffer[0] = 0;
 				break;
 		}
-		fprintf(stderr, "Error: %s\nLine no. %zd\n", buffer, line);
+		fprintf(stderr, "Error: %s\nLine no. %d\n", buffer, (int) line);
 	}
 	else {
-		fprintf(stderr, "Error: %s\nLine no. %zd\n", errors[errorCode].errorMessage, line);
+		fprintf(stderr, "Error: %s\nLine no. %d\n", errors[errorCode].errorMessage, (int) line);
 	}
 }
 

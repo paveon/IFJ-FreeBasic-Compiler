@@ -63,7 +63,7 @@ void SetReduction(Stack *stack, size_t idx);
 
 
 /* Funkce vraci pocet vyskytu T_FUNCTION v zasobniku */
-int CountOfFunc(Stack *stack);
+size_t CountOfFunc(Stack* stack);
 
 
 /* Vraci symbol na vrcholu zasobniku, pokud je ukazatel NULL, vraci NULL */

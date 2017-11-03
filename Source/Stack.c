@@ -238,8 +238,8 @@ void SetReduction(Stack *stack, size_t idx){
 /* Zjistuje pocet vyskytu terminalu T_FUNCTION v zasobniku.
  * Funkce nekontroluje zasobnik s ukazatelem NULL.
  */
-int CountOfFunc(Stack *stack){
-	int count = 0;
+size_t CountOfFunc(Stack* stack) {
+	size_t count = 0;
 	Symbol *symbol = stack->top;
 	SymbolType symbolType = symbol->type;
 	while(symbolType != SYMBOL_BOTTOM){

@@ -44,27 +44,28 @@ static unsigned char g_PrecedentTable[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
 };
 
 const char *const pole_err[] = {
-				{"plus"},
-				{"minus"},
-				{"krat"},
-				{"deleno real"},
-				{"deleno int"},
-				{"vetsi"},
-				{"vetsi rovno"},
-				{"mensi"},
-				{"mensi rovno"},
-				{"nerovno"},
-				{"rovno"},
-				{"unarni minus"},
-				{"id"},
-				{"zavorky"},
-				{"funkce"},
-				{"retezec"},
-				{"konkatenace"},
-				{"parametry (carka) expr"},
-				{"parametry (carka) expr str"},
-				{"parametry (carka) str expr"},
-				{"parametry (carka) str"},
+				"plus",
+				"minus",
+				"krat",
+				"deleno real",
+				"deleno int",
+				"vetsi",
+				"vetsi rovno",
+				"mensi",
+				"mensi rovno",
+				"nerovno",
+				"rovno",
+				"unarni minus",
+				"id",
+				"zavorky",
+				"funkce",
+				"retezec",
+				"konkatenace",
+				"parametry (carka) expr",
+				"parametry (carka) exp"
+								"r str",
+				"parametry (carka) str expr",
+				"parametry (carka) str",
 };
 
 static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
@@ -95,7 +96,7 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* 
 	SymbolType top_type = GetSymbolType(s);
 	int buff_idx = 0;
 	int buffer[4] = {NO_NEXT_VAL_FOR_RULE};
-	char i = 0, j = 0;
+	unsigned char i = 0, j = 0;
 	int main_counter = NUM_OF_RULES;
 	bool is_string = false;
 	// Pokud neni program ve funkci, tak se zpracovava pouze 17 pravidel
@@ -296,7 +297,8 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 					return;
 				}
 				column = op_field_idx;
-				field->incoming_term = TERMINAL_OPERATOR_SHIFT + op_field_idx;   // pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
+				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT +
+															 op_field_idx;   // pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
 			}
 			break;
 		case TOKEN_SEMICOLON:
