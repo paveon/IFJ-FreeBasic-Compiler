@@ -95,7 +95,12 @@ static const Pair Operators[] = {
 				{"<", T_OPERATOR_LESS},
 				{"<=", T_OPERATOR_LESS_EQ},
 				{">", T_OPERATOR_GRT},
-				{">=", T_OPERATOR_GRT_EQ}
+				{">=", T_OPERATOR_GRT_EQ},
+        {"+=", T_OPERATOR_PLUS_EQ},
+        {"-=", T_OPERATOR_MINUS_EQ},
+        {"*=", T_OPERATOR_MULTIPLY_EQ},
+        {"/=", T_OPERATOR_REAL_DIVIDE_EQ},
+        {"\\=", T_OPERATOR_INT_DIVIDE_EQ}
 };
 
 

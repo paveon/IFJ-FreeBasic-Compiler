@@ -25,6 +25,7 @@ typedef enum State {
 	STRING,
 	RELAT,
 	SLASH,
+    LONGOPERATOR,
 	FAIL,
 } State;
 
@@ -40,7 +41,8 @@ typedef enum Type {
 	LEX_LONG_OP = 8,
 	LEX_SPACE = 9,
 	LEX_TAB = 10,
-	LEX_EOF = 11
+	LEX_EOF = 11,
+    LEX_UND_OP = 12
 } Type;
 
 
@@ -72,6 +74,8 @@ void AppendToBuff(int c) {
 	g_Buffer.data[g_Buffer.index++] = (char) c;
 	g_Buffer.data[g_Buffer.index] = 0;
 }
+
+
 
 
 /*
@@ -115,11 +119,17 @@ void SetLex(State* currentState, int firstChar) {
 	else if (firstChar == '/') {
 		// jedna se budto o operand '/' nebo o zacatek escape sekvence
 		*currentState = SLASH;
+        AppendToBuff(firstChar);
 	}
 	else if (firstChar == '\'') {
 		//zacina radkova escape sekvence
 		*currentState = COMMENTP;
 	}
+    else if( firstChar == '+' || firstChar == '-' || firstChar == '\\' || firstChar == '*')
+    {
+        *currentState = LONGOPERATOR;
+        AppendToBuff(firstChar);
+    }
 	else {
 		*currentState = START;
 	}
@@ -134,7 +144,7 @@ void SetLex(State* currentState, int firstChar) {
  * */
 void MakeShortToken(Type tokenType, int firstChar) {
 	//Musi byt <, >, /, EOF, tab, nebo mezera
-	if (tokenType == 0 || tokenType > LEX_EOL)
+	if (tokenType == LEX_NO_TYPE || tokenType > LEX_EOL)
 		return;
 
 	char tmpStr[2] = {(char) firstChar, 0};
@@ -143,6 +153,7 @@ void MakeShortToken(Type tokenType, int firstChar) {
 		case LEX_SEMICOLON:
 			SetSemicolon(); // je strednik
 			return;
+        case LEX_UND_OP:
 		case LEX_SHORT_OP:
 			SetOperator(tmpStr); // je jeden z operatoru +,-,/,*,'\'
 			return;
@@ -173,11 +184,13 @@ Type IsEnd(int currentChar) {
 	switch (currentChar) {
 		case ';':
 			return LEX_SEMICOLON;
+
 		case '+':
 		case '-':
 		case '/':
 		case '\\':
 		case '*':
+            return LEX_UND_OP; //nelze identifikovat zda jsou unarni nebo binarni
 		case '=':
 			return LEX_SHORT_OP; //jednoznake operatory - 2
 		case ',':
@@ -211,10 +224,10 @@ bool Lexical() {
 	bool commentFlag = false; // urcuje zda je blokovy komentar a predchozi znak byl '\''
 	bool escapeFlag = false; // urcuje zda se nachazi v escape sekvenci
 	bool eofFlag = false; //znaci prichod EOF
+    bool floatEFlag = false; //urcuje zda je float v exponeniclanim tvaru
+    bool floatDotFlag = false; //urcuje zda je aktualni cast floatu v desetinenm tvaru tvaru
 	Type endFlag; //znak ukoncuje lexem
 	int currentChar; //aktualne zadany znak
-
-
 
 	while (!eofFlag) {
 		currentChar = getchar(); //nacte znak do currentChar
@@ -226,13 +239,30 @@ bool Lexical() {
 		switch (currentState) { //stavovy automat
 			case START:
 				SetLex(&currentState, currentChar); //rozradi podle znaku do stavu
-				if (endFlag && currentState != SLASH) { //pokud je tohle konec lexemu posle token
+				if (endFlag && currentState != SLASH && currentState != LONGOPERATOR)
+                { //pokud je tohle konec lexemu posle token
 					MakeShortToken(endFlag, currentChar);
 				}
 				//rozrazeni do stavu
-
 				break;
 
+            case LONGOPERATOR:
+                if(currentChar == '=')
+                {
+                    AppendToBuff(currentChar);
+                    CreateToken();
+                    SetOperator(g_Buffer.data);
+                    ClearBuffer();
+                    currentState = START;
+                }
+                else
+                {
+                    CreateToken();
+                    SetOperator(g_Buffer.data);
+                    ClearBuffer();
+                    SetLex(&currentState,currentChar);
+                }
+                break;
 
 			case RELAT: //relacni stav(<,>,<=,>= apod.)
 				if (currentChar == '=' || (currentChar == '>' && g_Buffer.data[0] == '<')) {
@@ -242,7 +272,7 @@ bool Lexical() {
 					ClearBuffer();
 					currentState = START;
 				}
-				else   //TODO osetrit chybne vstupy - resit pres endFlag
+				else
 				{
 					CreateToken();
 					SetOperator(g_Buffer.data);
@@ -251,20 +281,30 @@ bool Lexical() {
 				}
 				break;
 
-
 			case WORD: //Je identifikator nebo keyword
 				if (endFlag) //znak pro ukonceni tokenu
 				{
-					if (endFlag == 9 || endFlag == 10 ||
-							endFlag == 6) //v pripade ukonceni mezerou,tabem ci EOL je prida na konec stringu
+					if (endFlag == LEX_SPACE || endFlag == LEX_TAB ||
+							endFlag == LEX_EOL) //v pripade ukonceni mezerou,tabem ci EOL je prida na konec stringu
 					{
 						AppendToBuff(currentChar);
 					}
 					CreateToken();
 					SetIdentifier(g_Buffer.data);
 					ClearBuffer();
-					MakeShortToken(endFlag, currentChar);
-					currentState = START;
+                    if(endFlag != LEX_UND_OP)
+                    {
+                        MakeShortToken(endFlag, currentChar);
+                        currentState = START;
+                    }
+                    else
+                    {
+                        AppendToBuff(currentChar);
+                        if(currentChar == '/')
+                            currentState = SLASH;
+                        else
+                            currentState = LONGOPERATOR;
+                    }
 					break;
 				}
 				else if (isalnum(currentChar) || currentChar == '_') // TODO osetrit __ a ____ ....viz forum
@@ -281,13 +321,26 @@ bool Lexical() {
 					CreateToken();
 					SetInteger(g_Buffer.data);
 					ClearBuffer();
-					MakeShortToken(endFlag, currentChar);
-					currentState = START;
-
+                    if(endFlag != LEX_UND_OP)
+                    {
+                        MakeShortToken(endFlag, currentChar);
+                        currentState = START;
+                    }
+                    else
+                    {
+                        AppendToBuff(currentChar);
+                        if(currentChar == '/')
+                            currentState = SLASH;
+                        else
+                            currentState = LONGOPERATOR;
+                    }
 				}
 				else if (currentChar == '.' || currentChar == 'e' ||
 								 currentChar == 'E') //v pripade ze je znak e nebo . prepne se do stavu double/float
 				{
+                    if(currentChar == 'e')
+                        floatEFlag = true;
+                    floatDotFlag = true;
 					AppendToBuff(currentChar); // TODO E nebo e
 					currentState = FLOAT;
 				}
@@ -299,22 +352,63 @@ bool Lexical() {
 				}
 				break;
 
-			case FLOAT: //TODO Doplnit moznost desetinych cisel
-				if (endFlag) {
-					CreateToken();
-					SetDouble(g_Buffer.data);
-					ClearBuffer();
-					MakeShortToken(endFlag, currentChar);
-					currentState = START;
+            case FLOAT:
+                if (endFlag)
+                {
+                    if (g_Buffer.data[g_Buffer.index - 1] == '.' || g_Buffer.data[g_Buffer.index - 1] == 'e')
+                    {
+                        floatDotFlag = false;
+                        floatEFlag = false;
+                        CreateToken();
+                        ClearBuffer();
+                        currentState = START;
+                    }
+                    else
+                    {
+                        floatDotFlag = false;
+                        floatEFlag = false;
+                        CreateToken();
+                        SetDouble(g_Buffer.data);
+                        ClearBuffer();
+                        if(endFlag != LEX_UND_OP)
+                        {
+                            MakeShortToken(endFlag, currentChar);
+                            currentState = START;
+                        }
+                        else
+                        {
+                            AppendToBuff(currentChar);
+                            if(currentChar == '/')
+                                currentState = SLASH;
+                            else
+                                currentState = LONGOPERATOR;
+                        }
 
-				}
-				else if (isdigit(currentChar)) {
-					AppendToBuff(currentChar);
-				}
-				else {
-					currentState = FAIL;
-				}
-				break;
+
+                    }
+                }
+                else if(currentChar == 'e' && floatEFlag == false && g_Buffer.data[g_Buffer.index - 1] != '.')
+                {
+                    floatDotFlag = true; // v exponentu se jiz nemuze vyskytovat tecka
+                    floatEFlag = true;
+                    AppendToBuff(currentChar);
+                }
+                else if(currentChar == '.' && floatDotFlag == false)
+                {
+                    floatDotFlag = true;
+                    AppendToBuff(currentChar);
+                }
+                else if(isdigit(currentChar))
+                {
+                    AppendToBuff(currentChar);
+                }
+                else
+                {
+                    floatDotFlag = false;
+                    floatEFlag = false;
+                    currentState = FAIL;
+                }
+                break;
 
 			case STRING :
 				if (currentChar == '"') // urcuje zacatek/konec stringu
@@ -349,12 +443,19 @@ bool Lexical() {
 
 			case SLASH: //stav po zadani '/' - muze se jedna o operator nebo o zacatek blokoveho komentare
 				if (currentChar == '\'') {
+                    ClearBuffer();
 					currentState = COMMENTS;
 				}
+                else if(currentChar == '=')
+                {
+                    AppendToBuff(currentChar);
+                    CreateToken();
+                    SetOperator(g_Buffer.data);
+                    ClearBuffer();
+                    currentState = START;
+                }
 				else {
-					char tempStr[2] = {(char) currentChar, 0};
-					CreateToken();
-					SetIdentifier(tempStr);
+                    MakeShortToken(LEX_SHORT_OP,'/');
 					SetLex(&currentState, currentChar);
 				}
 				break;
@@ -409,50 +510,54 @@ void LexCleanup() {
  * @brief testovaci funkce, vypise na stdout vsechny vyrvorene tokeny
  *
  */
-int TEST_TOKENS(Token* token) {
-	int type = GetTokenType(token);
-	switch (type) {
-		case 0 :
-			printf("Token type is:\t,\t(comma)\n");
-			break;
-		case 1 :
-			printf("Token type is:\t;\t(semicolon)\n");
-			break;
-		case 2 :
-			printf("Token type is:\t(\t(l bracket)\n");
-			break;
-		case 3 :
-			printf("Token type is:\t)\t(r bracket)\n");
-			break;
-		case 4 :
-			printf("Token type is:\tEOL\n");
-			break;
-		case 5 :
-			printf("Token type is:\tEOF\n");
-			return 1;
-		case 6 :
-			printf("Token type is:\toperator :\t(%c) \n", *((char*) GetTokenValue(token)));
-			break;
-		case 7 :
-			printf("Token type is:\tkeyword :\t(%s) \n", (char*) GetTokenValue(token));
-			break;
-		case 8 :
-			printf("Token type is:\tidentifier :\t(%s) \n", (char*) GetTokenValue(token));
-			break;
-		case 9 :
-			printf("Token type is:\tinteger :\t(%i) \n", *((int*) GetTokenValue(token)));
-			break;
-		case 10 :
-			printf("Token type is:\tdouble :\t(%f) \n", *((double*) GetTokenValue(token)));
-			break;
-		case 11 :
-			printf("Token type is:\tstring :\t(%s) \n", (char*) GetTokenValue(token));
-			break;
-		default :
-			printf("Token type is:\tUnidentified \n");
-			break;
-	}
-
-	return 0;
+int TEST_TOKENS() {
+	int type;
+    Token* token;
+    do{
+        token = GetNextToken();
+        type = GetTokenType(token);
+        switch (type) {
+            case 0 :
+                printf("Token type is:\t,\t(comma)\n");
+                break;
+            case 1 :
+                printf("Token type is:\t;\t(semicolon)\n");
+                break;
+            case 2 :
+                printf("Token type is:\t(\t(l bracket)\n");
+                break;
+            case 3 :
+                printf("Token type is:\t)\t(r bracket)\n");
+                break;
+            case 4 :
+                printf("Token type is:\tEOL\n");
+                break;
+            case 5 :
+                printf("Token type is:\tEOF\n");
+                return 1;
+            case 6 :
+                printf("Token type is:\toperator :\t(%s) \n", (char*) GetTokenValue(token));
+                break;
+            case 7 :
+                printf("Token type is:\tkeyword :\t(%s) \n", (char*) GetTokenValue(token));
+                break;
+            case 8 :
+                printf("Token type is:\tidentifier :\t(%s) \n", (char*) GetTokenValue(token));
+                break;
+            case 9 :
+                printf("Token type is:\tinteger :\t(%i) \n", *((int*) GetTokenValue(token)));
+                break;
+            case 10 :
+                printf("Token type is:\tdouble :\t(%f) \n", *((double*) GetTokenValue(token)));
+                break;
+            case 11 :
+                printf("Token type is:\tstring :\t(%s) \n", (char*) GetTokenValue(token));
+                break;
+            default :
+                printf("Token type is:\tUnidentified \n");
+                break;
+        }
+	}while(token != NULL);
+    return 0;
 
 }
