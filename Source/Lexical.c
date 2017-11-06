@@ -25,7 +25,7 @@ typedef enum State {
 	STRING,
 	RELAT,
 	SLASH,
-    LONGOPERATOR,
+  LONGOPERATOR,
 	FAIL,
 } State;
 
@@ -42,7 +42,7 @@ typedef enum Type {
 	LEX_SPACE = 9,
 	LEX_TAB = 10,
 	LEX_EOF = 11,
-    LEX_UND_OP = 12
+	LEX_UND_OP = 12
 } Type;
 
 
@@ -153,7 +153,8 @@ void MakeShortToken(Type tokenType, int firstChar) {
 		case LEX_SEMICOLON:
 			SetSemicolon(); // je strednik
 			return;
-        case LEX_UND_OP:
+
+		case LEX_UND_OP:
 		case LEX_SHORT_OP:
 			SetOperator(tmpStr); // je jeden z operatoru +,-,/,*,'\'
 			return;
@@ -246,23 +247,29 @@ bool Lexical() {
 				//rozrazeni do stavu
 				break;
 
-            case LONGOPERATOR:
-                if(currentChar == '=')
-                {
-                    AppendToBuff(currentChar);
-                    CreateToken();
-                    SetOperator(g_Buffer.data);
-                    ClearBuffer();
-                    currentState = START;
-                }
-                else
-                {
-                    CreateToken();
-                    SetOperator(g_Buffer.data);
-                    ClearBuffer();
-                    SetLex(&currentState,currentChar);
-                }
-                break;
+				case LONGOPERATOR:
+						if(currentChar == '=')
+						{
+								AppendToBuff(currentChar);
+								CreateToken();
+								SetOperator(g_Buffer.data);
+								ClearBuffer();
+								currentState = START;
+						}
+						else
+						{
+								CreateToken();
+								SetOperator(g_Buffer.data);
+								ClearBuffer();
+								if(endFlag)
+								{
+									MakeShortToken(endFlag,currentChar);
+									currentState = START;
+								}
+								else
+									SetLex(&currentState,currentChar);
+						}
+						break;
 
 			case RELAT: //relacni stav(<,>,<=,>= apod.)
 				if (currentChar == '=' || (currentChar == '>' && g_Buffer.data[0] == '<')) {
