@@ -17,7 +17,9 @@
 
 typedef struct IdxTerminalPair {
 	size_t cell_value;
+	size_t arg_cnt;
 	Terminal incoming_term;
+	Terminal pre_terminal;
 	Terminal type;
 	Terminal *func_params;
 	char rule;

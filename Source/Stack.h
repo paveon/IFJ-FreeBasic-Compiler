@@ -40,6 +40,11 @@ NTerminal GetTopNT(const Stack* stack);
 Terminal GetFirstTerminal(Stack *stack);
 
 
+/* Vraci terminal pod top symbolem. Pokud je na vrcholu neterminal, tak vraci T_UNDEFINED
+ */
+Terminal GetSymbolOneDown(Stack *stack);
+
+
 /* Vraci bool hodnotu znacici konec redukce => true pokud narazi na konec redukce */
 bool IsEndOfReduction(Stack *stack);
 

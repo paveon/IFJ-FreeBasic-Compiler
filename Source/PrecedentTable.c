@@ -190,6 +190,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 	unsigned char column, row;
 	unsigned char op_field_idx;
 	Terminal termType = GetFirstTerminal(s);
+	bool unaryMinus = false;
 
 	// Switch obsahujici rozdeleni tokenu.
 	// Z TOKEN_IDENTIFIER zjisti zda se jedna o funkci ci promennou
@@ -219,6 +220,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 					column = FUNCTION_IDENTIFIER;
 					field->type = id_func->returnType;
 					field->func_params = id_func->parameters;
+					field->arg_cnt = id_func->argCount;
 					field->incoming_term = T_FUNCTION;
 				}
 				// pokud predchozi if neplatil, tak zustava poprve nastavena hodnota teda 'column = IDENTIFIER' a 'field->incoming_term = T_ID'
@@ -256,6 +258,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 						column = FUNCTION_IDENTIFIER;
 						field->type = id_func->returnType;
 						field->func_params = id_func->parameters;
+						field->arg_cnt = id_func->argCount;
 						field->incoming_term = T_FUNCTION;
 					}
 				}
@@ -296,9 +299,19 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 					field->error = FINDING_FAILURE;
 					return;
 				}
+				// podminka resici pokud je na zasobniku minus a po nem zacatek a nebo leva zavorka, tak
+				// je minus unarni
+				if((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->pre_terminal == T_LEFT_BRACKET)
+																													|| field->pre_terminal == T_EOL)){
+					unaryMinus = true;
+				}
 				column = op_field_idx;
-				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT +
-															 op_field_idx;   // pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
+				// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
+				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT + op_field_idx;
+
+				if(field->incoming_term == T_OPERATOR_MINUS){
+					field->pre_terminal = GetSymbolOneDown(s);
+				}
 			}
 			break;
 		case TOKEN_SEMICOLON:
@@ -307,7 +320,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 				field->error = FINDING_FAILURE;
 			}
 			column = END_SYMBOL;
-			field->incoming_term = T_EOL;   // nehraje roli zda prijde ';' nebo EOL, oba ukoncuji expression a kontrola ukoncovaciho znaku neni na expression syntax kontrole
+			field->incoming_term = T_EOL;
 			ReturnToken();
 			break;
 		case TOKEN_KEYWORD:
@@ -406,4 +419,8 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 		return;
 	}
 	field->cell_value = g_PrecedentTable[row][column];
+
+	if(unaryMinus && (field->cell_value != EXPR_ERROR)){
+		field->cell_value = LOWER_PR;
+	}
 }

@@ -6,7 +6,8 @@
 
 #define FUNC_NEST_LEAVE 100
 #define FUNC_OK 1
-#define COMMA_RULES 16
+#define T_BUFFER_CHUNK 50
+#define NO_RULE_VALUE 40
 
 static size_t nested = 0;
 
@@ -35,17 +36,67 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	values.error = 0;
 	values.cell_value = FINDING_FAILURE;
 	values.incoming_term = T_UNDEFINED;
+	values.rule = NO_RULE_VALUE; // neexistuje pravidlo 40 => pouze defaultni hodnota
 	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 	Terminal type = T_INTEGER;
 
+	unsigned tBufferIDX = 0;
+	Terminal *typeBuffer = malloc(T_BUFFER_CHUNK* sizeof(Terminal));
+	if(!typeBuffer){
+		FatalError(ER_FATAL_INTERNAL);
+		return type;
+	}
+
 	while (1) {
 		FindInTable(stack, &values, line_num, false, keyword);
+
+		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
+		if((values.rule >= 0) && (values.rule <= 10)){
+			if(values.rule == 4) { // TODO int divide rule index => enum
+				if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+					// TODO error int divide pomoci nejakeho neint cisla
+					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
+					break;
+				}
+			}
+			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
+			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
+			tBufferIDX--;
+			if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+				typeBuffer[tBufferIDX-1] = T_DOUBLE;
+			}
+			else{
+				typeBuffer[tBufferIDX-1] = T_INTEGER;
+			}
+			values.rule = NO_RULE_VALUE;
+		}
+
+		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
+			typeBuffer[tBufferIDX] = values.type;
+			tBufferIDX++;
+			if(tBufferIDX == T_BUFFER_CHUNK){
+				tBufferIDX += T_BUFFER_CHUNK;
+				Terminal *tmp = NULL;
+				if(!(tmp = realloc(typeBuffer, tBufferIDX*sizeof(Terminal)))){
+					FatalError(ER_FATAL_INTERNAL);
+				}
+				typeBuffer = tmp;
+			}
+		}
+		/***************************************
+		 *************** SEMANTIKA *************
+		 ***************************************/
+		if(values.rule == 3){ // TODO udelat enum => real deleni (3)
+			type = T_DOUBLE;
+		}
 		if((values.type == T_DOUBLE) && (type == T_INTEGER)){
 			type = T_DOUBLE;
 		}
 		else if((values.type == T_STRING) && (type == T_INTEGER)){
 			type = T_STRING;
 		}
+		/**************************************************/
+
 		if ((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) &&
 				(LastSymBeforeFirstTerm(stack) ==
 				 1)) { // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
@@ -89,31 +140,95 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	}
 
 	ReleaseStack(stack);
+	free(typeBuffer);
 	return type;
 }
 
 /*
- * TODO popremyslet o lepsim zpusobu pocitani parametru
+ * TODO nevim jestli funguje INT divide + zkusit pak prepsat funkci celou
  * TODO dopsat semanticke chyby
  */
 int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keyword) {
-	size_t parametres_count = 0;
-	int end_value = 0;
-	bool is_in_func = true;
-	size_t idx = 0;
-	bool return_val;
-	bool can_count = true;	// promenna urcujici zda muzeme pocitat prichozi zavorku (vyuziva se ReturnToken() => jedna zavorka by se mohla pocitat 2x)
-	int l_brackets = 0, r_brackets = 0;
+	size_t paramCnt = values.arg_cnt;
 	Terminal *params = values.func_params;
+
+	bool is_in_func = true;
+	bool can_count = true;	// promenna urcujici zda muzeme pocitat prichozi zavorku (vyuziva se ReturnToken() => jedna zavorka by se mohla pocitat 2x)
+
+	int end_value = 0;
+
+	size_t idx = 0;
+	size_t actParamCnt = 0;
+	int l_brackets = 0, r_brackets = 0;
+
+	unsigned tBufferIDX = 0;
+	Terminal *typeBuffer = malloc(T_BUFFER_CHUNK* sizeof(Terminal));
+	if(!typeBuffer){
+		FatalError(ER_FATAL_INTERNAL);
+		return FUNC_NEST_LEAVE;
+	}
+
 	nested++;
 
 	while (1) {
 		FindInTable(s, &values, line_num, is_in_func, keyword);
+
+		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
+		if((values.rule >= 0) && (values.rule <= 10)){
+			if(values.rule == 4) { // TODO int divide rule index => enum
+				if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+					// TODO error int divide pomoci nejakeho neint cisla
+					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
+					free(typeBuffer);
+					return FUNC_NEST_LEAVE;
+				}
+			}
+			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
+			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
+			tBufferIDX--;
+			if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+				typeBuffer[tBufferIDX-1] = T_DOUBLE;
+			}
+			else{
+				typeBuffer[tBufferIDX-1] = T_INTEGER;
+			}
+			values.rule = NO_RULE_VALUE;
+		}
+
+		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
+			typeBuffer[tBufferIDX] = values.type;
+			tBufferIDX++;
+			if(tBufferIDX == T_BUFFER_CHUNK){
+				tBufferIDX += T_BUFFER_CHUNK;
+				Terminal *tmp = NULL;
+				if(!(tmp = realloc(typeBuffer, tBufferIDX*sizeof(Terminal)))){
+					FatalError(ER_FATAL_INTERNAL);
+				}
+				typeBuffer = tmp;
+			}
+		}
+
+		if((values.rule > 16) && (values.rule <= 20)) { // TODO dalsi do enumu pravidel => carky
+			values.rule = NO_RULE_VALUE;
+			tBufferIDX = 0;
+		}
 		if (values.error == FINDING_FAILURE) {
+			free(typeBuffer);
 			return FUNC_NEST_LEAVE;
 		}
-		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) || (values.incoming_term == T_FUNCTION)){
-			if(values.type != params[parametres_count]){
+		// prichozi token byl identifikator, funkce a nebo retezec
+		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
+						(values.incoming_term == T_FUNCTION)){
+			// pokud se prichozi typ nerovna ocekavanemu typu a nebo pokud neni prichozi typ integer a
+			// ocekavany double(implicitni konverze), tak je chyba v parametru
+			if((params[actParamCnt] != T_DOUBLE) && (values.type != T_INTEGER)){
+				if(values.type != params[actParamCnt]) {
+					free(typeBuffer);
+					return FUNC_NEST_LEAVE;
+				}
+			}
+			if(actParamCnt == paramCnt){ // TODO vetsi pocet argumentu ve funkci
+				free(typeBuffer);
 				return FUNC_NEST_LEAVE;
 			}
 		}
@@ -129,8 +244,8 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				can_count = true;
 				break;
 			case LOWER_PR:
-				return_val = ApplyPrecRule(s, is_in_func, line_num, &values);
-				if (!return_val) {
+				if (!ApplyPrecRule(s, is_in_func, line_num, &values)) {
+					free(typeBuffer);
 					return FUNC_NEST_LEAVE;
 				}
 				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
@@ -140,6 +255,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				break;
 			case EXPR_ERROR:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+				free(typeBuffer);
 				return FUNC_NEST_LEAVE;
 		}
 
@@ -152,19 +268,25 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		}
 		/*****************************************************/
 
-		if (((values.incoming_term == T_COMMA) && can_count) || (l_brackets == r_brackets && can_count)) { // TODO kontrola parametru funkce
-			parametres_count++;
-			printf("func: %d, parameter: %d\n", (int) nested, (int) parametres_count);
+		if (((values.incoming_term == T_COMMA) && can_count) || (l_brackets == r_brackets && can_count)) {
+			actParamCnt++;
+			printf("func: %d, parameter: %d\n", (int) nested, (int) actParamCnt);
 		}
 
 		if (values.incoming_term == T_FUNCTION) {
 			end_value = FuncParams(s, values, line_num, keyword);
 			if (end_value == FUNC_NEST_LEAVE) {
+				free(typeBuffer);
 				return FUNC_NEST_LEAVE;
 			}
 		}
 		if (nested > CountOfFunc(s)) {
+			if(actParamCnt != paramCnt){ // TODO mensi pocet parametru => napsat error
+				free(typeBuffer);
+				return FUNC_NEST_LEAVE;
+			}
 			nested--;
+			free(typeBuffer);
 			return FUNC_OK;
 		}
 	}

@@ -178,7 +178,14 @@ Terminal GetFirstTerminal(Stack *stack){
 	term = tmp->data.terminal;
 	return term;
 }
-
+/* Funkce pro precedencni analyzu => unarni minus (nekontroluje prazdny zasobnik)
+ */
+Terminal GetSymbolOneDown(Stack *stack){
+	if(stack->top->type == SYMBOL_TERMINAL){
+		return stack->top->data.terminal;
+	}
+	return T_UNDEFINED;
+}
 
 /* TODO nevim jak to okomentovat
  */
