@@ -62,7 +62,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			tBufferIDX--;
-			if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+			if ((typeBuffer[tBufferIDX] == T_DOUBLE) || (typeBuffer[tBufferIDX - 1] == T_DOUBLE)) {
 				typeBuffer[tBufferIDX-1] = T_DOUBLE;
 			}
 			else{
