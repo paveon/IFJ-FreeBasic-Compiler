@@ -11,6 +11,16 @@
 
 static size_t nested = 0;
 
+typedef struct TypeBufferStash {
+	Terminal* allocated;
+	size_t index;
+	size_t size;
+} TypeBufferStash;
+static TypeBufferStash g_typeBufferStash;
+
+void AllocTypeBuffer(void);
+void ResizeTypeBuffer(void);
+
 void PrecErrorCleaning(Stack* s) {
 	Token* token = GetNextToken();
 	if (!token) {
@@ -40,47 +50,36 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 	Terminal type = T_INTEGER;
 
-	unsigned tBufferIDX = 0;
-	Terminal *typeBuffer = malloc(T_BUFFER_CHUNK* sizeof(Terminal));
-	if(!typeBuffer){
-		FatalError(ER_FATAL_INTERNAL);
-		return type;
-	}
+	AllocTypeBuffer();
+
 
 	while (1) {
 		FindInTable(stack, &values, line_num, false, keyword);
 
 		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
 		if((values.rule >= 0) && (values.rule <= 10)){
+			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
+			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
+			g_typeBufferStash.index--;
 			if(values.rule == 4) { // TODO int divide rule index => enum
-				if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
+				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) || (g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
 					// TODO error int divide pomoci nejakeho neint cisla
 					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
 					break;
 				}
 			}
-			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
-			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
-			tBufferIDX--;
-			if ((typeBuffer[tBufferIDX] == T_DOUBLE) || (typeBuffer[tBufferIDX - 1] == T_DOUBLE)) {
-				typeBuffer[tBufferIDX-1] = T_DOUBLE;
-			}
-			else{
-				typeBuffer[tBufferIDX-1] = T_INTEGER;
+
+			if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) || (g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
+				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_DOUBLE;
 			}
 			values.rule = NO_RULE_VALUE;
 		}
 
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
-			typeBuffer[tBufferIDX] = values.type;
-			tBufferIDX++;
-			if(tBufferIDX == T_BUFFER_CHUNK){
-				tBufferIDX += T_BUFFER_CHUNK;
-				Terminal *tmp = NULL;
-				if(!(tmp = realloc(typeBuffer, tBufferIDX*sizeof(Terminal)))){
-					FatalError(ER_FATAL_INTERNAL);
-				}
-				typeBuffer = tmp;
+			g_typeBufferStash.allocated[g_typeBufferStash.index] = values.type;
+			g_typeBufferStash.index++;
+			if(g_typeBufferStash.index == g_typeBufferStash.size){
+				ResizeTypeBuffer();
 			}
 		}
 		/***************************************
@@ -140,7 +139,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	}
 
 	ReleaseStack(stack);
-	free(typeBuffer);
+	free(g_typeBufferStash.allocated);
 	return type;
 }
 
@@ -161,13 +160,6 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	size_t actParamCnt = 0;
 	int l_brackets = 0, r_brackets = 0;
 
-	unsigned tBufferIDX = 0;
-	Terminal *typeBuffer = malloc(T_BUFFER_CHUNK* sizeof(Terminal));
-	if(!typeBuffer){
-		FatalError(ER_FATAL_INTERNAL);
-		return FUNC_NEST_LEAVE;
-	}
-
 	nested++;
 
 	while (1) {
@@ -175,46 +167,42 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 
 		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
 		if((values.rule >= 0) && (values.rule <= 10)){
-			if(values.rule == 4) { // TODO int divide rule index => enum
-				if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
-					// TODO error int divide pomoci nejakeho neint cisla
-					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
-					free(typeBuffer);
-					return FUNC_NEST_LEAVE;
-				}
-			}
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
-			tBufferIDX--;
-			if((typeBuffer[tBufferIDX-1] == T_DOUBLE) || (typeBuffer[tBufferIDX-2] == T_DOUBLE)){
-				typeBuffer[tBufferIDX-1] = T_DOUBLE;
+			g_typeBufferStash.index--;
+			if(values.rule == 4) { // TODO int divide rule index => enum
+				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
+								(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
+					// TODO error int divide pomoci nejakeho neint cisla
+					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
+					break;
+				}
+			}
+			if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
+							(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
+
+				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_DOUBLE;
 			}
 			else{
-				typeBuffer[tBufferIDX-1] = T_INTEGER;
+				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_INTEGER;
 			}
 			values.rule = NO_RULE_VALUE;
 		}
 
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
-			typeBuffer[tBufferIDX] = values.type;
-			tBufferIDX++;
-			if(tBufferIDX == T_BUFFER_CHUNK){
-				tBufferIDX += T_BUFFER_CHUNK;
-				Terminal *tmp = NULL;
-				if(!(tmp = realloc(typeBuffer, tBufferIDX*sizeof(Terminal)))){
-					FatalError(ER_FATAL_INTERNAL);
-				}
-				typeBuffer = tmp;
+			g_typeBufferStash.allocated[g_typeBufferStash.index] = values.type;
+			g_typeBufferStash.index++;
+			if(g_typeBufferStash.index == g_typeBufferStash.size){
+				ResizeTypeBuffer();
 			}
 		}
 
 		if((values.rule > 16) && (values.rule <= 20)) { // TODO dalsi do enumu pravidel => carky
 			values.rule = NO_RULE_VALUE;
-			tBufferIDX = 0;
+			g_typeBufferStash.index = 0;
 		}
 		if (values.error == FINDING_FAILURE) {
-			free(typeBuffer);
-			return FUNC_NEST_LEAVE;
+			break;
 		}
 		// prichozi token byl identifikator, funkce a nebo retezec
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
@@ -223,13 +211,11 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			// ocekavany double(implicitni konverze), tak je chyba v parametru
 			if((params[actParamCnt] != T_DOUBLE) && (values.type != T_INTEGER)){
 				if(values.type != params[actParamCnt]) {
-					free(typeBuffer);
-					return FUNC_NEST_LEAVE;
+					break;
 				}
 			}
 			if(actParamCnt == paramCnt){ // TODO vetsi pocet argumentu ve funkci
-				free(typeBuffer);
-				return FUNC_NEST_LEAVE;
+				break;
 			}
 		}
 		switch (values.cell_value) {
@@ -245,7 +231,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				break;
 			case LOWER_PR:
 				if (!ApplyPrecRule(s, is_in_func, line_num, &values)) {
-					free(typeBuffer);
+					free(g_typeBufferStash.allocated);
 					return FUNC_NEST_LEAVE;
 				}
 				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
@@ -255,7 +241,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				break;
 			case EXPR_ERROR:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
-				free(typeBuffer);
+				free(g_typeBufferStash.allocated);
 				return FUNC_NEST_LEAVE;
 		}
 
@@ -276,18 +262,45 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		if (values.incoming_term == T_FUNCTION) {
 			end_value = FuncParams(s, values, line_num, keyword);
 			if (end_value == FUNC_NEST_LEAVE) {
-				free(typeBuffer);
-				return FUNC_NEST_LEAVE;
+				break;
 			}
 		}
 		if (nested > CountOfFunc(s)) {
 			if(actParamCnt != paramCnt){ // TODO mensi pocet parametru => napsat error
-				free(typeBuffer);
-				return FUNC_NEST_LEAVE;
+				break;
 			}
 			nested--;
-			free(typeBuffer);
+			free(g_typeBufferStash.allocated);
 			return FUNC_OK;
 		}
+	}
+	return FUNC_NEST_LEAVE;
+}
+
+
+void AllocTypeBuffer(void){
+	if(!g_typeBufferStash.allocated){
+		g_typeBufferStash.size = T_BUFFER_CHUNK;
+		g_typeBufferStash.allocated = malloc(g_typeBufferStash.size* sizeof(Terminal));
+		if(!g_typeBufferStash.allocated){
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		g_typeBufferStash.index = 0;
+	}
+}
+
+void ResizeTypeBuffer(){
+	g_typeBufferStash.size += T_BUFFER_CHUNK;
+	Terminal *tmp = realloc(g_typeBufferStash.allocated, g_typeBufferStash.size* sizeof(Terminal));
+	if(!tmp){
+		FatalError(ER_FATAL_INTERNAL);
+		return;
+	}
+	g_typeBufferStash.allocated = tmp;
+}
+
+void FreeTypeBuffer(void){
+	if(g_typeBufferStash.allocated){
+		free(g_typeBufferStash.allocated);
 	}
 }

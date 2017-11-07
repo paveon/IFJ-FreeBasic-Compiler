@@ -16,4 +16,6 @@ Terminal BottomUp(size_t line_num, Terminal keyword);
 
 int FuncParams(Stack *s, IdxTerminalPair values, size_t line_num, Terminal keyword);
 
+void FreeTypeBuffer(void);
+
 #endif //FREEBASIC_COMPILER_BOTTOMUP_H
