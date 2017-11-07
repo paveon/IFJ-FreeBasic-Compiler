@@ -161,19 +161,21 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* 
 			return true;
 		}
 	}
+	// String 'operator' Exptression
 	if (((buffer[0] == NT_STRING) || (buffer[1] == NT_STRING) || (buffer[2] == NT_STRING)) &&
 			((buffer[0] == NT_EXPRESSION) || (buffer[1] == NT_EXPRESSION) ||
 			 (buffer[2] == NT_EXPRESSION))) {
 
 		SemanticError(line_num, ER_SMC_STR_AND_NUM, NULL);
 	}
+	// Missing operator
 	else if (((buffer[0] == NT_EXPRESSION) && (buffer[1] == NT_EXPRESSION)) ||
 					 ((buffer[1] == NT_EXPRESSION) && (buffer[2] == NT_EXPRESSION))) {
 		SemanticError(line_num, ER_SMC_MISSING_OP,
 									NULL); // TODO momentalne nemuzes nastat kvuli hodnotam v tabulce
 	}
 	else {
-		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL); // TODO nevim jestli muze nastat
+		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 	}
 	return false;
 }
@@ -220,6 +222,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 					column = FUNCTION_IDENTIFIER;
 					field->type = id_func->returnType;
 					field->func_params = id_func->parameters;
+					field->func_name = id_func->name;
 					field->arg_cnt = id_func->argCount;
 					field->incoming_term = T_FUNCTION;
 				}
@@ -258,6 +261,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 						column = FUNCTION_IDENTIFIER;
 						field->type = id_func->returnType;
 						field->func_params = id_func->parameters;
+						field->func_name = id_func->name;
 						field->arg_cnt = id_func->argCount;
 						field->incoming_term = T_FUNCTION;
 					}
@@ -305,10 +309,13 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 																													|| field->pre_terminal == T_EOL)){
 					unaryMinus = true;
 				}
-				column = op_field_idx;
+
 				// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
+				column = op_field_idx;
 				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT + op_field_idx;
 
+				// prichozi terminal je minus => do pre_terminal se zapise symbol pod znakem '-' =>
+				// T_UNDEFINED pokud je zde neterminal a pokud je terminal tak prislusny terminal
 				if(field->incoming_term == T_OPERATOR_MINUS){
 					field->pre_terminal = GetSymbolOneDown(s);
 				}
@@ -347,8 +354,8 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 				field->error = FINDING_FAILURE;
 				return;
 			}
-			// TODO dopsat error na EOF
-			field->error = FINDING_FAILURE;
+			ReturnToken();
+			field->error = EOF_FINDING_FAILURE;
 			return;
 	}
 	// Druhy switch rozdelujici pouze podle nejvrchnejsiho terminalu zasobniku

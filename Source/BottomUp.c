@@ -56,15 +56,13 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	while (1) {
 		FindInTable(stack, &values, line_num, false, keyword);
 
-		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
-		if((values.rule >= 0) && (values.rule <= 10)){
+		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
-			if(values.rule == 4) { // TODO int divide rule index => enum
+			if(values.rule == INT_DIVIDE_RULE) {
 				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) || (g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
-					// TODO error int divide pomoci nejakeho neint cisla
-					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
+					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
 					break;
 				}
 			}
@@ -85,7 +83,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 		/***************************************
 		 *************** SEMANTIKA *************
 		 ***************************************/
-		if(values.rule == 3){ // TODO udelat enum => real deleni (3)
+		if(values.rule == REAL_DIVIDE_RULE){
 			type = T_DOUBLE;
 		}
 		if((values.type == T_DOUBLE) && (type == T_INTEGER)){
@@ -101,10 +99,12 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				 1)) { // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
-		if (values.error == FINDING_FAILURE) {
+		if ((values.error == FINDING_FAILURE) || (values.error == EOF_FINDING_FAILURE)) {
 			PrecErrorCleaning(stack);
+			free(g_typeBufferStash.allocated);
 			return T_UNDEFINED;
 		}
+
 		switch (values.cell_value) {
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(stack);
@@ -118,6 +118,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				return_val = ApplyPrecRule(stack, false, line_num, &values);
 				if (!return_val) {
 					PrecErrorCleaning(stack);
+					free(g_typeBufferStash.allocated);
 					return T_UNDEFINED;
 				}
 				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
@@ -127,12 +128,14 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 			case EXPR_ERROR:  // nebylo pravidlo v tabulce
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 				PrecErrorCleaning(stack);
+				free(g_typeBufferStash.allocated);
 				return T_UNDEFINED;
 		}
 		if (ContainingFunction(stack)) {
 			end_func_val = FuncParams(stack, values, line_num, keyword);
-			if (end_func_val == FUNC_NEST_LEAVE) {
+			if ((end_func_val == FUNC_NEST_LEAVE) || (end_func_val == EOF_FINDING_FAILURE)) {
 				PrecErrorCleaning(stack);
+				free(g_typeBufferStash.allocated);
 				return T_UNDEFINED;
 			}
 		}
@@ -144,8 +147,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 }
 
 /*
- * TODO nevim jestli funguje INT divide + zkusit pak prepsat funkci celou
- * TODO dopsat semanticke chyby
+ * TODO zkusit pak prepsat funkci celou
  */
 int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keyword) {
 	size_t paramCnt = values.arg_cnt;
@@ -160,21 +162,21 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	size_t actParamCnt = 0;
 	int l_brackets = 0, r_brackets = 0;
 
+	const char *func_name = values.func_name;
+
 	nested++;
 
 	while (1) {
 		FindInTable(s, &values, line_num, is_in_func, keyword);
 
-		// TODO doplnit enum pravidel => vsechna 2 vstupa expr pravidla => 1 typ v poli
-		if((values.rule >= 0) && (values.rule <= 10)){
+		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
-			if(values.rule == 4) { // TODO int divide rule index => enum
+			if(values.rule == INT_DIVIDE_RULE) {
 				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
 								(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
-					// TODO error int divide pomoci nejakeho neint cisla
-					printf("deleni necelociselnou hodnotou celociselnym delenim\n");
+					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
 					break;
 				}
 			}
@@ -197,12 +199,15 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			}
 		}
 
-		if((values.rule > 16) && (values.rule <= 20)) { // TODO dalsi do enumu pravidel => carky
+		if((values.rule >= COMMA_EXPR_RULE) && (values.rule <= COMMA_STR_RULE)) {
 			values.rule = NO_RULE_VALUE;
 			g_typeBufferStash.index = 0;
 		}
 		if (values.error == FINDING_FAILURE) {
 			break;
+		}
+		else if(values.error == EOF_FINDING_FAILURE){
+			return EOF_FINDING_FAILURE;
 		}
 		// prichozi token byl identifikator, funkce a nebo retezec
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
@@ -211,10 +216,12 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			// ocekavany double(implicitni konverze), tak je chyba v parametru
 			if((params[actParamCnt] != T_DOUBLE) && (values.type != T_INTEGER)){
 				if(values.type != params[actParamCnt]) {
+					SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
 					break;
 				}
 			}
-			if(actParamCnt == paramCnt){ // TODO vetsi pocet argumentu ve funkci
+			if(actParamCnt == paramCnt){
+				SemanticError(line_num, ER_SMC_LESS_ARGS, func_name);
 				break;
 			}
 		}
@@ -267,6 +274,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		}
 		if (nested > CountOfFunc(s)) {
 			if(actParamCnt != paramCnt){ // TODO mensi pocet parametru => napsat error
+				SemanticError(line_num, ER_SMC_LESS_ARGS, func_name);
 				break;
 			}
 			nested--;
