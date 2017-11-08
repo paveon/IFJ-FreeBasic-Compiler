@@ -153,7 +153,6 @@ void MakeShortToken(Type tokenType, int firstChar) {
 		case LEX_SEMICOLON:
 			SetSemicolon(); // je strednik
 			return;
-
 		case LEX_UND_OP:
 		case LEX_SHORT_OP:
 			SetOperator(tmpStr); // je jeden z operatoru +,-,/,*,'\'
@@ -263,7 +262,14 @@ bool Lexical() {
 								ClearBuffer();
 								if(endFlag)
 								{
-									MakeShortToken(endFlag,currentChar);
+									if(endFlag == LEX_UND_OP)
+									{
+										char tmp[2] = {currentChar,0};
+										CreateToken();
+										SetOperator(tmp);
+									}
+									else
+										MakeShortToken(endFlag,currentChar);
 									currentState = START;
 								}
 								else
@@ -450,20 +456,36 @@ bool Lexical() {
 
 			case SLASH: //stav po zadani '/' - muze se jedna o operator nebo o zacatek blokoveho komentare
 				if (currentChar == '\'') {
-                    ClearBuffer();
+        	ClearBuffer();
 					currentState = COMMENTS;
 				}
-                else if(currentChar == '=')
-                {
-                    AppendToBuff(currentChar);
-                    CreateToken();
-                    SetOperator(g_Buffer.data);
-                    ClearBuffer();
-                    currentState = START;
-                }
+				else if(currentChar == '=')
+				{
+						AppendToBuff(currentChar);
+						CreateToken();
+						SetOperator(g_Buffer.data);
+						ClearBuffer();
+						currentState = START;
+				}
 				else {
-                    MakeShortToken(LEX_SHORT_OP,'/');
-					SetLex(&currentState, currentChar);
+          MakeShortToken(LEX_SHORT_OP,'/');
+					if(endFlag == LEX_UND_OP)
+					{
+						char tmp[2] = {currentChar,0};
+						CreateToken();
+						SetOperator(tmp);
+						ClearBuffer();
+						currentState = START;
+
+					}
+					else if(endFlag)
+					{
+						MakeShortToken(endFlag,currentChar);
+						ClearBuffer();
+						currentState = START;
+					}
+					else
+						SetLex(&currentState,currentChar);
 				}
 				break;
 
