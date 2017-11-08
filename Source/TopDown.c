@@ -27,11 +27,12 @@ const char* NTerminalText[20] = {
 				[NT_EXPRESSION] = "<expr>",
 				[NT_LINE_BREAK] = "<line_break>",
 				[NT_SCOPE] = "<scope>",
-				[NT_ELSEIF] = "<elseif>"
+				[NT_ELSEIF] = "<elseif>",
+				[NT_ASSIGN_OPERATOR] = "<assign_operator>"
 };
 
 
-static const char* const TerminalText[29] = {
+static const char* const TerminalText[50] = {
 				[T_DECLARE] = "DECLARE",
 				[T_DIM] = "DIM",
 				[T_DO] = "DO",
@@ -53,6 +54,11 @@ static const char* const TerminalText[29] = {
 				[T_COMMA] = ",",
 				[T_LEFT_BRACKET] = "(",
 				[T_OPERATOR_EQUAL] = "=",
+				[T_OPERATOR_PLUS_EQ] = "+=",
+				[T_OPERATOR_MINUS_EQ] = "-=",
+				[T_OPERATOR_MULTIPLY_EQ] = "*=",
+				[T_OPERATOR_REAL_DIVIDE_EQ]= "/=",
+				[T_OPERATOR_INT_DIVIDE_EQ] = "\\=",
 				[T_EOL] = "\n",
 				[T_ID] = "ID",
 				[T_EOF] = "EOF",
@@ -199,6 +205,11 @@ bool ParseProgram(void) {
 						case T_WHILE:
 						case T_PRINT:
 						case T_OPERATOR_EQUAL:
+						case T_OPERATOR_PLUS_EQ:
+						case T_OPERATOR_MINUS_EQ:
+						case T_OPERATOR_MULTIPLY_EQ:
+						case T_OPERATOR_REAL_DIVIDE_EQ:
+						case T_OPERATOR_INT_DIVIDE_EQ:
 							preExp = terminal;
 							break;
 						case T_SEMICOLON:

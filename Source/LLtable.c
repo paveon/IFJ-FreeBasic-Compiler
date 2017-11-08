@@ -60,7 +60,7 @@ static Pair g_NT_STATEMENT[] = {
 				{T_DIM,       RULE_ST_VAR_DECL},
 				{T_STATIC,    RULE_ST_VAR_STATIC},
 				{T_SCOPE,     RULE_NEW_SCOPE},
-				{T_ID,        RULE_ST_FUNC_CALL},
+				{T_ID,        RULE_ST_ASSIGNMENT},
 				{T_IF,        RULE_ST_IF},
 				{T_DO,        RULE_ST_WHILE},
 				{T_INPUT,     RULE_ST_INPUT},
@@ -93,6 +93,15 @@ static Pair g_NT_TYPE[] = {
 				{T_INTEGER,   RULE_TYPE_INT},
 				{T_STRING,    RULE_TYPE_STRING},
 				{T_UNDEFINED, RULE_MISSING}
+};
+static Pair g_NT_ASSIGN_OPERATOR[] = {
+				{T_OPERATOR_EQUAL,          RULE_OP_EQ},
+				{T_OPERATOR_PLUS_EQ,        RULE_OP_PLUS_EQ},
+				{T_OPERATOR_MINUS_EQ,       RULE_OP_MINUS_EQ},
+				{T_OPERATOR_MULTIPLY_EQ,    RULE_OP_MULTIPLY_EQ},
+				{T_OPERATOR_INT_DIVIDE_EQ,  RULE_OP_INT_DIV_EQ},
+				{T_OPERATOR_REAL_DIVIDE_EQ, RULE_OP_REAL_DIV_EQ},
+				{T_UNDEFINED,               RULE_MISSING}
 };
 static Pair g_NT_LINE_BREAK[] = {
 				{T_EOL,       RULE_LINE_BREAK},
@@ -161,6 +170,9 @@ Rule GetLLRule(NTerminal nTerminal, Terminal tokenTerminal) {
 			break;
 		case NT_LINE_BREAK:
 			rules = &g_NT_LINE_BREAK[0];
+			break;
+		case NT_ASSIGN_OPERATOR:
+			rules = &g_NT_ASSIGN_OPERATOR[0];
 			break;
 
 		default:

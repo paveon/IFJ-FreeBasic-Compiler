@@ -382,9 +382,9 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_ID);
 			PushT(stack, T_DIM);
 			break;
-		case RULE_ST_FUNC_CALL:
+		case RULE_ST_ASSIGNMENT:
 			PushNT(stack, NT_EXPRESSION);
-			PushT(stack, T_OPERATOR_EQUAL);
+			PushNT(stack, NT_ASSIGN_OPERATOR);
 			PushT(stack, T_ID);
 			break;
 		case RULE_ST_INPUT:
@@ -480,6 +480,24 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_AS);
 			PushT(stack, T_ID);
 			PushT(stack, T_STATIC);
+			break;
+		case RULE_OP_EQ:
+			PushT(stack, T_OPERATOR_EQUAL);
+			break;
+		case RULE_OP_PLUS_EQ:
+			PushT(stack, T_OPERATOR_PLUS_EQ);
+			break;
+		case RULE_OP_MINUS_EQ:
+			PushT(stack, T_OPERATOR_MINUS_EQ);
+			break;
+		case RULE_OP_MULTIPLY_EQ:
+			PushT(stack, T_OPERATOR_MULTIPLY_EQ);
+			break;
+		case RULE_OP_INT_DIV_EQ:
+			PushT(stack, T_OPERATOR_INT_DIVIDE_EQ);
+			break;
+		case RULE_OP_REAL_DIV_EQ:
+			PushT(stack, T_OPERATOR_REAL_DIVIDE_EQ);
 			break;
 
 		case RULE_EPSILON:
