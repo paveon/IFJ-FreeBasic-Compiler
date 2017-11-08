@@ -37,9 +37,9 @@ typedef struct TokenStash {
 	size_t activeToken;
 } TokenStash;
 
-static TokenStash Stash;
-static ReadOnlyData Data;
-static Token* Current;
+static TokenStash g_Stash;
+static ReadOnlyData g_Data;
+static Token* g_Current;
 
 typedef struct Pair {
 	char* value;
@@ -47,7 +47,7 @@ typedef struct Pair {
 } Pair;
 
 
-static const Pair Keywords[] = {
+static const Pair g_Keywords[] = {
 				{"AS",       T_AS},
 				{"ASC",      T_UNDEFINED},
 				{"DECLARE",  T_DECLARE},
@@ -85,7 +85,7 @@ static const Pair Keywords[] = {
 				{"TRUE",     T_UNDEFINED},
 };
 
-static const Pair Operators[] = {
+static const Pair g_Operators[] = {
 				{"*",   T_OPERATOR_MULTIPLY},
 				{"/",   T_OPERATOR_REAL_DIVIDE},
 				{"\\",  T_OPERATOR_INT_DIVIDE},
@@ -105,7 +105,7 @@ static const Pair Operators[] = {
 };
 
 
-static char* Miscellaneous[5] = {
+static char* g_Miscellaneous[5] = {
 				[TOKEN_COMMA] = ",",
 				[TOKEN_SEMICOLON] = ";",
 				[TOKEN_L_BRACKET] = "(",
@@ -136,43 +136,43 @@ void StrToLower(char* str) {
 
 void ResizeBuffer() {
 	char* newBuffer;
-	Data.bufferSize += BUFFER_CHUNK;
-	if ((newBuffer = realloc(Data.textBuffer, sizeof(char) * Data.bufferSize)) == NULL) {
+	g_Data.bufferSize += BUFFER_CHUNK;
+	if ((newBuffer = realloc(g_Data.textBuffer, sizeof(char) * g_Data.bufferSize)) == NULL) {
 		FatalError(ER_FATAL_INTERNAL);
 	}
-	Data.textBuffer = newBuffer;
+	g_Data.textBuffer = newBuffer;
 }
 
 
 Token* GetNextToken(void) {
-	if (Stash.activeToken < Stash.arrayUsed) {
-		return &Stash.tokenArray[Stash.activeToken++];
+	if (g_Stash.activeToken < g_Stash.arrayUsed) {
+		return &g_Stash.tokenArray[g_Stash.activeToken++];
 	}
 	return NULL;
 }
 
 
 void ReturnToken(void) {
-	if (Stash.activeToken > 0) {
-		Stash.activeToken--;
+	if (g_Stash.activeToken > 0) {
+		g_Stash.activeToken--;
 	}
 }
 
 
 void CreateToken(void) {
-	if (Stash.arrayUsed == Stash.arraySize) {
+	if (g_Stash.arrayUsed == g_Stash.arraySize) {
 		Token* tmp = NULL;
-		Stash.arraySize += STASH_CHUNK;
-		if ((tmp = realloc(Stash.tokenArray, sizeof(Token) * Stash.arraySize)) == NULL) {
+		g_Stash.arraySize += STASH_CHUNK;
+		if ((tmp = realloc(g_Stash.tokenArray, sizeof(Token) * g_Stash.arraySize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
-		Stash.tokenArray = tmp;
+		g_Stash.tokenArray = tmp;
 	}
 
-	Current = &Stash.tokenArray[Stash.arrayUsed++];
-	Current->type = TOKEN_UNDEFINED;
-	Current->value = NULL;
-	Current->trailSpace = false;
+	g_Current = &g_Stash.tokenArray[g_Stash.arrayUsed++];
+	g_Current->type = TOKEN_UNDEFINED;
+	g_Current->value = NULL;
+	g_Current->trailSpace = false;
 }
 
 
@@ -183,7 +183,7 @@ TokenType GetTokenType(const Token* token) {
 
 const void* GetTokenValue(const Token* token) {
 	if (token->type == TOKEN_IDENTIFIER || token->type == TOKEN_STRING) {
-		return &(*token->value)[token->bufferIdx];
+		return &((char*) (*token->value))[token->bufferIdx];
 	}
 	return *token->value;
 }
@@ -215,20 +215,20 @@ bool GetTrailSpace(const Token* token) {
 
 
 void SetOperator(const char* operator) {
-	if (!Current || !operator) { return; }
+	if (!g_Current || !operator) { return; }
 	size_t length = strlen(operator);
 
 	//Nemuze se jednat o operator
 	if (length == 0 || length > OPERATOR_MAX_LEN) { return; }
 
-	size_t arraySize = (sizeof(Operators) / sizeof(char*));
+	size_t arraySize = (sizeof(g_Operators) / sizeof(char*));
 	for (size_t i = 0; i < arraySize; i++) {
-		if (strcmp(Operators[i].value, operator) == 0) {
+		if (strcmp(g_Operators[i].value, operator) == 0) {
 			//Operator byl nalezen
-			Current->type = TOKEN_OPERATOR;
-			Current->value = (void**) &Operators[i].value;
-			Current->terminal = Operators[i].terminal;
-			Current = NULL;
+			g_Current->type = TOKEN_OPERATOR;
+			g_Current->value = (void**) &g_Operators[i].value;
+			g_Current->terminal = g_Operators[i].terminal;
+			g_Current = NULL;
 			return;
 		}
 	}
@@ -236,46 +236,46 @@ void SetOperator(const char* operator) {
 
 
 void SetComma(void) {
-	if (!Current) { return; }
+	if (!g_Current) { return; }
 
-	Current->type = TOKEN_COMMA;
-	Current->value = (void**) &Miscellaneous[TOKEN_COMMA];
-	Current->terminal = T_COMMA;
-	Current = NULL;
+	g_Current->type = TOKEN_COMMA;
+	g_Current->value = (void**) &g_Miscellaneous[TOKEN_COMMA];
+	g_Current->terminal = T_COMMA;
+	g_Current = NULL;
 }
 
 
 void SetSemicolon(void) {
-	if (!Current) { return; }
+	if (!g_Current) { return; }
 
-	Current->type = TOKEN_SEMICOLON;
-	Current->value = (void**) &Miscellaneous[TOKEN_SEMICOLON];
-	Current->terminal = T_SEMICOLON;
-	Current = NULL;
+	g_Current->type = TOKEN_SEMICOLON;
+	g_Current->value = (void**) &g_Miscellaneous[TOKEN_SEMICOLON];
+	g_Current->terminal = T_SEMICOLON;
+	g_Current = NULL;
 }
 
 
 void SetLeftBracket(void) {
-	if (!Current) { return; }
+	if (!g_Current) { return; }
 
-	Current->type = TOKEN_L_BRACKET;
-	Current->value = (void**) &Miscellaneous[TOKEN_L_BRACKET];
-	Current->terminal = T_LEFT_BRACKET;
-	Current = NULL;
+	g_Current->type = TOKEN_L_BRACKET;
+	g_Current->value = (void**) &g_Miscellaneous[TOKEN_L_BRACKET];
+	g_Current->terminal = T_LEFT_BRACKET;
+	g_Current = NULL;
 }
 
 void SetRightBracket(void) {
-	if (!Current) { return; }
+	if (!g_Current) { return; }
 
-	Current->type = TOKEN_R_BRACKET;
-	Current->value = (void**) &Miscellaneous[TOKEN_R_BRACKET];
-	Current->terminal = T_RIGHT_BRACKET;
-	Current = NULL;
+	g_Current->type = TOKEN_R_BRACKET;
+	g_Current->value = (void**) &g_Miscellaneous[TOKEN_R_BRACKET];
+	g_Current->terminal = T_RIGHT_BRACKET;
+	g_Current = NULL;
 }
 
 
 void SetIdentifier(char* symbol) {
-	if (!Current || !symbol) { return; }
+	if (!g_Current || !symbol) { return; }
 	size_t length = strlen(symbol);
 	if (length == 0) { return; }
 
@@ -283,163 +283,163 @@ void SetIdentifier(char* symbol) {
 	if (isspace(symbol[length - 1])) {
 		length--;
 		symbol[length] = '\0';
-		Current->trailSpace = true;
+		g_Current->trailSpace = true;
 	}
 
 	//Mohlo by se jednat o klicove slovo
 	if (length <= KEYWORD_MAX_LEN) {
 		StrToUpper(symbol);
-		size_t arraySize = (sizeof(Keywords) / sizeof(Pair));
+		size_t arraySize = (sizeof(g_Keywords) / sizeof(Pair));
 		for (size_t i = 0; i < arraySize; i++) {
-			if (strcmp(Keywords[i].value, symbol) == 0) {
-				Current->type = TOKEN_KEYWORD;
-				Current->value = (void**) &Keywords[i].value;
-				Current->terminal = Keywords[i].terminal;
-				Current = NULL;
+			if (strcmp(g_Keywords[i].value, symbol) == 0) {
+				g_Current->type = TOKEN_KEYWORD;
+				g_Current->value = (void**) &g_Keywords[i].value;
+				g_Current->terminal = g_Keywords[i].terminal;
+				g_Current = NULL;
 				return;
 			}
 		}
 	}
 
 	StrToLower(symbol);
-	Current->type = TOKEN_IDENTIFIER;
+	g_Current->type = TOKEN_IDENTIFIER;
 
 	//Pokud by se novy retezec nevlezl do bufferu, rozsirime buffer
-	while ((Data.bufferIndex + length + 1) > Data.bufferSize) {
+	while ((g_Data.bufferIndex + length + 1) > g_Data.bufferSize) {
 		ResizeBuffer();
 	}
 
-	char* tmp = &Data.textBuffer[Data.bufferIndex];
+	char* tmp = &g_Data.textBuffer[g_Data.bufferIndex];
 	memcpy(tmp, symbol, length);
 	tmp[length++] = 0;
-	Current->bufferIdx = Data.bufferIndex;
-	Current->value = (void**) &Data.textBuffer;
-	Current->terminal = T_ID;
-	Current = NULL;
-	Data.bufferIndex += length;
+	g_Current->bufferIdx = g_Data.bufferIndex;
+	g_Current->value = (void**) &g_Data.textBuffer;
+	g_Current->terminal = T_ID;
+	g_Current = NULL;
+	g_Data.bufferIndex += length;
 }
 
 
 void SetInteger(const char* number) {
-	if (!Current || !number) { return; }
+	if (!g_Current || !number) { return; }
 	size_t length = strlen(number);
 	if (length == 0) { return; }
 
 	//Predpoklada se validni hodnota predana z lexikalniho analyzatoru
 	//TODO: vymyslet nejake reseni pro prilis velka cisla
 	int value = (int) strtol(number, NULL, 10);
-	Current->type = TOKEN_INTEGER;
-	Current->terminal = T_INTEGER;
+	g_Current->type = TOKEN_INTEGER;
+	g_Current->terminal = T_INTEGER;
 
-	for (size_t i = 0; i < Data.intsUsed; i++) {
-		if (value == Data.integers[i]) {
-			Current->value = (void**) &Data.integers;
-			Current->bufferIdx = i;
-			Current = NULL;
+	for (size_t i = 0; i < g_Data.intsUsed; i++) {
+		if (value == g_Data.integers[i]) {
+			g_Current->value = (void**) &g_Data.integers;
+			g_Current->bufferIdx = i;
+			g_Current = NULL;
 			return;
 		}
 	}
 
-	if (Data.intsUsed == Data.intsSize) {
+	if (g_Data.intsUsed == g_Data.intsSize) {
 		int* tmp = NULL;
-		Data.intsSize += MALLOC_SMALL_CHUNK;
-		if ((tmp = realloc(Data.integers, sizeof(int) * Data.intsSize)) == NULL) {
+		g_Data.intsSize += MALLOC_SMALL_CHUNK;
+		if ((tmp = realloc(g_Data.integers, sizeof(int) * g_Data.intsSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
-		Data.integers = tmp;
+		g_Data.integers = tmp;
 	}
-	Data.integers[Data.intsUsed] = value;
-	Current->value = (void**) &Data.integers;
-	Current->bufferIdx = Data.intsUsed++;
-	Current = NULL;
+	g_Data.integers[g_Data.intsUsed] = value;
+	g_Current->value = (void**) &g_Data.integers;
+	g_Current->bufferIdx = g_Data.intsUsed++;
+	g_Current = NULL;
 }
 
 
 void SetDouble(const char* number) {
 	size_t length = strlen(number);
 
-	if (!Current || !number || length == 0) { return; }
+	if (!g_Current || !number || length == 0) { return; }
 
-	if (Data.doublesUsed == Data.doublesSize) {
+	if (g_Data.doublesUsed == g_Data.doublesSize) {
 		double* tmp = NULL;
-		Data.doublesSize += MALLOC_SMALL_CHUNK;
-		if ((tmp = realloc(Data.doubles, sizeof(double) * Data.doublesSize)) == NULL) {
+		g_Data.doublesSize += MALLOC_SMALL_CHUNK;
+		if ((tmp = realloc(g_Data.doubles, sizeof(double) * g_Data.doublesSize)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
-		Data.doubles = tmp;
+		g_Data.doubles = tmp;
 	}
 
 	//Predpoklada se validni hodnota predana z lexikalniho analyzatoru
-	Data.doubles[Data.doublesUsed] = strtod(number, NULL);
-	Current->type = TOKEN_DOUBLE;
-	Current->value = (void**) &Data.doubles;
-	Current->bufferIdx = Data.doublesUsed++;
-	Current->terminal = T_DOUBLE;
-	Current = NULL;
+	g_Data.doubles[g_Data.doublesUsed] = strtod(number, NULL);
+	g_Current->type = TOKEN_DOUBLE;
+	g_Current->value = (void**) &g_Data.doubles;
+	g_Current->bufferIdx = g_Data.doublesUsed++;
+	g_Current->terminal = T_DOUBLE;
+	g_Current = NULL;
 }
 
 
 void SetString(const char* string) {
-	if (!Current || !string) { return; }
+	if (!g_Current || !string) { return; }
 
-	Current->type = TOKEN_STRING;
-	Current->terminal = T_STRING;
+	g_Current->type = TOKEN_STRING;
+	g_Current->terminal = T_STRING;
 	size_t length = strlen(string);
 
 	//Pokud by se novy retezec nevlezl do bufferu, rozsirime buffer
-	while ((Data.bufferIndex + length + 1) > Data.bufferSize) {
+	while ((g_Data.bufferIndex + length + 1) > g_Data.bufferSize) {
 		ResizeBuffer();
 	}
 
-	char* tmp = &Data.textBuffer[Data.bufferIndex];
+	char* tmp = &g_Data.textBuffer[g_Data.bufferIndex];
 	memcpy(tmp, string, length);
 	tmp[length++] = 0;
-	Current->value = (void**) &Data.textBuffer;
-	Current->bufferIdx = Data.bufferIndex;
-	Current = NULL;
-	Data.bufferIndex += length;
+	g_Current->value = (void**) &g_Data.textBuffer;
+	g_Current->bufferIdx = g_Data.bufferIndex;
+	g_Current = NULL;
+	g_Data.bufferIndex += length;
 }
 
 
 void SetEOL(void) {
-	if (!Current) { return; }
-	Current->type = TOKEN_EOL;
-	Current->value = (void**) &Miscellaneous[TOKEN_EOL];
-	Current->terminal = T_EOL;
-	Current = NULL;
+	if (!g_Current) { return; }
+	g_Current->type = TOKEN_EOL;
+	g_Current->value = (void**) &g_Miscellaneous[TOKEN_EOL];
+	g_Current->terminal = T_EOL;
+	g_Current = NULL;
 }
 
 
 void SetEOF(void) {
-	if (!Current) { return; }
-	Current->type = TOKEN_EOF;
-	Current->terminal = T_EOF;
-	Current = NULL;
+	if (!g_Current) { return; }
+	g_Current->type = TOKEN_EOF;
+	g_Current->terminal = T_EOF;
+	g_Current = NULL;
 }
 
 
 void TokenCleanup(void) {
 	//Uvolnime pamet
-	if (Data.integers) {
-		free(Data.integers);
-		Data.integers = NULL;
+	if (g_Data.integers) {
+		free(g_Data.integers);
+		g_Data.integers = NULL;
 	}
-	if (Data.doubles) {
-		free(Data.doubles);
-		Data.doubles = NULL;
+	if (g_Data.doubles) {
+		free(g_Data.doubles);
+		g_Data.doubles = NULL;
 	}
-	if (Data.textBuffer) {
-		free(Data.textBuffer);
-		Data.textBuffer = NULL;
+	if (g_Data.textBuffer) {
+		free(g_Data.textBuffer);
+		g_Data.textBuffer = NULL;
 	}
-	if (Stash.tokenArray) {
-		free(Stash.tokenArray);
-		Stash.tokenArray = NULL;
+	if (g_Stash.tokenArray) {
+		free(g_Stash.tokenArray);
+		g_Stash.tokenArray = NULL;
 	}
 
 	//Reinicializujeme hodnoty pro pripadnou pristi alokaci
-	Data.intsUsed = Data.intsSize = 0;
-	Data.doublesUsed = Data.doublesSize = 0;
-	Data.bufferIndex = Data.bufferSize = 0;
-	Stash.activeToken = Stash.arrayUsed = Stash.arraySize = 0;
+	g_Data.intsUsed = g_Data.intsSize = 0;
+	g_Data.doublesUsed = g_Data.doublesSize = 0;
+	g_Data.bufferIndex = g_Data.bufferSize = 0;
+	g_Stash.activeToken = g_Stash.arrayUsed = g_Stash.arraySize = 0;
 }

@@ -9,8 +9,8 @@
 #define LEFT(node) node->treeLeft
 #define RIGHT(node) node->treeRight
 #define NEXT(node) node->nextNode
-#define TABLE_CHUNK 5
-#define NODE_CHUNK 20
+#define TABLE_CHUNK 20
+#define NODE_CHUNK 50
 #define PARAM_CHUNK 20
 
 #ifdef DEBUG_INFO
@@ -51,14 +51,14 @@ typedef struct IDTable {
 } IDTable;
 
 typedef struct NodeStash {
-	Node* allocated; //Pole vsech alokovanych uzlu
+	Node** allocated; //Pole vsech alokovanych uzlu
 	Node** unused; //Pole obsahujici ukazatele na nepouzivane uzly, pripadne NULL
 	size_t size; //Pocet existujicich uzlu
 	size_t used; //Pocet aktivne pouzivanych uzlu
 } NodeStash;
 
 typedef struct TableStash {
-	IDTable* allocated; //Pole vsech alokovanych tabulek
+	IDTable** allocated; //Pole vsech alokovanych tabulek
 	IDTable** unused; //Pole obsahujici ukazatele na pouzivane tabulky, pripadne NULL
 	size_t size; //Pocet existujicich tabulek
 	size_t used; //Pocet aktivne pouzivanych tabulek
@@ -127,21 +127,28 @@ uint_least32_t HashFunction(const char* str) {
 void BeginSubScope() {
 	//Zkontrolujeme, zda mame k dispozici nejakou volnou tabulku
 	if (g_Tables.used == g_Tables.size) {
-		IDTable* tables;
+		IDTable* newTables;
+		IDTable** pointers;
 		IDTable** available;
 		g_Tables.size += TABLE_CHUNK;
-		if ((tables = realloc(g_Tables.allocated, sizeof(IDTable) * g_Tables.size)) == NULL ||
-				(available = realloc(g_Tables.unused, sizeof(IDTable*) * g_Tables.size)) == NULL) {
+
+		//Alokace pomocnych poli pro uschovani ukazatelu.
+		//Samotne tabulky se alokuji jako posledni, aby byla zachovana konzistence stavu v pripade
+		//selhani alokace a nehrozil memory leak
+		if ((pointers = realloc(g_Tables.allocated, sizeof(IDTable*) * g_Tables.size)) == NULL ||
+				(available = realloc(g_Tables.unused, sizeof(IDTable*) * g_Tables.size)) == NULL ||
+				(newTables = malloc(sizeof(IDTable) * TABLE_CHUNK)) == NULL) {
 			//Pokud selze jedna z alokaci ukoncime program
 			FatalError(ER_FATAL_INTERNAL);
 		}
 		//Priradime nove ukazatele po korektni realokaci
-		g_Tables.allocated = tables;
+		g_Tables.allocated = pointers;
 		g_Tables.unused = available;
 
 		//Zkopirujeme ukazatele na nove tabulky do pole nepouzivanych tabulek, aby byly k dispozici
+		size_t tmp = 0;
 		for (size_t i = g_Tables.used; i < g_Tables.size; i++) {
-			g_Tables.unused[i] = &g_Tables.allocated[i];
+			g_Tables.unused[i] = g_Tables.allocated[i] = &newTables[tmp++];
 		}
 	}
 
@@ -191,14 +198,14 @@ void EndSubScope() {
 void EndScope(void) {
 	//Uvolnime vsechny lokalni symboly
 	for (size_t i = 0; i < g_Nodes.used; i++) {
-		if (g_Nodes.allocated[i].scope == SCOPE_LOCAL) {
-			g_Nodes.unused[--g_Nodes.used] = &g_Nodes.allocated[i];
+		if (g_Nodes.allocated[i]->scope == SCOPE_LOCAL) {
+			g_Nodes.unused[--g_Nodes.used] = g_Nodes.allocated[i];
 		}
 	}
 
 	//Vsechny alokovane tabulky jsou lokalni - uvolnujeme tedy vsechny
 	for (size_t i = 0; i < g_Tables.used; i++) {
-		g_Tables.unused[i] = &g_Tables.allocated[i];
+		g_Tables.unused[i] = g_Tables.allocated[i];
 	}
 	g_Tables.used = 0;
 
@@ -211,21 +218,26 @@ void EndScope(void) {
 Node* CreateNode(uint64_t key) {
 	//Zkontrolujeme, zda mame k dispozici nejaky volny alokovany uzel
 	if (g_Nodes.used == g_Nodes.size) {
-		Node* nodes;
+		Node* newNodes;
+		Node** pointers;
 		Node** available;
 		g_Nodes.size += NODE_CHUNK;
-		if ((nodes = realloc(g_Nodes.allocated, sizeof(Node) * g_Nodes.size)) == NULL ||
-				(available = realloc(g_Nodes.unused, sizeof(Node*) * g_Nodes.size)) == NULL) {
+		//Alokace pomocnych poli. Samotne uzly se alokuji jako posledni, aby nehrozil
+		//memory leak v pripade selhani jedne z alokaci
+		if ((pointers = realloc(g_Nodes.allocated, sizeof(Node*) * g_Nodes.size)) == NULL ||
+				(available = realloc(g_Nodes.unused, sizeof(Node*) * g_Nodes.size)) == NULL ||
+				(newNodes = malloc(sizeof(Node) * NODE_CHUNK)) == NULL) {
 			//Pokud selze jedna z alokaci ukoncime program
 			FatalError(ER_FATAL_INTERNAL);
 		}
 		//Priradime nove ukazatele po korektni realokaci
-		g_Nodes.allocated = nodes;
+		g_Nodes.allocated = pointers;
 		g_Nodes.unused = available;
 
 		//Zkopirujeme ukazatele na nove uzly do pole nepouzivanych uzlu, aby byly k dispozici
+		size_t tmp = 0;
 		for (size_t i = g_Nodes.used; i < g_Nodes.size; i++) {
-			g_Nodes.unused[i] = &g_Nodes.allocated[i];
+			g_Nodes.unused[i] = g_Nodes.allocated[i] = &newNodes[tmp++];
 		}
 	}
 
@@ -472,10 +484,14 @@ void TableCleanup() {
 		//Obe pole se alokuji spolecne, staci kontrolovat jedno
 		Node* node;
 		for (size_t i = 0; i < g_Nodes.used; i++) {
-			node = &g_Nodes.allocated[i];
+			node = g_Nodes.allocated[i];
 			if (node->function && node->data.func.parameters != NULL) {
 				free(node->data.func.parameters);
 			}
+		}
+		for (size_t i = 0; i < g_Nodes.size; i += NODE_CHUNK) {
+			//Na nasobcich NODE_CHUNK jsou ulozene pocatky alokovanych bloku pameti
+			free(g_Nodes.allocated[i]);
 		}
 		free(g_Nodes.allocated);
 		free(g_Nodes.unused);
@@ -487,6 +503,11 @@ void TableCleanup() {
 	}
 
 	if (g_Tables.allocated) {
+		for (size_t i = 0; i < g_Tables.size; i += TABLE_CHUNK) {
+			//Na nasobcich TABLE_CHUNK jsou ulozeny ukazatele na pocatky alokovanych bloku pameti
+			free(g_Tables.allocated[i]);
+		}
+
 		//Obe pole se alokuji spolecne, staci kontrolovat jedno
 		free(g_Tables.allocated);
 		free(g_Tables.unused);

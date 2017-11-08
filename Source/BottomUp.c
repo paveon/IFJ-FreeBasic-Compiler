@@ -143,6 +143,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 
 	ReleaseStack(stack);
 	free(g_typeBufferStash.allocated);
+	g_typeBufferStash.allocated = NULL;
 	return type;
 }
 
