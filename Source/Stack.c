@@ -19,7 +19,7 @@ typedef struct StackStash {
 static StackStash g_Stacks;
 
 typedef struct SymbolStash {
-	Symbol* allocated; //Pole vsech alokovanych symbolu
+	Symbol** allocated; //Pole vsech alokovanych symbolu
 	Symbol** unused; //Pole ukazatelu na nepouzite symboly
 	size_t size; //Velikost pole vsech symbolu
 	size_t used; //Index do pole nepouzitych symbolu
@@ -68,19 +68,25 @@ void PushNT(Stack* stack, NTerminal nTerminal) {
  */
 Symbol* CreateSymbol(void) {
 	if (g_Symbols.used == g_Symbols.size) {
-		Symbol* array;
+		Symbol* newSymbols;
+		Symbol** pointers;
 		Symbol** available;
 		g_Symbols.size += CHUNK;
-		if ((array = realloc(g_Symbols.allocated, sizeof(Symbol) * g_Symbols.size)) == NULL ||
-		    (available = realloc(g_Symbols.unused, sizeof(Symbol*) * g_Symbols.size)) == NULL) {
+
+		//Zvetsuje pomocna pole pro uchovani ukazatelu. Samotne symboly alokuje jako posledni
+		//aby nehrozil memory leak pri selhani alokace
+		if ((pointers = realloc(g_Symbols.allocated, sizeof(Symbol*) * g_Symbols.size)) == NULL ||
+				(available = realloc(g_Symbols.unused, sizeof(Symbol*) * g_Symbols.size)) == NULL ||
+				(newSymbols = malloc(sizeof(Symbol) * CHUNK)) == NULL) {
 			FatalError(ER_FATAL_INTERNAL);
 		}
-		g_Symbols.allocated = array;
+		g_Symbols.allocated = pointers;
 		g_Symbols.unused = available;
 
 		//Zkopirujeme ukazatele na nove symboly do pole dostupnych symbolu
+		size_t tmp = 0;
 		for (size_t i = g_Symbols.used; i < g_Symbols.size; i++) {
-			g_Symbols.unused[i] = &g_Symbols.allocated[i];
+			g_Symbols.unused[i] = g_Symbols.allocated[i] = &newSymbols[tmp++];
 		}
 	}
 
@@ -169,20 +175,28 @@ void PopSymbol(Stack* stack) {
 /* Ukazatel na stack nebude nikdy NULL a stack bude vzdy obsahovat terminal
  * (minimalne terminal znacici konec vyrazu => EOL nebo ;)
  */
-Terminal GetFirstTerminal(Stack *stack){
-	Symbol *tmp = stack->top;
+Terminal GetFirstTerminal(Stack* stack) {
+	Symbol* tmp = stack->top;
 	Terminal term;
-	while(tmp->type != SYMBOL_TERMINAL){
+	while (tmp->type != SYMBOL_TERMINAL) {
 		tmp = tmp->down;
 	}
 	term = tmp->data.terminal;
 	return term;
 }
 
+/* Funkce pro precedencni analyzu => unarni minus (nekontroluje prazdny zasobnik)
+ */
+Terminal GetSymbolOneDown(Stack* stack) {
+	if (stack->top->type == SYMBOL_TERMINAL) {
+		return stack->top->data.terminal;
+	}
+	return T_UNDEFINED;
+}
 
 /* TODO nevim jak to okomentovat
  */
-bool IsEndOfReduction(Stack *stack){
+bool IsEndOfReduction(Stack* stack) {
 	return stack->top->reduceEnd;
 }
 
@@ -190,12 +204,12 @@ bool IsEndOfReduction(Stack *stack){
 /* Sprostredkovava pruchod zasobnikem s cilem nalezt T_FUNCTION.
  * Nepocita s tim, ze ukazatel na zasobnik bude NULL
  */
-bool ContainingFunction(Stack *stack){
+bool ContainingFunction(Stack* stack) {
 	SymbolType symbolType = GetSymbolType(stack);
-	Symbol *symbol = stack->top;
-	while(symbolType != SYMBOL_BOTTOM){
-		if(symbolType == SYMBOL_TERMINAL){
-			if((symbol->data.terminal) == T_FUNCTION){
+	Symbol* symbol = stack->top;
+	while (symbolType != SYMBOL_BOTTOM) {
+		if (symbolType == SYMBOL_TERMINAL) {
+			if ((symbol->data.terminal) == T_FUNCTION) {
 				return true;
 			}
 		}
@@ -210,11 +224,11 @@ bool ContainingFunction(Stack *stack){
  * Nekontroluje zda je ukazatel na stack NULL! A take nepocita s tim,
  * ze zasobnik neobsahuje terminal.
  */
-size_t LastSymBeforeFirstTerm(Stack *stack){
+size_t LastSymBeforeFirstTerm(Stack* stack) {
 	SymbolType symbolType = GetSymbolType(stack);
-	Symbol *symbol = stack->top;
+	Symbol* symbol = stack->top;
 	size_t idx = 0;
-	while(symbolType != SYMBOL_TERMINAL){
+	while (symbolType != SYMBOL_TERMINAL) {
 		symbol = symbol->down;
 		symbolType = symbol->type;
 		idx++;
@@ -226,9 +240,9 @@ size_t LastSymBeforeFirstTerm(Stack *stack){
 /* Provadi nastaveni priznaku reductionEnd podle zadaneho indexu zanoreni.
  * Nekontroluje NULL ukazatel.
  */
-void SetReduction(Stack *stack, size_t idx){
-	Symbol *symbol = stack->top;
-	for(size_t i = 0; i < idx; i++){
+void SetReduction(Stack* stack, size_t idx) {
+	Symbol* symbol = stack->top;
+	for (size_t i = 0; i < idx; i++) {
 		symbol = symbol->down;
 	}
 	symbol->reduceEnd = true;
@@ -240,11 +254,11 @@ void SetReduction(Stack *stack, size_t idx){
  */
 size_t CountOfFunc(Stack* stack) {
 	size_t count = 0;
-	Symbol *symbol = stack->top;
+	Symbol* symbol = stack->top;
 	SymbolType symbolType = symbol->type;
-	while(symbolType != SYMBOL_BOTTOM){
-		if(symbolType == SYMBOL_TERMINAL){
-			if(symbol->data.terminal == T_FUNCTION){
+	while (symbolType != SYMBOL_BOTTOM) {
+		if (symbolType == SYMBOL_TERMINAL) {
+			if (symbol->data.terminal == T_FUNCTION) {
 				count++;
 			}
 		}
@@ -271,6 +285,11 @@ void StackCleanup(void) {
 
 	if (g_Symbols.allocated != NULL) {
 		//alokuji se vzdy pohromade, staci zkontrolovat jeden z nich
+
+		for (size_t i = 0; i < g_Symbols.size; i += CHUNK) {
+			//Na nasobcich CHUNK jsou ulozeny ukazatele na pocatky alokovanych bloku pameti
+			free(g_Symbols.allocated[i]);
+		}
 		free(g_Symbols.allocated);
 		free(g_Symbols.unused);
 	}

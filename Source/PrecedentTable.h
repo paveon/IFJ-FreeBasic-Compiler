@@ -14,12 +14,16 @@
 
 
 #define FINDING_FAILURE 10
+#define EOF_FINDING_FAILURE 50
 
 typedef struct IdxTerminalPair {
 	size_t cell_value;
+	size_t arg_cnt;
 	Terminal incoming_term;
+	Terminal pre_terminal;
 	Terminal type;
 	Terminal *func_params;
+	const char *func_name;
 	char rule;
 	int error;
 }IdxTerminalPair;
@@ -58,6 +62,31 @@ typedef enum PrecOperators {
 	END_SYMBOL = 17,
 }PrecOperators;
 
+/* Indexovani do g_PrecedentRules => indexovani redukcnich pravidel vyrazu
+ */
+typedef enum PrecedentRulesNames {
+	ADD_RULE,
+	SUBTRACT_RULE,
+	MULTIPLY_RULE,
+	REAL_DIVIDE_RULE,
+	INT_DIVIDE_RULE,
+	LESS_RULE,
+	LESS_EQ_RULE,
+	GRT_RULE,
+	GRT_EQ_RULE,
+	NOT_EQ_RULE,
+	EQ_RULE,
+	UNARY_MINUS_RULE,
+	ID_RULE,
+	BRACKETS_RULE,
+	FUNCTION_RULE,
+	STRING_RULE,
+	CONCATENATION_RULE,
+	COMMA_EXPR_RULE,
+	COMMA_EXPR_STR_RULE,
+	COMMA_STR_EXPR_RULE,
+	COMMA_STR_RULE,
+}PrecedentRulesNames;
 
 /* Funkce hledajici pravidlo v precedencni tabulce. Hodnoty navraci do promenne "field" predane parametrem.
  * Pokud prisel token neodpovidajici zapisu vyrazu, funkce vraci na index TABLE_CELL(0) hodnotu FINDING_FAILURE(10).

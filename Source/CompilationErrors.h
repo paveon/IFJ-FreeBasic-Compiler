@@ -28,6 +28,10 @@ typedef enum ErrorCode {
 	ER_SMC_FUNC_UNDECL, // Nedeklarovana funkce
 	ER_SMC_COMPARATIVE_EXPR, // Pouzivani porovnavacich operatoru v klasickych vyrazech
 	ER_SMC_STR_AND_NUM, // Spojeni retezce a cisel do jednoho vyrazu
+	ER_SMC_MANY_ARGS, // Prilis mnoho parametru pri zadavani funkce
+	ER_SMC_LESS_ARGS, // Malo argumentu pri volani funkce
+	ER_SMC_ARG_TYPES, // Spatny typ argumentu funkce
+	ER_SMC_INT_DIV, // Pokus o celociselne deleni s necelociselnymi typy
 } ErrorCode;
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra);

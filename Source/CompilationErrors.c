@@ -90,6 +90,18 @@ static ErrorMetadata errors[] = {
 
 				{"invalid combination of string and number in one expression",
 								EC_SEMANTIC_DEFINITIONS},
+
+				{"too many parameters in function %s",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"too less parameters in function %s",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"wrong parameters types in function %s",
+								EC_SEMANTIC_DEFINITIONS},
+
+				{"integer division '\\' is only for integer types on both sides",
+								EC_SEMANTIC_DEFINITIONS},
 };
 
 
@@ -112,6 +124,10 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_FUNC_UNDECL:
 			case ER_SMC_COMPARATIVE_EXPR:
 			case ER_SMC_STR_AND_NUM:
+			case ER_SMC_MANY_ARGS:
+			case ER_SMC_LESS_ARGS:
+			case ER_SMC_ARG_TYPES:
+			case ER_SMC_INT_DIV:
 				sprintf(buffer, errors[errorCode].errorMessage, extra);
 				break;
 
