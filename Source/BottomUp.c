@@ -102,6 +102,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 		if ((values.error == FINDING_FAILURE) || (values.error == EOF_FINDING_FAILURE)) {
 			PrecErrorCleaning(stack);
 			free(g_typeBufferStash.allocated);
+			g_typeBufferStash.allocated = NULL;
 			return T_UNDEFINED;
 		}
 
@@ -119,6 +120,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				if (!return_val) {
 					PrecErrorCleaning(stack);
 					free(g_typeBufferStash.allocated);
+					g_typeBufferStash.allocated = NULL;
 					return T_UNDEFINED;
 				}
 				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
@@ -129,6 +131,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
 				PrecErrorCleaning(stack);
 				free(g_typeBufferStash.allocated);
+				g_typeBufferStash.allocated = NULL;
 				return T_UNDEFINED;
 		}
 		if (ContainingFunction(stack)) {
@@ -136,6 +139,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 			if ((end_func_val == FUNC_NEST_LEAVE) || (end_func_val == EOF_FINDING_FAILURE)) {
 				PrecErrorCleaning(stack);
 				free(g_typeBufferStash.allocated);
+				g_typeBufferStash.allocated = NULL;
 				return T_UNDEFINED;
 			}
 		}
@@ -215,11 +219,10 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 						(values.incoming_term == T_FUNCTION)){
 			// pokud se prichozi typ nerovna ocekavanemu typu a nebo pokud neni prichozi typ integer a
 			// ocekavany double(implicitni konverze), tak je chyba v parametru
-			if((params[actParamCnt] != T_DOUBLE) && (values.type != T_INTEGER)){
-				if(values.type != params[actParamCnt]) {
-					SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
-					break;
-				}
+			if(((values.type == T_STRING) && (params[actParamCnt] != T_STRING)) ||
+							((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
+				SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
+				break;
 			}
 			if(actParamCnt == paramCnt){
 				SemanticError(line_num, ER_SMC_LESS_ARGS, func_name);
@@ -279,7 +282,6 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				break;
 			}
 			nested--;
-			free(g_typeBufferStash.allocated);
 			return FUNC_OK;
 		}
 	}

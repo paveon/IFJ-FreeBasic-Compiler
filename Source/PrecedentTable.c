@@ -14,7 +14,7 @@
 #define NUM_OF_OPERATORS 10
 #define TERMINAL_OPERATOR_SHIFT 30
 #define NO_NEXT_VAL_FOR_RULE 0
-#define NUM_OF_RULES 21
+#define NUM_OF_RULES 22
 #define RULE_ELEMENTS 4
 
 const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "<", "<=", ">", ">=",
@@ -58,7 +58,8 @@ const char *const pole_err[] = {
 				"unarni minus",
 				"id",
 				"zavorky",
-				"funkce",
+				"funkce expr",
+				"funkce str",
 				"retezec",
 				"konkatenace",
 				"parametry (carka) expr",
@@ -84,12 +85,13 @@ static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
 				{T_ID,     				NO_NEXT_VAL_FOR_RULE,   NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //12
 				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, 			NO_NEXT_VAL_FOR_RULE}, //13
 				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, 			T_FUNCTION					}, //14
-				{T_STRING, 				NO_NEXT_VAL_FOR_RULE,   NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //15
-				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      			NO_NEXT_VAL_FOR_RULE}, //16
-				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //17
-				{NT_EXPRESSION,		T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //18
-				{NT_STRING,				T_COMMA,								NT_EXPRESSION,				NO_NEXT_VAL_FOR_RULE}, //19
-				{NT_STRING,				T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //20
+				{T_RIGHT_BRACKET, NT_STRING,          		T_LEFT_BRACKET, 			T_FUNCTION					}, //15
+				{T_STRING, 				NO_NEXT_VAL_FOR_RULE,   NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //16
+				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      			NO_NEXT_VAL_FOR_RULE}, //17
+				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //18
+				{NT_EXPRESSION,		T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //19
+				{NT_STRING,				T_COMMA,								NT_EXPRESSION,				NO_NEXT_VAL_FOR_RULE}, //20
+				{NT_STRING,				T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //21
 };
 
 bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* field) {
@@ -146,6 +148,7 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* 
 		}
 		if (j == RULE_ELEMENTS) {
 			if (is_string) {
+				// reseni pouze u carky z duvodu mozne konkatenace v parametrech
 				if(buffer[1] == T_COMMA){
 					PushNT(s, NT_EXPRESSION);
 				}
@@ -313,7 +316,12 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 				// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
 				column = op_field_idx;
 				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT + op_field_idx;
-
+				Terminal tmp = GetSymbolOneDown(s);
+				if((tmp >= T_OPERATOR_MULTIPLY) && (tmp <= T_OPERATOR_INT_DIVIDE) &&
+								(field->incoming_term == T_OPERATOR_MINUS)){
+					field->cell_value = HIGHER_PR;
+					return;
+				}
 				// prichozi terminal je minus => do pre_terminal se zapise symbol pod znakem '-' =>
 				// T_UNDEFINED pokud je zde neterminal a pokud je terminal tak prislusny terminal
 				if(field->incoming_term == T_OPERATOR_MINUS){
