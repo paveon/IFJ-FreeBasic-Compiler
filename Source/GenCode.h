@@ -1,9 +1,6 @@
-//
-//
-//
-
 #ifndef FREEBASIC_COMPILER_GENCODE_H
 #define FREEBASIC_COMPILER_GENCODE_H
+
 
 #include "Token.h"
 #include "LLtable.h"
