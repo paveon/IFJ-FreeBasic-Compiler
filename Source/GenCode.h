@@ -1,12 +1,15 @@
 //
-// Created by Lukas on 10.11.2017.
+//
 //
 
 #ifndef FREEBASIC_COMPILER_GENCODE_H
 #define FREEBASIC_COMPILER_GENCODE_H
 
+#include "Token.h"
+#include "LLtable.h"
 
-void generateCode();
+
+void generateCode(Rule* rules, unsigned int numberOfRules, Token* tokens, unsigned int numberOfTokens);
 
 
 
