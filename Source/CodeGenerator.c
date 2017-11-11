@@ -104,7 +104,7 @@ void GenerateCode(void) {
 					// TODO while nevytvara novy blok? ...jumpy podla vyrazov
 					break;
 				case RULE_ST_IF: // 17
-					// TODO jumpy podla toho ako to bude s vyrazmi, jump je este v starom bloku
+					// TODO jumpy podla toho ako to bude s vyrazmi, if pravidlo je este v starom bloku
 					break;
 
 
