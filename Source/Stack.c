@@ -311,7 +311,7 @@ bool CompareTop(const Stack* stack, Terminal tokenTerminal) {
 	return false;
 }
 
-bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
+Rule ExpandTop(Stack* stack, Terminal tokenTerminal) {
 	Symbol* nterm;
 	if (!stack || !(nterm = stack->top) || nterm->type != SYMBOL_NONTERMINAL) {
 		return true; //false hodnota vyhrazena pro derivacni chybu
@@ -506,8 +506,8 @@ bool ExpandTop(Stack* stack, Terminal tokenTerminal) {
 		case RULE_MISSING:
 		default:
 			//Neexistujici pravidlo - chyba syntaxe
-			return false;
+			break;
 	}
-	return true;
+	return rule;
 }
 

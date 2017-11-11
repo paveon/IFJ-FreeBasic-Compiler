@@ -3,6 +3,7 @@
 #include "Stack.h"
 #include "TopDown.h"
 #include "Lexical.h"
+#include "CodeGenerator.h"
 
 
 #undef FatalError
@@ -21,87 +22,79 @@ typedef struct ErrorMetadata {
 	InternalExitCode exitCode;
 } ErrorMetadata;
 
-static ErrorMetadata errors[] = {
-				{"placeholder...\n",
-								EC_LEXICAL},
-
-				{"placeholder...\n",
-								EC_SYNTAX},
-
-				{"placeholder...\n",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"placeholder...\n",
-								EC_SEMANTIC_TYPES},
-
-				{"placeholder...\n",
-								EC_SEMANTIC_OTHER},
-
-				{"memory allocation failed",
+static ErrorMetadata errors[25] = {
+				[ER_FATAL_INTERNAL] = {"memory allocation failed",
 								EC_INTERNAL},
 
-				{"variable '%s' redeclaration",
+				[ER_SMC_VAR_REDECL] = {"variable '%s' redeclaration",
+															 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_VAR_UNDEF] = {"undefined variable '%s'",
+															EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_VAR_TYPE] = {"type of '%s' variable is not compatible with type of expression",
+														 EC_SEMANTIC_TYPES},
+
+				[ER_SMC_FUNC_DECL_AFTER_DEF] = {"function '%s' was declared after definition",
 								EC_SEMANTIC_DEFINITIONS},
 
-				{"undefined variable '%s'",
+				[ER_SMC_FUNC_REDECL] = {"function '%s' was already declared",
+																EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_REDEF] = {"redefinition of existing function '%s'",
+															 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_NO_DEF] = {"missing definition of function '%s'",
+																EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_PARAM_REDEF] = {"parameter of function '%s' was redefined",
+																		 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_PARAM_COUNT] = {"definition of function '%s' has a wrong number of parameters",
+																		 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_PARAM_TYPE] = {"parameter type mismatch in %s's signatures",
+																		EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_RETURN_TYPE] = {"return type mismatch in %s's signatures",
+																		 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_RETURN_EXPR] = {"returning value of invalid type from function '%s'",
+																		 EC_SEMANTIC_TYPES},
+
+				[ER_SMC_MISSING_OP] = {"missing operator in expression",
 								EC_SEMANTIC_DEFINITIONS},
 
-				{"function '%s' was declared after definition",
+				[ER_SMC_UNKNOWN_EXPR] = {"unknown expression",
+																 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_UNEXPECT_SYM] = {"unexpected symbol '%s' in expression",
+																 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_UNEXP_FUNC_SPACE] = {"unexpected space after function identifier '%s'",
+																		 EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_FUNC_UNDECL] = {"function '%s' is undeclared",
+																EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_COMPARATIVE_EXPR] = {
+								"usage of comparative operators in non condition based expressions",
 								EC_SEMANTIC_DEFINITIONS},
 
-				{"function '%s' was already declared",
-								EC_SEMANTIC_DEFINITIONS},
+				[ER_SMC_STR_AND_NUM] = {"invalid combination of string and number in one expression",
+																EC_SEMANTIC_DEFINITIONS},
 
-				{"redefinition of existing function '%s'",
-								EC_SEMANTIC_DEFINITIONS},
+				[ER_SMC_MANY_ARGS] = {"too many parameters in function %s",
+															EC_SEMANTIC_DEFINITIONS},
 
-				{"missing definition of function '%s'",
-								EC_SEMANTIC_DEFINITIONS},
+				[ER_SMC_LESS_ARGS] = {"too less parameters in function %s",
+															EC_SEMANTIC_DEFINITIONS},
 
-				{"parameter of function '%s' was redefined",
-								EC_SEMANTIC_DEFINITIONS},
+				[ER_SMC_ARG_TYPES] = {"wrong parameters types in function %s",
+															EC_SEMANTIC_DEFINITIONS},
 
-				{"definition of function '%s' has a wrong number of parameters",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"parameter type mismatch in %s's signatures",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"return type mismatch in %s's signatures",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"missing operator in expression",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"unknown expression",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"unexpected symbol '%s' in expression",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"unexpected space after function identifier '%s'",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"function '%s' is undeclared",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"usage of comparative operators in non condition based expressions",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"invalid combination of string and number in one expression",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"too many parameters in function %s",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"too less parameters in function %s",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"wrong parameters types in function %s",
-								EC_SEMANTIC_DEFINITIONS},
-
-				{"integer division '\\' is only for integer types on both sides",
-								EC_SEMANTIC_DEFINITIONS},
+				[ER_SMC_INT_DIV] = {"integer division '\\' is only for integer types on both sides",
+														EC_SEMANTIC_DEFINITIONS},
 };
 
 
@@ -111,6 +104,8 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 
 		switch (errorCode) {
 			case ER_SMC_VAR_REDECL:
+			case ER_SMC_VAR_UNDEF:
+			case ER_SMC_VAR_TYPE:
 			case ER_SMC_FUNC_DECL_AFTER_DEF:
 			case ER_SMC_FUNC_REDECL:
 			case ER_SMC_FUNC_REDEF:
@@ -119,7 +114,7 @@ void SemanticError(size_t line, ErrorCode errorCode, const char* extra) {
 			case ER_SMC_FUNC_PARAM_COUNT:
 			case ER_SMC_FUNC_PARAM_TYPE:
 			case ER_SMC_FUNC_RETURN_TYPE:
-			case ER_SMC_VAR_UNDEF:
+			case ER_SMC_FUNC_RETURN_EXPR:
 			case ER_SMC_UNEXPECT_SYM:
 			case ER_SMC_FUNC_UNDECL:
 			case ER_SMC_COMPARATIVE_EXPR:
@@ -148,6 +143,7 @@ void FatalError(const char* function, const char* sourceFile, int line, ErrorCod
 	TableCleanup();
 	StackCleanup();
 	TopDownCleanup();
+	GeneratorCleanup();
 
 	fprintf(stderr, "Fatal error: %s\nExiting from: %s\nSource file: %s\nLine no. %d\n",
 					errors[index].errorMessage, function, sourceFile, line);

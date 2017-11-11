@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include "Token.h"
 #include "Symbol.h"
+#include "LLtable.h"
 
 /* Header poskytuje jednoduche rozhrani pro praci se zasobnikem
  * Snazi se nezatezovat uzivatele s implementacnimi detaily a
@@ -87,7 +88,7 @@ void PopSymbol(Stack* stack);
  * jinak vraci "true" (kvuli rozpoznani derivacni chyby).
  * Vzdy provede POP neterminalu na vrcholu zasobniku.
  */
-bool ExpandTop(Stack* stack, Terminal tokenTerminal);
+Rule ExpandTop(Stack* stack, Terminal tokenTerminal);
 
 
 /* Porovna terminal na vrcholu zasobniku s poskytnutym tokenem.

@@ -328,7 +328,7 @@ Function* LookupFunction(const char* name) {
 	IDTable* inActiveScope = g_ActiveScope;
 	g_ActiveScope = &g_GlobalSymbols;
 
-	Node* node = FindNode(name, true, true, true);
+	Node* node = FindNode(name, true, true, false);
 
 	//Obnoveni scopu
 	g_ActiveScope = inActiveScope;

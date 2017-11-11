@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "CompilationErrors.h"
+#include "CodeGenerator.h"
 #include "TopDown.h"
 #include "Stack.h"
 #include "BottomUp.h"
@@ -93,14 +94,16 @@ bool ParseProgram(void) {
 	size_t currentLine = 1;
 
 	/* Stavove flagy */
-	bool mainScope = false;
-	bool defineFunc = false;
-	bool declareFunc = false;
-	bool declareVar = false;
-	bool declareArg = false;
-	bool staticFlag = false;
-	bool endFlag = false;
-	size_t paramCount = 0;
+	bool funcScope = false; //Nachazime se v tele funkce
+	bool mainScope = false; //Nachazime se v hlavnim tele programu
+	bool defineFunc = false; //Definujeme hlavicku funkce za kterou nasleduje telo funkce
+	bool declareFunc = false; //Deklarujeme hlavicku funkce
+	bool declareVar = false; //Deklarujeme promennou ve funkci / hlavnim tele
+	bool declareArg = false; //Deklarujeme parametr v hlavicce funkce (pri definici / deklaraci)
+	bool staticFlag = false; //Bude nasledovat deklarace staticke promenne
+	bool checkExprType = false; //Je potreba zkontrolovat typ vyrazu (prirazeni / return)
+	bool endFlag = false; //Narazili jsme na terminal T_END
+	size_t paramCount = 0; //Pomocne pocitadlo parametru funkce
 
 
 	const char* value;
@@ -112,13 +115,18 @@ bool ParseProgram(void) {
 	SymbolType symbolType;
 	NTerminal nTerminal;
 	Terminal terminal;
-	Terminal preExp = T_WHILE;
+	Terminal preExpr = T_WHILE;
+	Terminal exprType;
+	unsigned char expansionRule;
+
+	//Vlozeni zakladnich neterminalu na zasobnik
 	PushNT(stack, NT_PROGRAM);
 	PushNT(stack, NT_LINE_BREAK);
 	symbolType = GetSymbolType(stack);
 	terminal = GetTokenTerminal(token);
+	PushToken(token);
 
-
+	//Hlavni smycka syntakticke analyzy
 	Code result = ANALYSIS_CONTINUE;
 	while (result == ANALYSIS_CONTINUE) {
 		switch (symbolType) {
@@ -137,15 +145,6 @@ bool ParseProgram(void) {
 
 			case SYMBOL_TERMINAL: //Na vrcholu se nachazi terminal
 				value = TerminalText[GetTopT(stack)];
-				if (*value == '\n') {
-					printf("-- Comparing terminal\t[EOL]\n");
-				}
-				else if (terminal == T_ID) {
-					printf("-- Comparing terminal\t[%s - identifier]\n", (char*) GetTokenValue(token));
-				}
-				else {
-					printf("-- Comparing terminal\t[%s]\n", value);
-				}
 
 				//Porovname terminal na vrcholu zasobniku s terminalem na vstupu
 				if (CompareTop(stack, terminal)) {
@@ -155,11 +154,15 @@ bool ParseProgram(void) {
 						case T_SCOPE:
 							if (endFlag) {
 								//Terminal END ve spojeni s terminalem SCOPE ukoncuje aktualni blok.
+								GenerateCode();
 								EndSubScope();
 							}
 							else {
-								if (defineFunc) {
+								if (funcScope) {
 									//Nachazime se ve funkci, provedeme zanoreni
+									PopToken(); //Token scope jiz do bloku nepatri
+									GenerateCode();
+									PushToken(token); //Patri do nasledujiciho bloku
 									BeginSubScope();
 								}
 								else {
@@ -174,6 +177,9 @@ bool ParseProgram(void) {
 									}
 									else {
 										//Jiz se nachazime v hlavnim tele, provedeme zanoreni
+										PopToken(); //Token scope jiz do bloku nepatri
+										GenerateCode();
+										PushToken(token); //Patri do nasledujiciho bloku
 										BeginSubScope();
 									}
 								}
@@ -186,40 +192,55 @@ bool ParseProgram(void) {
 								result = ANALYSIS_ERROR;
 								break;
 							}
-							preExp = T_RETURN;
-							//BottomUp(currentLine, terminal);
+							preExpr = T_RETURN;
+							checkExprType = true;
 							break;
 
 
 						case T_IF:
 							if (endFlag) {
+								GenerateCode();
 								EndSubScope();
 							}
 							else {
+								PopToken();
+								GenerateCode();
+								PushToken(token);
 								BeginSubScope();
 							}
-							preExp = T_IF;
-							//BottomUp(currentLine, terminal);
+							preExpr = T_IF;
 							break;
 
-						case T_WHILE:
-						case T_PRINT:
+
+						case T_ELSEIF:
+							preExpr = T_IF;
+						case T_ELSE:
+							//Pokud narazime na elseif nebo else, vygenerujeme kod po tento token,
+							//ukoncime blok a vytvorime novy
+							PopToken();
+							GenerateCode();
+							PushToken(token);
+							EndSubScope();
+							BeginSubScope();
+							break;
+
 						case T_OPERATOR_EQUAL:
 						case T_OPERATOR_PLUS_EQ:
 						case T_OPERATOR_MINUS_EQ:
 						case T_OPERATOR_MULTIPLY_EQ:
 						case T_OPERATOR_REAL_DIVIDE_EQ:
 						case T_OPERATOR_INT_DIVIDE_EQ:
-							preExp = terminal;
+							checkExprType = true;
+						case T_WHILE:
+						case T_PRINT:
+							preExpr = terminal;
 							break;
 						case T_SEMICOLON:
-							preExp = T_PRINT;
-							break;
-						case T_ELSEIF:
-							preExp = T_IF;
+							preExpr = T_PRINT;
 							break;
 
 						case T_LOOP:
+							GenerateCode();
 							EndSubScope();
 							break;
 
@@ -230,7 +251,7 @@ bool ParseProgram(void) {
 						case T_ID:
 							value = GetTokenValue(token);
 							if (declareVar) {
-								if (mainScope || defineFunc) {
+								if (mainScope || funcScope) {
 									//Deklarace lokalni promenne v hlavnim tele programu nebo
 									//ve funkci. Muze prekryt globalni promenne
 									variable = LookupVariable(value, true, false);
@@ -249,7 +270,7 @@ bool ParseProgram(void) {
 									//Vytvorime novou promennou, pouzijeme informaci o tom, zda se
 									//nachazime v hlavnim tele programu a na zaklade teto informace
 									//vytvorime lokalni / globalni promennou
-									variable = InsertVariable(value, (!defineFunc && !mainScope), currentLine);
+									variable = InsertVariable(value, (!funcScope && !mainScope), currentLine);
 									if (staticFlag) {
 										variable->staticVariable = true;
 										staticFlag = false;
@@ -323,6 +344,15 @@ bool ParseProgram(void) {
 								}
 							}
 
+
+							if ((funcScope || mainScope) && !declareVar) {
+								//Pristup k promenne. Je nutne zkontrolovat existenci
+								variable = LookupVariable(value, false, true);
+								if (variable == NULL) {
+									//Neexistujici promenna
+									SemanticError(currentLine, ER_SMC_VAR_UNDEF, value);
+								}
+							}
 							break;
 
 
@@ -407,15 +437,16 @@ bool ParseProgram(void) {
 
 						case T_FUNCTION:
 							if (endFlag) {
-								//Terminal END ve spojeni s terminalem FUNCTION ukoncuje definici funkce.
+								//Terminal END ve spojeni s terminalem FUNCTION ukoncuje telo funkce.
 								//Provede se vycisteni lokalnich tabulek.
-								defineFunc = false;
+								funcScope = false;
+								GenerateCode();
 								EndScope();
 							}
 							else {
 								if (!declareFunc) {
 									//Zacatek definice funkce
-									defineFunc = !defineFunc; //Toggle
+									defineFunc = true;
 								}
 							}
 							break;
@@ -447,7 +478,13 @@ bool ParseProgram(void) {
 							declareVar = false;
 							declareFunc = false;
 							declareArg = false;
+							checkExprType = false;
 							endFlag = false;
+							if (defineFunc) {
+								defineFunc = false;
+								funcScope = true;
+							}
+
 							//Pocitadlo radku zdrojoveho kodu
 							currentLine++;
 							break;
@@ -461,9 +498,19 @@ bool ParseProgram(void) {
 					symbolType = GetSymbolType(stack);
 					token = GetNextToken();
 					terminal = GetTokenTerminal(token);
+					PushToken(token);
 				}
 				else {
 					//Porovnani tokenu a vrcholu zasobniku selhalo -> syntakticka chyba
+					if (*value == '\n') {
+						printf("-- [EOL] comparison failed\n");
+					}
+					else if (terminal == T_ID) {
+						printf("-- [%s - identifier] comparison failed\n", (char*) GetTokenValue(token));
+					}
+					else {
+						printf("-- [%s] comparison failed\n", value);
+					}
 					result = ANALYSIS_ERROR;
 				}
 				break;
@@ -473,20 +520,51 @@ bool ParseProgram(void) {
 				nTerminal = GetTopNT(stack);
 				if (nTerminal == NT_EXPRESSION) {
 					ReturnToken();
-					BottomUp(currentLine, preExp);
+					PopToken();
+					exprType = BottomUp(currentLine, preExpr);
+					if (checkExprType) {
+						if (preExpr == T_RETURN) {
+							//Zkontrolujeme typ navratove hodnoty
+							if (function == NULL) {
+								//Interni chyba, nevim jestli k ni vubec muze dojit, nejspis ne
+								fprintf(stderr, "Internal error: function reference not available!\n");
+							}
+							else if (exprType == T_STRING && function->returnType != T_STRING) {
+								//Jazyk podporuje implicitni typove konverze mezi typy double a integer,
+								//proto staci kontrolovat pouze pokud je vyraz typu string
+								SemanticError(currentLine, ER_SMC_FUNC_RETURN_EXPR, function->name);
+							}
+						}
+						else {
+							//Zkontrolujeme typ vyrazu
+							if (variable == NULL) {
+								//Interni chyba, nevim jestli k ni vubec muze dojit, nejspis ne
+								fprintf(stderr, "Internal error: variable reference not available!\n");
+							}
+							else if (exprType == T_STRING && variable->type != T_STRING) {
+								//Jazyk podporuje implicitni typove konverze mezi typy double a integer,
+								//proto staci kontrolovat pouze pokud je vyraz typu string
+								SemanticError(currentLine, ER_SMC_VAR_TYPE, variable->name);
+							}
+						}
+					}
+
 					PopSymbol(stack);
 					symbolType = GetSymbolType(stack);
 					token = GetNextToken();
 					terminal = GetTokenTerminal(token);
+					PushToken(token);
 				}
 				else {
-					printf("-- Derivating\t\t\t[%s]\n", NTerminalText[nTerminal]);
-					if (ExpandTop(stack, terminal)) {
+					expansionRule = ExpandTop(stack, terminal);
+					if (expansionRule != RULE_MISSING) {
 						//Derivace uspela, ziskame typ noveho vrcholu zasobnik
+						InsertRule(expansionRule);
 						symbolType = GetSymbolType(stack);
 					}
 					else {
 						//Derivace selhala -> neexistuje derivacni pravidlo
+						printf("-- [%s] derivation failed\n", NTerminalText[nTerminal]);
 						result = ANALYSIS_ERROR;
 					}
 				}
@@ -533,9 +611,11 @@ void ConfirmDeclaration(Function* function) {
 		if (function == g_Decls.array[i]) {
 			//Vyhodime deklaraci z pole a diru nahradime poslednim prvkem v poli
 			//aby nevznikaly diry v poli a my vyuzivali pole efektivne
+			function->declaration = false; //Jiz se nejedna o deklaraci ale o plnohodnotnou funkci
 			g_Decls.array[i] = g_Decls.array[g_Decls.used - 1];
 			g_Decls.array[g_Decls.used - 1] = NULL;
 			g_Decls.used--;
+			return;
 		}
 		else {
 			i++;

@@ -5,7 +5,7 @@
 #include "TopDown.h"
 #include "symtable.h"
 #include "Lexical.h"
-#include "BottomUp.h"
+#include "CodeGenerator.h"
 
 
 int main(int argc, char* argv[]) {
@@ -128,6 +128,7 @@ int main(int argc, char* argv[]) {
 	TableCleanup();
 	StackCleanup();
 	TopDownCleanup();
+	GeneratorCleanup();
 	printf("Test run finished, allocated memory should be released...\n");
 	return 0;
 }

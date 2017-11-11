@@ -4,7 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include "CompilationErrors.h"
-#include "Token.h"
+#include "CodeGenerator.h"
 
 #define KEYWORD_MAX_LEN 8
 #define OPERATOR_MAX_LEN 2
