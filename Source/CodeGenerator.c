@@ -37,8 +37,10 @@ void GenerateCode(void) {
 	const void* value;
 
 	if (g_Rules.used > 0) {
-		printf("BLOCK START\n");
-
+		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
+		for (size_t i = 0; i < g_Tokens.used; i++) {
+			printf("%s ", (char*)GetTokenValue(g_Tokens.array[i]));
+		}
 		for (size_t j = 0; j < g_Rules.used; j++) {
 			memset(tmp, 0, CODE_CHUNK);
 			rule = (int)g_Rules.buffer[j];
@@ -53,36 +55,55 @@ void GenerateCode(void) {
 					while (GetTokenType(g_Tokens.array[tokenPos]) != TOKEN_IDENTIFIER) tokenPos++; // hladame identifikator
 					value = GetTokenValue(g_Tokens.array[tokenPos]);
 					tokenPos++; // preskocime identifikator
-					switch((int)g_Rules.buffer[j+1]) {
+					//printf ("TOKEN POS JE %d a id: %s\n", tokenPos, (char*) value);
+					/*switch ((int)g_Rules.buffer[++j]) {
 						case RULE_TYPE_INT:
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0\n", (char*)value, (char*)value); // TODO LF GF - inicializacia na 0
+							// TODO ak bola inicializovana
+
+							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0\n", (char*) value,
+											(char*) value); // TODO LF GF - inicializacia na 0
+							PushString(tmp);
 							break;
 						case RULE_TYPE_DOUBLE:
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0.0\n", (char*)value, (char*)value); // TODO LF GF - inicializacia na 0.0
+							// TODO ak bola inicializovana
+							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0.0\n", (char*) value,
+											(char*) value); // TODO LF GF - inicializacia na 0.0
+							PushString(tmp);
 							break;
 						case RULE_TYPE_STRING:
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s !""\n", (char*)value, (char*)value); // TODO LF GF - inicializacia na prazdny string
+							// TODO ak bola inicializovana
+							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s !""\n", (char*) value,
+											(char*) value); // TODO LF GF - inicializacia na prazdny string
+							PushString(tmp);
 							break;
-					}
+					}*/
+					//PushString(tmp);
+					//printf ("%s strlen je: %d\n", g_Code.buffer, (int)strlen((char*)g_Code.buffer));
+					//printf ("%d je size, %d je used\n", (int)g_Code.size, (int)g_Code.used);
+					//break;
+					break;
 
-					PushString(tmp);
-					printf ("%s strlen je: %d\n", g_Code.buffer, (int)strlen((char*)g_Code.buffer));
-					printf ("%d je size, %d je used\n", (int)g_Code.size, (int)g_Code.used);
 
+				case RULE_FUNC_DECL:
+					while (GetTokenType(g_Tokens.array[tokenPos]) != TOKEN_IDENTIFIER) tokenPos++;
+					tokenPos++;
+					//printf ("TOKEN POS v FUNC JE %d\n", tokenPos);
+					break;
+				case RULE_FUNC_DEF:
+					while (GetTokenType(g_Tokens.array[tokenPos]) != TOKEN_IDENTIFIER) tokenPos++;
+					tokenPos++;
+					//printf ("SOM V DEF\n");
+
+					break;
 				default:
 					break;
 
 			}
 
-
-
-
-
-
-
 		}
 	}
-
+	//printf ("%s", g_Code.buffer);
+	//printf ("BLOCK END\n");
 
 
 
