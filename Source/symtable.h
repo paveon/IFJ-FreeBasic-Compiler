@@ -12,6 +12,7 @@ typedef struct Variable {
 	const char* name; //Nazev promenne
 	Terminal type; //Typ promenne
 	bool staticVariable;
+	bool globalVariable;
 	size_t codeLine; //Na jakem radku byla promenna deklarovana / definovana
 } Variable;
 

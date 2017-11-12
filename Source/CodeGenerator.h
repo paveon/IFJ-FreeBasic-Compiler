@@ -15,4 +15,6 @@ void OutputCode(void);
 
 void GeneratorCleanup(void);
 
+void PushString(char* newString);
+
 #endif //FREEBASIC_COMPILER_CODEGENERATOR_H

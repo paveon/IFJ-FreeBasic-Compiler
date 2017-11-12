@@ -276,6 +276,7 @@ Variable* InsertVariable(const char* name, bool global, size_t line) {
 		}
 		newNode->scope = SCOPE_LOCAL; //Nachazi se v lokalni tabulce
 	}
+	newNode->scope = global ? SCOPE_GLOBAL : SCOPE_LOCAL;
 
 	//Provedem inicializaci specifickou pro promenne
 	newNode->function = false;
@@ -283,6 +284,7 @@ Variable* InsertVariable(const char* name, bool global, size_t line) {
 	newNode->data.var.type = T_UNDEFINED; //Zatim nespecifikovany typ
 	newNode->data.var.staticVariable = false;
 	newNode->data.var.codeLine = line; //Radek na kterem se deklarace /definice nachazi
+	newNode->data.var.globalVariable = global;
 	return &newNode->data.var;
 }
 
