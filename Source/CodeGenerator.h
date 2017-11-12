@@ -17,4 +17,10 @@ void GeneratorCleanup(void);
 
 void PushString(char* newString);
 
+char *TypeToStringForInit(Terminal type);
+
+char *ScopeToString(bool global);
+
+const void* FindID(int *tokenPos);
+
 #endif //FREEBASIC_COMPILER_CODEGENERATOR_H

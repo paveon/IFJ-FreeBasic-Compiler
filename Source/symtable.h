@@ -100,6 +100,15 @@ Variable* InsertVariable(const char* name, bool global, size_t line);
  */
 Variable* LookupVariable(const char* name, bool onlyCurrentScope, bool allowGlobals);
 
+/*
+ * Prehlada iba globalnu tabulku.
+ * Vracia ukazatel na prislusny symbol alebo NULL.
+ * Funkcia LookupVariable vzdy vyhladala ako prvu lokalnu premennu
+ * pri rovnakych nazvoch premennych co znemoznilo inicializaciu globalnej premennej
+ * pri generovani kodu.
+ */
+Variable* LookupGlobalVariable(const char* symbol);
+
 
 /* Hleda identifikator funkce v globalni tabulce.
  * Vraci ukazatel na identifikator funkce pokud jej nalezne, jinak NULL.

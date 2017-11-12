@@ -3,6 +3,7 @@
 #include "CodeGenerator.h"
 #include "CompilationErrors.h"
 #include "LLtable.h"
+#include "symtable.h"
 #include <string.h>
 
 #define RULE_CHUNK 100
@@ -28,6 +29,8 @@ static Buffer g_Rules;
 static Buffer g_Code;
 static TokenArray g_Tokens;
 
+bool isGlobal = true;
+
 
 void GenerateCode(void) {
 	int rule;
@@ -35,6 +38,7 @@ void GenerateCode(void) {
 	char tmp[CODE_CHUNK];
 	//TokenType type;
 	const void* value;
+	Variable *var;
 
 	if (g_Rules.used > 0) {
 		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
@@ -49,7 +53,9 @@ void GenerateCode(void) {
 
 			switch (rule) {
 				case RULE_EPSILON: // 1
+					break;
 				case RULE_MAIN_SCOPE: // 2
+					isGlobal = false;
 					break;
 				case RULE_FUNC_DECL: // 3
 					while (GetTokenType(g_Tokens.array[tokenPos]) != TOKEN_IDENTIFIER) tokenPos++; // deklaracie nas nezaujimaju
@@ -65,49 +71,75 @@ void GenerateCode(void) {
 					break;
 				case RULE_ST_LIST: // 9
 					break;
+				case RULE_VAR_GLOBAL: // 27 // TODO lokalna prepisuje globalnu!
+					value = FindID (&tokenPos);
+					var = LookupGlobalVariable((const char*)value);
+					sprintf (tmp, "DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
+					PushString(tmp);
+					break;
 				case RULE_ST_VAR_DECL: // 10
-					while (GetTokenType(g_Tokens.array[tokenPos]) != TOKEN_IDENTIFIER) tokenPos++; // hladame identifikator
-					value = GetTokenValue(g_Tokens.array[tokenPos]);
-					tokenPos++; // preskocime identifikator
+					value = FindID (&tokenPos);
 					//printf ("TOKEN POS JE %d a id: %s\n", tokenPos, (char*) value);
-					switch ((int)g_Rules.buffer[++j]) {
-						case RULE_TYPE_INT:
-							// TODO ak bola inicializovana... spravit podla vyrazov
+					var = LookupVariable((const char*)value, false, true);
 
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0\n", (char*) value,
-											(char*) value); // TODO LF GF - inicializacia na 0
-							PushString(tmp);
-							break;
-						case RULE_TYPE_DOUBLE:
-							// TODO ak bola inicializovana
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s 0.0\n", (char*) value,
-											(char*) value); // TODO LF GF - inicializacia na 0.0
-							PushString(tmp);
-							break;
-						case RULE_TYPE_STRING:
-							// TODO ak bola inicializovana
-							sprintf(tmp, "DEFVAR LF@%s\nMOVE LF@%s !""\n", (char*) value,
-											(char*) value); // TODO LF GF - inicializacia na prazdny string
-							PushString(tmp);
-							break;
-					}
-					//PushString(tmp);
-					//printf ("%s strlen je: %d\n", g_Code.buffer, (int)strlen((char*)g_Code.buffer));
-					//printf ("%d je size, %d je used\n", (int)g_Code.size, (int)g_Code.used);
-					//break;
+					sprintf (tmp, "DEFVAR %s@%s_%d\nMOVE %s@%s_%d %s\n", ScopeToString(var->globalVariable), var->name,(int)var->codeLine ,
+									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine,TypeToStringForInit(var->type));
+					PushString(tmp);
 					break;
 				case RULE_ST_PRINT: // 14
 					sprintf(tmp, "WRITE <symb>;\n"); // TODO.. token na printenie nepride?
 					PushString(tmp);
 					break;
 				case RULE_ST_WHILE: // 15
-					// TODO while nevytvara novy blok? ...jumpy podla vyrazov
+					// TODO  ...jumpy podla vyrazov
 					break;
 				case RULE_ST_IF: // 17
-					// TODO jumpy podla toho ako to bude s vyrazmi, if pravidlo je este v starom bloku
+					// TODO jumpy podla toho ako to bude s vyrazmi,
 					break;
-
-
+				case	RULE_VAR_INIT: // 22
+					if (isGlobal) {
+						sprintf (tmp, "MOVE GF@%s_%d X\n", var->name, (int)var->codeLine); // TODO podla vyrazov
+					}
+					else {
+						sprintf(tmp, "MOVE %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO podla vyrazov
+					}
+					PushString(tmp);
+					break;
+				case RULE_OP_EQ: // 29
+					value = FindID(&tokenPos);
+					var = LookupVariable((const char*)value, false, true);
+					sprintf (tmp, "MOVE %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
+					PushString(tmp);
+					break;
+				case RULE_OP_PLUS_EQ: // 30
+					value = FindID(&tokenPos);
+					var = LookupVariable((const char*)value, false, true);
+					sprintf (tmp, "ADD %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
+									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
+					PushString(tmp);
+					break;
+				case RULE_OP_MINUS_EQ: // 31
+					value = FindID(&tokenPos);
+					var = LookupVariable((const char*)value, false, true);
+					sprintf (tmp, "SUB %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
+									 ScopeToString(var->globalVariable), var->name,(int)var->codeLine); // TODO s vyrazmi
+					PushString(tmp);
+					break;
+				case RULE_OP_MULTIPLY_EQ: // 32
+					value = FindID(&tokenPos);
+					var = LookupVariable((const char*)value, false, true);
+					sprintf (tmp, "MUL %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name,(int) var->codeLine,
+									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
+					PushString(tmp);
+					break;
+				case RULE_OP_INT_DIV_EQ: // 33 TODO lisia sa? zas zistit podla vyrazov
+				case RULE_OP_REAL_DIV_EQ: // 34
+					value = FindID(&tokenPos);
+					var = LookupVariable((const char*)value, false, true);
+					sprintf (tmp, "DIV %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
+									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
+					PushString(tmp);
+					break;
 				default:
 					break;
 
@@ -160,6 +192,36 @@ void GenerateCode(void) {
 		g_Tokens.used = 0;
 	}
 	 */
+}
+
+
+const void* FindID(int *tokenPos) {
+	const void *tmp;
+	while (GetTokenType(g_Tokens.array[(*tokenPos)]) != TOKEN_IDENTIFIER) (*tokenPos)++; // hladame identifikator
+	tmp = GetTokenValue(g_Tokens.array[(*tokenPos)]);
+	(*tokenPos)++; // preskocime identifikator
+	return tmp;
+}
+
+char *ScopeToString(bool global) {
+	if (global == true)
+		return "GF";
+	else
+		return "LF";
+}
+
+
+char *TypeToStringForInit(Terminal type) {
+	switch (type) {
+		case T_DOUBLE:
+			return "0.0";
+		case T_INTEGER:
+			return "0";
+		case T_STRING:
+			return "!\"\"";
+		default:
+			return "";
+	}
 }
 
 

@@ -110,6 +110,8 @@ Node* InsertNode(const char* name, bool function);
  */
 Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allowGlobals);
 
+Node *FindGlobalNode(const char* name);
+
 
 /* Hash funkce pro prevedeni nazvu identifikatoru na cislo */
 uint_least32_t HashFunction(const char* str) {
@@ -323,6 +325,16 @@ Variable* LookupVariable(const char* symbol, bool onlyCurrentScope, bool allowGl
 	return NULL;
 }
 
+Variable* LookupGlobalVariable(const char* symbol) {
+	Node* node = FindGlobalNode(symbol);
+	if (node) {
+		//Promenna existuje
+		return &node->data.var;
+	}
+	return NULL;
+}
+
+
 
 Function* LookupFunction(const char* name) {
 	//Ulozime si aktivni scope a prepneme se do
@@ -465,6 +477,48 @@ Node* FindNode(const char* name, bool function, bool onlyCurrentScope, bool allo
 
 	return NULL;
 }
+
+
+
+Node *FindGlobalNode(const char* name) {
+	if (!name) { return NULL; }
+
+	uint_least32_t hash = HashFunction(name);
+	Node* current;
+
+	IDTable* table = &g_GlobalSymbols;
+	while (table) {
+		current = table->root;
+		while (current) {
+			if (hash < current->key) {
+				current = LEFT(current);
+			}
+			else if (hash > current->key) {
+				current = RIGHT(current);
+			}
+			else {
+				//Uzel s danym hashem existuje, nyni je potreba provest kontrolu
+				//na plnou shodu, kvuli mozne existenci globalni promenne i funkce
+				//se stejnym nazvem
+				while (current) {
+					//Hledame promennou, porovname jmena
+					if (strcmp(name, current->data.var.name) == 0) {
+						//Promenna existuje
+						return current;
+					}
+					//Jmeno se neshodovalo, posuneme se dale v seznamu uzlu
+					current = NEXT(current);
+				}
+				break;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+
+
 
 
 void AddParameter(Function* function, Terminal parameter) {
