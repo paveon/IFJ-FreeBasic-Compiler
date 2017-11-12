@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "CompilationErrors.h"
 #include "CodeGenerator.h"
 #include "TopDown.h"
@@ -206,6 +207,7 @@ bool ParseProgram(void) {
 								PopToken();
 								GenerateCode();
 								PushToken(token);
+								InsertRule(RULE_ST_IF);
 								BeginSubScope();
 							}
 							preExpr = T_IF;
@@ -222,6 +224,13 @@ bool ParseProgram(void) {
 							PushToken(token);
 							EndSubScope();
 							BeginSubScope();
+
+							if (terminal == T_ELSE) {
+								InsertRule(RULE_ELSE);
+							}
+							else {
+								InsertRule(RULE_ELSEIF);
+							}
 							break;
 
 						case T_OPERATOR_EQUAL:
@@ -235,6 +244,7 @@ bool ParseProgram(void) {
 						case T_PRINT:
 							preExpr = terminal;
 							break;
+
 						case T_SEMICOLON:
 							preExpr = T_PRINT;
 							break;
@@ -242,6 +252,14 @@ bool ParseProgram(void) {
 						case T_LOOP:
 							GenerateCode();
 							EndSubScope();
+							break;
+
+						case T_DO:
+							PopToken();
+							GenerateCode();
+							PushToken(token);
+							InsertRule(RULE_ST_WHILE);
+							BeginSubScope();
 							break;
 
 
@@ -270,7 +288,8 @@ bool ParseProgram(void) {
 									//Vytvorime novou promennou, pouzijeme informaci o tom, zda se
 									//nachazime v hlavnim tele programu a na zaklade teto informace
 									//vytvorime lokalni / globalni promennou
-									variable = InsertVariable(value, (!funcScope && !mainScope), currentLine);
+									bool isGlobal = !funcScope && !mainScope;
+									variable = InsertVariable(value, isGlobal, currentLine);
 									if (staticFlag) {
 										variable->staticVariable = true;
 										staticFlag = false;
@@ -559,7 +578,16 @@ bool ParseProgram(void) {
 					expansionRule = ExpandTop(stack, terminal);
 					if (expansionRule != RULE_MISSING) {
 						//Derivace uspela, ziskame typ noveho vrcholu zasobnik
-						InsertRule(expansionRule);
+						switch (expansionRule) {
+							case RULE_ST_IF:
+							case RULE_ST_WHILE:
+							case RULE_ELSEIF:
+							case RULE_ELSE:
+								break;
+
+							default:
+								InsertRule(expansionRule);
+						}
 						symbolType = GetSymbolType(stack);
 					}
 					else {
