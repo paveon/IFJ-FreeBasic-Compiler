@@ -24,7 +24,7 @@ typedef struct IdxTerminalPair {
 	Terminal type;
 	Terminal *func_params;
 	const char *func_name;
-	char rule;
+	size_t rule;
 	int error;
 }IdxTerminalPair;
 

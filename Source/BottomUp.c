@@ -3,6 +3,7 @@
 //
 
 #include "BottomUp.h"
+#include "CodeGenerator.h"
 
 #define FUNC_NEST_LEAVE 100
 #define FUNC_OK 1
@@ -46,9 +47,11 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	values.error = 0;
 	values.cell_value = FINDING_FAILURE;
 	values.incoming_term = T_UNDEFINED;
-	values.rule = NO_RULE_VALUE; // neexistuje pravidlo 40 => pouze defaultni hodnota
+	values.rule = NO_RULE_VALUE;
 	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 	Terminal type = T_INTEGER;
+
+	Token *token = NULL;
 
 	AllocTypeBuffer();
 
@@ -95,8 +98,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 		/**************************************************/
 
 		if ((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) &&
-				(LastSymBeforeFirstTerm(stack) ==
-				 1)) { // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
+				(LastSymBeforeFirstTerm(stack) == 1)) { // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
 		if ((values.error == FINDING_FAILURE) || (values.error == EOF_FINDING_FAILURE)) {
@@ -111,13 +113,20 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				idx = LastSymBeforeFirstTerm(stack);
 				PushT(stack, values.incoming_term);
 				SetReduction(stack, idx);
+
+				ReturnToken();
+				token = GetNextToken();
+				PushToken(token);
 				break;
 			case SKIP_PR:
 				PushT(stack, values.incoming_term);
+
+				ReturnToken();
+				token = GetNextToken();
+				PushToken(token);
 				break;
 			case LOWER_PR:
-				return_val = ApplyPrecRule(stack, false, line_num, &values);
-				if (!return_val) {
+				if (!ApplyPrecRule(stack, false, line_num, &values)) {
 					PrecErrorCleaning(stack);
 					free(g_typeBufferStash.allocated);
 					g_typeBufferStash.allocated = NULL;
@@ -126,6 +135,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
 					ReturnToken();
 				}
+				InsertRule(values.rule);
 				break;
 			case EXPR_ERROR:  // nebylo pravidlo v tabulce
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
@@ -148,6 +158,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	ReleaseStack(stack);
 	free(g_typeBufferStash.allocated);
 	g_typeBufferStash.allocated = NULL;
+	InsertRule(255);
 	return type;
 }
 
@@ -167,7 +178,9 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	size_t actParamCnt = 0;
 	int l_brackets = 0, r_brackets = 0;
 
-	const char *func_name = values.func_name;
+	const char *func_name = values.func_name; // promenna pouzivana u vypisu erroru (v jake funkci nastal)
+
+	Token *token = NULL;
 
 	nested++;
 
@@ -178,24 +191,25 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
-			if(values.rule == INT_DIVIDE_RULE) {
-				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
-								(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
-					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
-					break;
-				}
-			}
 			if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
 							(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
 
+				if(values.rule == INT_DIVIDE_RULE) {
+					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
+					break;
+				}
+				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_DOUBLE;
+			}
+			else if(values.rule == REAL_DIVIDE_RULE){
 				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_DOUBLE;
 			}
 			else{
 				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_INTEGER;
 			}
-			values.rule = NO_RULE_VALUE;
+			values.rule = NO_RULE_VALUE; // resetovani pravidla kdyby se vracil token a pravidlo zustalo stejne...
 		}
 
+		// vlozeni typu do pole pro pripadnou kontrolu celociselneho deleni
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
 			g_typeBufferStash.allocated[g_typeBufferStash.index] = values.type;
 			g_typeBufferStash.index++;
@@ -204,6 +218,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			}
 		}
 
+		// zacina novy argument funkce => vse se resetuje
 		if((values.rule >= COMMA_EXPR_RULE) && (values.rule <= COMMA_STR_RULE)) {
 			values.rule = NO_RULE_VALUE;
 			g_typeBufferStash.index = 0;
@@ -217,15 +232,16 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		// prichozi token byl identifikator, funkce a nebo retezec
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
 						(values.incoming_term == T_FUNCTION)){
-			// pokud se prichozi typ nerovna ocekavanemu typu a nebo pokud neni prichozi typ integer a
-			// ocekavany double(implicitni konverze), tak je chyba v parametru
+			// mezi double -> int && int -> double ___ je implicitni konverze takze se
+			// kontroluje pouze pokud neprichazi string a neni ocekavane neco jineho nebo naopak
 			if(((values.type == T_STRING) && (params[actParamCnt] != T_STRING)) ||
 							((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
 				SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
 				break;
 			}
+			// prilis mnoho parametru
 			if(actParamCnt == paramCnt){
-				SemanticError(line_num, ER_SMC_LESS_ARGS, func_name);
+				SemanticError(line_num, ER_SMC_MANY_ARGS, func_name);
 				break;
 			}
 		}
@@ -235,10 +251,18 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 				PushT(s, values.incoming_term);
 				SetReduction(s, idx);
 				can_count = true;
+				// vraceni tokenu a jeho nasledne ulozeni do pole pro generovani
+				ReturnToken();
+				token = GetNextToken();
+				PushToken(token);
 				break;
 			case SKIP_PR:
 				PushT(s, values.incoming_term);
 				can_count = true;
+
+				ReturnToken();
+				token = GetNextToken();
+				PushToken(token);
 				break;
 			case LOWER_PR:
 				if (!ApplyPrecRule(s, is_in_func, line_num, &values)) {
@@ -249,6 +273,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 					ReturnToken();
 				}
 				can_count = false;
+				InsertRule(values.rule);
 				break;
 			case EXPR_ERROR:
 				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
