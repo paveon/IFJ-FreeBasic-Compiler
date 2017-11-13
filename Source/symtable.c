@@ -141,7 +141,7 @@ void BeginSubScope() {
 				(available = realloc(g_Tables.unused, sizeof(IDTable*) * g_Tables.size)) == NULL ||
 				(newTables = malloc(sizeof(IDTable) * TABLE_CHUNK)) == NULL) {
 			//Pokud selze jedna z alokaci ukoncime program
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		//Priradime nove ukazatele po korektni realokaci
 		g_Tables.allocated = pointers;
@@ -230,7 +230,7 @@ Node* CreateNode(uint64_t key) {
 				(available = realloc(g_Nodes.unused, sizeof(Node*) * g_Nodes.size)) == NULL ||
 				(newNodes = malloc(sizeof(Node) * NODE_CHUNK)) == NULL) {
 			//Pokud selze jedna z alokaci ukoncime program
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		//Priradime nove ukazatele po korektni realokaci
 		g_Nodes.allocated = pointers;
@@ -527,7 +527,7 @@ void AddParameter(Function* function, Terminal parameter) {
 		Terminal* tmp = NULL;
 		size_t newSize = function->argCount + PARAM_CHUNK;
 		if ((tmp = realloc(function->parameters, sizeof(Terminal) * newSize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		function->parameters = tmp;
 	}

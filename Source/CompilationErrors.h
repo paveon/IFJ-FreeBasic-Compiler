@@ -5,7 +5,8 @@
 #define FREEBASIC_COMPILER_COMPILATIONERRORS_H
 
 typedef enum ErrorCode {
-	ER_FATAL_INTERNAL, //Chyba pri alokaci pameti
+	ER_FATAL_ALLOCATION, //Chyba pri alokaci pameti
+	ER_FATAL_WRITE, //Chyba kodovani pri zapisu instrukce do bufferu
 	ER_SMC_VAR_REDECL, //Redeklarace lokalni promenne
 	ER_SMC_VAR_UNDEF, //Nedefinovana promenna ve vyrazech
 	ER_SMC_VAR_TYPE, //Typ promenne neni kompatibilni s vyslednym typem vyrazu

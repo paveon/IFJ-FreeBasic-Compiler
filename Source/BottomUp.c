@@ -319,7 +319,7 @@ void AllocTypeBuffer(void){
 		g_typeBufferStash.size = T_BUFFER_CHUNK;
 		g_typeBufferStash.allocated = malloc(g_typeBufferStash.size* sizeof(Terminal));
 		if(!g_typeBufferStash.allocated){
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_typeBufferStash.index = 0;
 	}
@@ -329,7 +329,7 @@ void ResizeTypeBuffer(){
 	g_typeBufferStash.size += T_BUFFER_CHUNK;
 	Terminal *tmp = realloc(g_typeBufferStash.allocated, g_typeBufferStash.size* sizeof(Terminal));
 	if(!tmp){
-		FatalError(ER_FATAL_INTERNAL);
+		FatalError(ER_FATAL_ALLOCATION);
 		return;
 	}
 	g_typeBufferStash.allocated = tmp;

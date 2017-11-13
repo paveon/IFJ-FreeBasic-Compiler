@@ -607,6 +607,7 @@ bool ParseProgram(void) {
 							case RULE_ST_WHILE:
 							case RULE_ELSEIF:
 							case RULE_ELSE:
+							case RULE_END_IF:
 								break;
 
 							default:
@@ -647,7 +648,7 @@ void AddDeclaration(Function* function) {
 		g_Decls.size += CHUNK;
 		Function** tmp;
 		if ((tmp = realloc(g_Decls.array, sizeof(Variable*) * g_Decls.size)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Decls.array = tmp;
 	}

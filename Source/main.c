@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 	SetInteger("25231");
 
 	/* test uvolneni pameti */
-	//FatalError(ER_FATAL_INTERNAL);
+	//FatalError(ER_FATAL_ALLOCATION);
 
 	CreateToken();
 	SetInteger("25231");
@@ -110,7 +110,7 @@ int main(int argc, char* argv[]) {
 	EndScope();
 
 	/* test uvolneni pameti */
-	//FatalError(ER_FATAL_INTERNAL);
+	//FatalError(ER_FATAL_ALLOCATION);
 
 	BeginSubScope();
 	BeginSubScope();

@@ -67,7 +67,7 @@ void AppendToBuff(int c) {
 
 		//Buffer o 1 vetsi nez velikost kvuli ukoncovaci nule
 		if ((tmp = realloc(g_Buffer.data, sizeof(char) * (g_Buffer.lenght + 1))) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Buffer.data = tmp;
 	}

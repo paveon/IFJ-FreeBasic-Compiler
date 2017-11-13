@@ -23,8 +23,11 @@ typedef struct ErrorMetadata {
 } ErrorMetadata;
 
 static ErrorMetadata errors[25] = {
-				[ER_FATAL_INTERNAL] = {"memory allocation failed",
-								EC_INTERNAL},
+				[ER_FATAL_ALLOCATION] = {"memory allocation failed",
+																 EC_INTERNAL},
+
+				[ER_FATAL_WRITE] = {"data write failed with encoding error",
+														EC_INTERNAL},
 
 				[ER_SMC_VAR_REDECL] = {"variable '%s' redeclaration",
 															 EC_SEMANTIC_DEFINITIONS},
@@ -36,7 +39,7 @@ static ErrorMetadata errors[25] = {
 														 EC_SEMANTIC_TYPES},
 
 				[ER_SMC_FUNC_DECL_AFTER_DEF] = {"function '%s' was declared after definition",
-								EC_SEMANTIC_DEFINITIONS},
+																				EC_SEMANTIC_DEFINITIONS},
 
 				[ER_SMC_FUNC_REDECL] = {"function '%s' was already declared",
 																EC_SEMANTIC_DEFINITIONS},
@@ -63,7 +66,7 @@ static ErrorMetadata errors[25] = {
 																		 EC_SEMANTIC_TYPES},
 
 				[ER_SMC_MISSING_OP] = {"missing operator in expression",
-								EC_SEMANTIC_DEFINITIONS},
+															 EC_SEMANTIC_DEFINITIONS},
 
 				[ER_SMC_UNKNOWN_EXPR] = {"unknown expression",
 																 EC_SEMANTIC_DEFINITIONS},

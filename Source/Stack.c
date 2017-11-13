@@ -78,7 +78,7 @@ Symbol* CreateSymbol(void) {
 		if ((pointers = realloc(g_Symbols.allocated, sizeof(Symbol*) * g_Symbols.size)) == NULL ||
 				(available = realloc(g_Symbols.unused, sizeof(Symbol*) * g_Symbols.size)) == NULL ||
 				(newSymbols = malloc(sizeof(Symbol) * CHUNK)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Symbols.allocated = pointers;
 		g_Symbols.unused = available;
@@ -117,7 +117,7 @@ Stack* GetStack(void) {
 	g_Stacks.size++;
 	if ((tmp = realloc(g_Stacks.array, sizeof(Stack*) * g_Stacks.size)) == NULL ||
 			(freeStack = malloc(sizeof(Stack))) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
+		FatalError(ER_FATAL_ALLOCATION);
 	}
 	g_Stacks.array = tmp;
 	g_Stacks.array[g_Stacks.size - 1] = freeStack;

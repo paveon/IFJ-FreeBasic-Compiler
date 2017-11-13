@@ -138,7 +138,7 @@ void ResizeBuffer() {
 	char* newBuffer;
 	g_Data.bufferSize += BUFFER_CHUNK;
 	if ((newBuffer = realloc(g_Data.textBuffer, sizeof(char) * g_Data.bufferSize)) == NULL) {
-		FatalError(ER_FATAL_INTERNAL);
+		FatalError(ER_FATAL_ALLOCATION);
 	}
 	g_Data.textBuffer = newBuffer;
 }
@@ -164,7 +164,7 @@ void CreateToken(void) {
 		Token* tmp = NULL;
 		g_Stash.arraySize += STASH_CHUNK;
 		if ((tmp = realloc(g_Stash.tokenArray, sizeof(Token) * g_Stash.arraySize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Stash.tokenArray = tmp;
 	}
@@ -344,7 +344,7 @@ void SetInteger(const char* number) {
 		int* tmp = NULL;
 		g_Data.intsSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(g_Data.integers, sizeof(int) * g_Data.intsSize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Data.integers = tmp;
 	}
@@ -364,7 +364,7 @@ void SetDouble(const char* number) {
 		double* tmp = NULL;
 		g_Data.doublesSize += MALLOC_SMALL_CHUNK;
 		if ((tmp = realloc(g_Data.doubles, sizeof(double) * g_Data.doublesSize)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Data.doubles = tmp;
 	}
