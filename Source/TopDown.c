@@ -607,6 +607,7 @@ bool ParseProgram(void) {
 							case RULE_ST_WHILE:
 							case RULE_ELSEIF:
 							case RULE_ELSE:
+							case RULE_END_IF:
 								break;
 
 							default:

@@ -3,6 +3,13 @@
 
 #include "Token.h"
 
+/*
+ * Pomocne premenne budu generovane ako globalne pre vypocet vyrazov
+ */
+typedef struct ExpressionVars {
+	size_t number;
+	char variables[5][20];
+} ExpressionVars;
 
 
 void InsertRule(size_t ruleID);
