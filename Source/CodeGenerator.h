@@ -3,6 +3,15 @@
 
 #include "Token.h"
 
+/*
+ * Pomocne premenne budu generovane ako globalne pre vypocet vyrazov
+ */
+typedef struct ExpressionVars {
+	size_t number;
+	char variables[5][20];
+} ExpressionVars;
+
+
 void InsertRule(size_t ruleID);
 
 void PushToken(Token* token);
@@ -15,12 +24,6 @@ void OutputCode(void);
 
 void GeneratorCleanup(void);
 
-void PushString(char* newString);
 
-char *TypeToStringForInit(Terminal type);
-
-char *ScopeToString(bool global);
-
-const void* FindID(int *tokenPos);
 
 #endif //FREEBASIC_COMPILER_CODEGENERATOR_H

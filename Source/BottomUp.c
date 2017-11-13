@@ -38,34 +38,33 @@ void PrecErrorCleaning(Stack* s) {
 	ReleaseStack(s);
 }
 
-Terminal BottomUp(size_t line_num, Terminal keyword) {
+Terminal BottomUp(size_t lineNum, Terminal keyword) {
 	Stack* stack = GetStack();
 	PushT(stack, T_EOL);
 	IdxTerminalPair values;
-	bool return_val = true;
 	size_t idx = 0;
 	values.error = 0;
-	values.cell_value = FINDING_FAILURE;
-	values.incoming_term = T_UNDEFINED;
+	values.cellValue = FINDING_FAILURE;
+	values.incomTerm = T_UNDEFINED;
 	values.rule = NO_RULE_VALUE;
-	int end_func_val = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
+	int endFuncVal = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 	Terminal type = T_INTEGER;
 
 	Token *token = NULL;
 
 	AllocTypeBuffer();
 
-
+	InsertRule(255);
 	while (1) {
-		FindInTable(stack, &values, line_num, false, keyword);
+		FindInTable(stack, &values, lineNum, false, keyword);
 
-		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
+		if ((values.rule >= ADD_RULE) && (values.rule <= EQ_EXPR_RULE)) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
 			if(values.rule == INT_DIVIDE_RULE) {
 				if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) || (g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
-					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
+					SemanticError(lineNum, ER_SMC_INT_DIV, NULL);
 					break;
 				}
 			}
@@ -76,7 +75,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 			values.rule = NO_RULE_VALUE;
 		}
 
-		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
+		if ((values.incomTerm == T_ID) || (values.incomTerm == T_FUNCTION)) {
 			g_typeBufferStash.allocated[g_typeBufferStash.index] = values.type;
 			g_typeBufferStash.index++;
 			if(g_typeBufferStash.index == g_typeBufferStash.size){
@@ -97,7 +96,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 		}
 		/**************************************************/
 
-		if ((values.incoming_term == T_EOL) && (GetFirstTerminal(stack) == T_EOL) &&
+		if ((values.incomTerm == T_EOL) && (GetFirstTerminal(stack) == T_EOL) &&
 				(LastSymBeforeFirstTerm(stack) == 1)) { // 1 protoze vysledny expr zredukovany musi mit tvar $E tedy velikost 1
 			break;
 		}
@@ -108,10 +107,10 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 			return T_UNDEFINED;
 		}
 
-		switch (values.cell_value) {
+		switch (values.cellValue) {
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(stack);
-				PushT(stack, values.incoming_term);
+				PushT(stack, values.incomTerm);
 				SetReduction(stack, idx);
 
 				ReturnToken();
@@ -119,34 +118,36 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 				PushToken(token);
 				break;
 			case SKIP_PR:
-				PushT(stack, values.incoming_term);
+				PushT(stack, values.incomTerm);
 
 				ReturnToken();
 				token = GetNextToken();
 				PushToken(token);
 				break;
 			case LOWER_PR:
-				if (!ApplyPrecRule(stack, false, line_num, &values)) {
+				if (!ApplyPrecRule(stack, false, lineNum, &values)) {
 					PrecErrorCleaning(stack);
 					free(g_typeBufferStash.allocated);
 					g_typeBufferStash.allocated = NULL;
 					return T_UNDEFINED;
 				}
-				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
+				if ((values.incomTerm != T_EOL) && (values.incomTerm != T_SEMICOLON)) {
 					ReturnToken();
 				}
 				InsertRule(values.rule);
 				break;
 			case EXPR_ERROR:  // nebylo pravidlo v tabulce
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+				SemanticError(lineNum, ER_SMC_UNKNOWN_EXPR, NULL);
 				PrecErrorCleaning(stack);
 				free(g_typeBufferStash.allocated);
 				g_typeBufferStash.allocated = NULL;
 				return T_UNDEFINED;
+			default:
+				break;
 		}
 		if (ContainingFunction(stack)) {
-			end_func_val = FuncParams(stack, values, line_num, keyword);
-			if ((end_func_val == FUNC_NEST_LEAVE) || (end_func_val == EOF_FINDING_FAILURE)) {
+			endFuncVal = FuncParams(stack, values, lineNum, keyword);
+			if ((endFuncVal == FUNC_NEST_LEAVE) || (endFuncVal == EOF_FINDING_FAILURE)) {
 				PrecErrorCleaning(stack);
 				free(g_typeBufferStash.allocated);
 				g_typeBufferStash.allocated = NULL;
@@ -162,40 +163,38 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	return type;
 }
 
-/*
- * TODO zkusit pak prepsat funkci celou
- */
-int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keyword) {
-	size_t paramCnt = values.arg_cnt;
-	Terminal *params = values.func_params;
 
-	bool is_in_func = true;
-	bool can_count = true;	// promenna urcujici zda muzeme pocitat prichozi zavorku (vyuziva se ReturnToken() => jedna zavorka by se mohla pocitat 2x)
+int FuncParams(Stack* s, IdxTerminalPair values, size_t lineNum, Terminal keyword) {
+	size_t paramCnt = values.argCnt;
+	Terminal* params = values.funcParams;
 
-	int end_value = 0;
+	bool isInFunc = true;
+	bool canCount = true;  // promenna urcujici zda muzeme pocitat prichozi zavorku (vyuziva se ReturnToken() => jedna zavorka by se mohla pocitat 2x)
+
+	int endValue = 0;
 
 	size_t idx = 0;
 	size_t actParamCnt = 0;
-	int l_brackets = 0, r_brackets = 0;
+	int leftBrackets = 0, rightBrackets = 0;
 
-	const char *func_name = values.func_name; // promenna pouzivana u vypisu erroru (v jake funkci nastal)
+	const char* funcName = values.funcName; // promenna pouzivana u vypisu erroru (v jake funkci nastal)
 
 	Token *token = NULL;
 
 	nested++;
 
 	while (1) {
-		FindInTable(s, &values, line_num, is_in_func, keyword);
+		FindInTable(s, &values, lineNum, isInFunc, keyword);
 
-		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
+		if ((values.rule >= ADD_RULE) && (values.rule <= EQ_EXPR_RULE)) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
 			if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
-							(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
+				 (g_typeBufferStash.allocated[g_typeBufferStash.index - 1] == T_DOUBLE)) {
 
 				if(values.rule == INT_DIVIDE_RULE) {
-					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
+					SemanticError(lineNum, ER_SMC_INT_DIV, NULL);
 					break;
 				}
 				g_typeBufferStash.allocated[g_typeBufferStash.index-1] = T_DOUBLE;
@@ -210,7 +209,7 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		}
 
 		// vlozeni typu do pole pro pripadnou kontrolu celociselneho deleni
-		if((values.incoming_term == T_ID) || (values.incoming_term == T_FUNCTION)){
+		if ((values.incomTerm == T_ID) || (values.incomTerm == T_FUNCTION)) {
 			g_typeBufferStash.allocated[g_typeBufferStash.index] = values.type;
 			g_typeBufferStash.index++;
 			if(g_typeBufferStash.index == g_typeBufferStash.size){
@@ -230,80 +229,88 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 			return EOF_FINDING_FAILURE;
 		}
 		// prichozi token byl identifikator, funkce a nebo retezec
-		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
-						(values.incoming_term == T_FUNCTION)){
+		if ((values.incomTerm == T_ID) || (values.incomTerm == T_STRING) ||
+				(values.incomTerm == T_FUNCTION)) {
+
+			if (paramCnt == 0) {
+				SemanticError(lineNum, ER_SMC_MANY_ARGS, funcName);
+				break;
+			}
 			// mezi double -> int && int -> double ___ je implicitni konverze takze se
 			// kontroluje pouze pokud neprichazi string a neni ocekavane neco jineho nebo naopak
 			if(((values.type == T_STRING) && (params[actParamCnt] != T_STRING)) ||
-							((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
-				SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
+				 ((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
+				SemanticError(lineNum, ER_SMC_ARG_TYPES, funcName);
 				break;
 			}
 			// prilis mnoho parametru
 			if(actParamCnt == paramCnt){
-				SemanticError(line_num, ER_SMC_MANY_ARGS, func_name);
+				SemanticError(lineNum, ER_SMC_MANY_ARGS, funcName);
 				break;
 			}
 		}
-		switch (values.cell_value) {
+		switch (values.cellValue) {
 			case HIGHER_PR:
 				idx = LastSymBeforeFirstTerm(s);
-				PushT(s, values.incoming_term);
+				PushT(s, values.incomTerm);
 				SetReduction(s, idx);
-				can_count = true;
+				canCount = true;
 				// vraceni tokenu a jeho nasledne ulozeni do pole pro generovani
 				ReturnToken();
 				token = GetNextToken();
 				PushToken(token);
 				break;
 			case SKIP_PR:
-				PushT(s, values.incoming_term);
-				can_count = true;
+				PushT(s, values.incomTerm);
+				canCount = true;
 
 				ReturnToken();
 				token = GetNextToken();
 				PushToken(token);
 				break;
 			case LOWER_PR:
-				if (!ApplyPrecRule(s, is_in_func, line_num, &values)) {
+				if (!ApplyPrecRule(s, isInFunc, lineNum, &values)) {
 					free(g_typeBufferStash.allocated);
 					return FUNC_NEST_LEAVE;
 				}
-				if ((values.incoming_term != T_EOL) && (values.incoming_term != T_SEMICOLON)) {
+				if ((values.incomTerm != T_EOL) && (values.incomTerm != T_SEMICOLON)) {
 					ReturnToken();
 				}
-				can_count = false;
+				canCount = false;
 				InsertRule(values.rule);
 				break;
 			case EXPR_ERROR:
-				SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+				SemanticError(lineNum, ER_SMC_UNKNOWN_EXPR, NULL);
 				free(g_typeBufferStash.allocated);
 				return FUNC_NEST_LEAVE;
+			default:
+				break;
 		}
 
 		/* Pocitani zavorek k zjisteni posledniho parametru */
-		if ((values.incoming_term == T_LEFT_BRACKET) && can_count) {
-			l_brackets++;
+		if ((values.incomTerm == T_LEFT_BRACKET) && canCount) {
+			leftBrackets++;
 		}
-		else if ((values.incoming_term == T_RIGHT_BRACKET) && can_count) {
-			r_brackets++;
+		else if ((values.incomTerm == T_RIGHT_BRACKET) && canCount) {
+			rightBrackets++;
 		}
 		/*****************************************************/
 
-		if (((values.incoming_term == T_COMMA) && can_count) || (l_brackets == r_brackets && can_count)) {
+		if (((values.incomTerm == T_COMMA) && canCount) ||
+				(leftBrackets == rightBrackets && canCount)) {
 			actParamCnt++;
 			printf("func: %d, parameter: %d\n", (int) nested, (int) actParamCnt);
 		}
 
-		if (values.incoming_term == T_FUNCTION) {
-			end_value = FuncParams(s, values, line_num, keyword);
-			if (end_value == FUNC_NEST_LEAVE) {
+		if (values.incomTerm == T_FUNCTION) {
+			endValue = FuncParams(s, values, lineNum, keyword);
+			if (endValue == FUNC_NEST_LEAVE) {
 				break;
 			}
 		}
 		if (nested > CountOfFunc(s)) {
-			if(actParamCnt != paramCnt){ // TODO mensi pocet parametru => napsat error
-				SemanticError(line_num, ER_SMC_LESS_ARGS, func_name);
+			if ((actParamCnt != paramCnt) && (paramCnt != 0)) {
+				SemanticError(lineNum, ER_SMC_LESS_ARGS, funcName);
 				break;
 			}
 			nested--;

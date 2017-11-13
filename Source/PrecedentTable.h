@@ -17,13 +17,13 @@
 #define EOF_FINDING_FAILURE 50
 
 typedef struct IdxTerminalPair {
-	size_t cell_value;
-	size_t arg_cnt;
-	Terminal incoming_term;
-	Terminal pre_terminal;
+	size_t cellValue;
+	size_t argCnt;
+	Terminal incomTerm;
+	Terminal preTerm;
 	Terminal type;
-	Terminal *func_params;
-	const char *func_name;
+	Terminal* funcParams;
+	const char* funcName;
 	size_t rule;
 	int error;
 }IdxTerminalPair;
@@ -70,16 +70,25 @@ typedef enum PrecedentRulesNames {
 	MULTIPLY_RULE,
 	REAL_DIVIDE_RULE,
 	INT_DIVIDE_RULE,
-	LESS_RULE,
-	LESS_EQ_RULE,
-	GRT_RULE,
-	GRT_EQ_RULE,
-	NOT_EQ_RULE,
-	EQ_RULE,
+	LESS_EXPR_RULE,
+	LESS_EQ_EXPR_RULE,
+	GRT_EXPR_RULE,
+	GRT_EQ_EXPR_RULE,
+	NOT_EQ_EXPR_RULE,
+	EQ_EXPR_RULE,
+	LESS_STR_RULE,
+	LESS_EQ_STR_RULE,
+	GRT_STR_RULE,
+	GRT_EQ_STR_RULE,
+	NOT_EQ_STR_RULE,
+	EQ_STR_RULE,
 	UNARY_MINUS_RULE,
 	ID_RULE,
-	BRACKETS_RULE,
-	FUNCTION_RULE,
+	BRACKETS_EXPR_RULE,
+	BRACKETS_STR_RULE,
+	FUNCTION_NO_EXPR_RULE,
+	FUNCTION_EXPR_RULE,
+	FUNCTION_STR_RULE,
 	STRING_RULE,
 	CONCATENATION_RULE,
 	COMMA_EXPR_RULE,
@@ -93,14 +102,15 @@ typedef enum PrecedentRulesNames {
  * Pri nedefinovane promenne vypise error, dale pokracuje, ale nerozlisuje zda byla promenna funkce ci identifikator.
  * Pokud nebyla definovana, tak se bere jako identifikator.
  */
-void FindInTable(Stack *s, struct IdxTerminalPair *field, size_t line_num, bool is_in_func, Terminal keyword);
+void FindInTable(Stack* s, struct IdxTerminalPair* field, size_t lineNum, bool isInFunc,
+								 Terminal keyword);
 
 
 /* Funkce, ktera vybira ze stacku symboly a uklada je do bufferu, dokud nenarazi na reductionEnd. Po nalezeni
  * zkontroluje zda k vybranym symbolum sedi jedno z pravidel. Pokud ano vraci true bez chybove hlasky.
  * Pokud nenajde vhodne pravidlo vypise error, ze se jedna o neznamy zapis vyrazu a vraci false.
  */
-bool ApplyPrecRule(Stack *s, bool is_in_func, size_t line_num, IdxTerminalPair* field);
+bool ApplyPrecRule(Stack* s, bool isInFunc, size_t lineNum, IdxTerminalPair* field);
 
 
 #endif //FREEBASIC_COMPILER_PRECEDENTTABLE_H
