@@ -68,6 +68,7 @@ void GenerateCode(void) {
 	//TokenType type;
 	const void* value;
 	Variable *var;
+	bool elseWasUsed = false;
 
 	if (g_Rules.used > 0) {
 		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
@@ -143,16 +144,18 @@ void GenerateCode(void) {
 					PushString(tmp);
 					break;
 				case RULE_ELSE: // 20
+					elseWasUsed = true;
 					sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
 					PopIfLabel();
 					PushString(tmp);
 					break;
 				case RULE_END_IF: // 21
-					if (g_IfLabels.used > 0) {
+					if (g_IfLabels.used > 0 && !elseWasUsed) {
 						sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
 						PopIfLabel();
 						PushString(tmp);
 					}
+					elseWasUsed = false;
 					break;
 				case	RULE_VAR_INIT: // 22
 					if (isGlobal) {
