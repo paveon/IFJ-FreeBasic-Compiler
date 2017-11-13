@@ -3,6 +3,8 @@
 
 #include "Token.h"
 
+
+
 void InsertRule(size_t ruleID);
 
 void PushToken(Token* token);
@@ -15,12 +17,6 @@ void OutputCode(void);
 
 void GeneratorCleanup(void);
 
-void PushString(char* newString);
 
-char *TypeToStringForInit(Terminal type);
-
-char *ScopeToString(bool global);
-
-const void* FindID(int *tokenPos);
 
 #endif //FREEBASIC_COMPILER_CODEGENERATOR_H
