@@ -14,7 +14,7 @@
 #define NUM_OF_OPERATORS 10
 #define TERMINAL_OPERATOR_SHIFT 30
 #define NO_NEXT_VAL_FOR_RULE 0
-#define NUM_OF_RULES 29
+#define NUM_OF_RULES 30
 #define RULE_ELEMENTS 4
 
 const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "<", "<=", ">", ">=",
@@ -65,6 +65,7 @@ const char *const pole_err[] = {
 				"id",
 				"zavorky vyraz",
 				"zavorky retezec",
+				"funkce no expr",
 				"funkce expr",
 				"funkce str",
 				"retezec",
@@ -80,7 +81,7 @@ static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
 				{NT_EXPRESSION,   T_OPERATOR_MINUS,       NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //1
 				{NT_EXPRESSION,   T_OPERATOR_MULTIPLY,    NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //2
 				{NT_EXPRESSION,   T_OPERATOR_REAL_DIVIDE, NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //3
-				{NT_EXPRESSION,   T_OPERATOR_INT_DIVIDE,  NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //4
+				{NT_EXPRESSION,   T_OPERATOR_INT_DIVIDE,  NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //4
 				{NT_EXPRESSION,   T_OPERATOR_GRT,         NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //5
 				{NT_EXPRESSION,   T_OPERATOR_GRT_EQ,      NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //6
 				{NT_EXPRESSION,   T_OPERATOR_LESS,        NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //7
@@ -97,70 +98,71 @@ static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
 				{T_ID,     NO_NEXT_VAL_FOR_RULE,    NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //18
 				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, NO_NEXT_VAL_FOR_RULE}, //19
 				{T_RIGHT_BRACKET, NT_STRING,              T_LEFT_BRACKET, NO_NEXT_VAL_FOR_RULE}, //20
-				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, T_FUNCTION}, //21
-				{T_RIGHT_BRACKET, NT_STRING,              T_LEFT_BRACKET, T_FUNCTION}, //22
-				{T_STRING, NO_NEXT_VAL_FOR_RULE,    NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //23
-				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //24
-				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //25
-				{NT_EXPRESSION,   T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //26
-				{NT_STRING,       T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //27
-				{NT_STRING,       T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //28
+				{T_RIGHT_BRACKET, T_LEFT_BRACKET,         T_FUNCTION,     NO_NEXT_VAL_FOR_RULE}, //21
+				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, T_FUNCTION}, //22
+				{T_RIGHT_BRACKET, NT_STRING,              T_LEFT_BRACKET, T_FUNCTION}, //23
+				{T_STRING, NO_NEXT_VAL_FOR_RULE,    NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //24
+				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //25
+				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //26
+				{NT_EXPRESSION,   T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //27
+				{NT_STRING,       T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //28
+				{NT_STRING,       T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //29
 };
 
-bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* field) {
-	SymbolType top_type = GetSymbolType(s);
-	int buff_idx = 0;
+bool ApplyPrecRule(Stack* s, bool isInFunc, size_t lineNum, IdxTerminalPair* field) {
+	SymbolType topType = GetSymbolType(s);
+	int buffIdx = 0;
 	int buffer[4] = {NO_NEXT_VAL_FOR_RULE};
 	unsigned char i = 0, j = 0;
-	int main_counter = NUM_OF_RULES;
-	bool is_string = false;
+	int mainCntr = NUM_OF_RULES;
+	bool isString = false;
 	// Pokud neni program ve funkci, tak se zpracovava pouze 17 pravidel
-	if (!is_in_func) {
-		main_counter -= 4;
+	if (!isInFunc) {
+		mainCntr -= 4;
 	}
 
 	while (!IsEndOfReduction(s)) {
-		if (buff_idx > 3) {
-			SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+		if (buffIdx > 3) {
+			SemanticError(lineNum, ER_SMC_UNKNOWN_EXPR, NULL);
 			return false;
 		}
-		if (top_type == SYMBOL_NONTERMINAL) {
-			buffer[buff_idx] = GetTopNT(s);
-			if (buffer[buff_idx] == NT_STRING) {
-				is_string = true;
+		if (topType == SYMBOL_NONTERMINAL) {
+			buffer[buffIdx] = GetTopNT(s);
+			if (buffer[buffIdx] == NT_STRING) {
+				isString = true;
 			}
 		}
 		else {
-			buffer[buff_idx] = GetTopT(s);
-			if (buffer[buff_idx] == T_STRING) {
-				is_string = true;
+			buffer[buffIdx] = GetTopT(s);
+			if (buffer[buffIdx] == T_STRING) {
+				isString = true;
 			}
 		}
-		buff_idx++;
+		buffIdx++;
 		PopSymbol(s);
 	}
-	if (top_type == SYMBOL_NONTERMINAL) {
-		buffer[buff_idx] = GetTopNT(s);
-		if (buffer[buff_idx] == NT_STRING) {
-			is_string = true;
+	if (topType == SYMBOL_NONTERMINAL) {
+		buffer[buffIdx] = GetTopNT(s);
+		if (buffer[buffIdx] == NT_STRING) {
+			isString = true;
 		}
 	}
 	else {
-		buffer[buff_idx] = GetTopT(s);
-		if (buffer[buff_idx] == T_STRING) {
-			is_string = true;
+		buffer[buffIdx] = GetTopT(s);
+		if (buffer[buffIdx] == T_STRING) {
+			isString = true;
 		}
 	}
 	PopSymbol(s);
 
-	for (; i < main_counter; i++) {
+	for (; i < mainCntr; i++) {
 		for (j = 0; j < RULE_ELEMENTS; j++) {
 			if (buffer[j] != g_PrecedentRules[i][j]) {
 				break;
 			}
 		}
 		if (j == RULE_ELEMENTS) {
-			if (is_string) {
+			if (isString) {
 				// reseni pouze u carky z duvodu mozne konkatenace v parametrech
 				if(buffer[1] == T_COMMA){
 					PushNT(s, NT_EXPRESSION);
@@ -182,31 +184,31 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* 
 			((buffer[0] == NT_EXPRESSION) || (buffer[1] == NT_EXPRESSION) ||
 			 (buffer[2] == NT_EXPRESSION))) {
 
-		SemanticError(line_num, ER_SMC_STR_AND_NUM, NULL);
+		SemanticError(lineNum, ER_SMC_STR_AND_NUM, NULL);
 	}
 		// Missing operator
 	else if (((buffer[0] == NT_EXPRESSION) && (buffer[1] == NT_EXPRESSION)) ||
 					 ((buffer[1] == NT_EXPRESSION) && (buffer[2] == NT_EXPRESSION))) {
-		SemanticError(line_num, ER_SMC_MISSING_OP,
+		SemanticError(lineNum, ER_SMC_MISSING_OP,
 									NULL); // TODO momentalne nemuzes nastat kvuli hodnotam v tabulce
 	}
 	else {
-		SemanticError(line_num, ER_SMC_UNKNOWN_EXPR, NULL);
+		SemanticError(lineNum, ER_SMC_UNKNOWN_EXPR, NULL);
 	}
 	return false;
 }
 
 
 void
-FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, Terminal keyword) {
+FindInTable(Stack* s, IdxTerminalPair* field, size_t lineNum, bool isInFunc, Terminal keyword) {
 	/* Promenne k pomocnym vypoctum hodnot prichoziho tokenu */
 	Token* token = GetNextToken();
 	TokenType tokenType = GetTokenType(token);
-	const char* token_val = GetTokenValue(token);
-	Function* id_func;
-	Variable* id_id;
-	unsigned char column, row;
-	unsigned char op_field_idx;
+	const char* tokenVal = GetTokenValue(token);
+	Function* idFunc;
+	Variable* idVar;
+	unsigned char column = 0, row = 0;
+	unsigned char opFieldIdx;
 	Terminal termType = GetFirstTerminal(s);
 	bool unaryMinus = false;
 
@@ -217,69 +219,70 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 	switch (tokenType) {
 		case TOKEN_COMMA:
 			column = OPERATOR_COMMA;
-			field->incoming_term = T_COMMA;
+			field->incomTerm = T_COMMA;
 			break;
 		case TOKEN_IDENTIFIER:
 			column = IDENTIFIER;
-			field->incoming_term = T_ID;
-			id_func = LookupFunction(token_val);
-			id_id = LookupVariable(token_val, false, true);
-			if(id_func && id_id){ // muze to byt promenna i funkce
+			field->incomTerm = T_ID;
+			idFunc = LookupFunction(tokenVal);
+			idVar = LookupVariable(tokenVal, false, true);
+			if (idFunc && idVar) { // muze to byt promenna i funkce
 				token = GetNextToken();
 				tokenType = GetTokenType(token);
 				if(tokenType == TOKEN_L_BRACKET){ // objevila se leva zavorka => pravdepodobne se jedna o funkci
 					if(GetTrailSpace(token)){ // po leve zavorce se objevila mezera => chybi operator a nebo chybna mezera (pocitame s chybnou mezerou)
-						SemanticError(line_num, ER_SMC_UNEXP_FUNC_SPACE, token_val);
+						SemanticError(lineNum, ER_SMC_UNEXP_FUNC_SPACE, tokenVal);
 						field->error = FINDING_FAILURE;
 						ReturnToken();
 						return;
 					}
 					// jedna se o funkci
 					column = FUNCTION_IDENTIFIER;
-					field->type = id_func->returnType;
-					field->func_params = id_func->parameters;
-					field->func_name = id_func->name;
-					field->arg_cnt = id_func->argCount;
-					field->incoming_term = T_FUNCTION;
+					field->type = idFunc->returnType;
+					field->funcParams = idFunc->parameters;
+					field->funcName = idFunc->name;
+					field->argCnt = idFunc->argCount;
+					field->incomTerm = T_FUNCTION;
 				}
-				// pokud predchozi if neplatil, tak zustava poprve nastavena hodnota teda 'column = IDENTIFIER' a 'field->incoming_term = T_ID'
-				field->type = id_id->type;
+				// pokud predchozi if neplatil, tak zustava poprve nastavena hodnota teda 'column = IDENTIFIER' a 'field->incomTerm = T_ID'
+				field->type = idVar->type;
 				ReturnToken();
 			}
 			else{
-				if(!id_func){ // neni to funkce
-					if(!id_id){ // neni to promenna ani funkce
+				if (!idFunc) { // neni to funkce
+					if (!idVar) { // neni to promenna ani funkce
 						token = GetNextToken();
 						tokenType = GetTokenType(token);
 						if(tokenType == TOKEN_L_BRACKET){ // pokud je nasledujici token leva zavorka, predpoklada se ze mel nasledovat zapis funkce
 							if(GetTrailSpace(token)){ // kdyz se objevi mezera po zavorce znovu se muze jednat o chybnou mezeru a nebo chybejici operator (pocitame s chybnou mezerou)
-								SemanticError(line_num, ER_SMC_UNEXP_FUNC_SPACE, token_val); // error znacici chybne zapsanou mezeru (nepripustnou pri zapisu funkce)
+								SemanticError(lineNum, ER_SMC_UNEXP_FUNC_SPACE,
+															tokenVal); // error znacici chybne zapsanou mezeru (nepripustnou pri zapisu funkce)
 							}
-							SemanticError(line_num, ER_SMC_FUNC_UNDECL, token_val);
+							SemanticError(lineNum, ER_SMC_FUNC_UNDECL, tokenVal);
 						}
 						else{ // pokud nenasledovala zavorka asi to bude klasicka promenna
-							SemanticError(line_num, ER_SMC_VAR_UNDEF, token_val);
+							SemanticError(lineNum, ER_SMC_VAR_UNDEF, tokenVal);
 						}
 						field->error = FINDING_FAILURE;
 						ReturnToken(); // kdyby byl nasledujici znak EOL nebo ';' uz by se to nikdo nedozvedel
 						return;
 					}
-					// nenasleduje else{} protoze defaultni hodnoty jsou 'column = IDENTIFIER' a 'field->incoming_term = T_ID'
-					field->type = id_id->type;
+					// nenasleduje else{} protoze defaultni hodnoty jsou 'column = IDENTIFIER' a 'field->incomTerm = T_ID'
+					field->type = idVar->type;
 				}
 				else{ // je to funkce
 					if(GetTrailSpace(token)){
-						SemanticError(line_num, ER_SMC_UNEXP_FUNC_SPACE, token_val);
+						SemanticError(lineNum, ER_SMC_UNEXP_FUNC_SPACE, tokenVal);
 						field->error = FINDING_FAILURE;
 						return;
 					}
 					else{
 						column = FUNCTION_IDENTIFIER;
-						field->type = id_func->returnType;
-						field->func_params = id_func->parameters;
-						field->func_name = id_func->name;
-						field->arg_cnt = id_func->argCount;
-						field->incoming_term = T_FUNCTION;
+						field->type = idFunc->returnType;
+						field->funcParams = idFunc->parameters;
+						field->funcName = idFunc->name;
+						field->argCnt = idFunc->argCount;
+						field->incomTerm = T_FUNCTION;
 					}
 				}
 			}
@@ -287,91 +290,92 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 		case TOKEN_INTEGER:
 			column = IDENTIFIER;
 			field->type = T_INTEGER;
-			field->incoming_term = T_ID;
+			field->incomTerm = T_ID;
 			break;
 		case TOKEN_DOUBLE:
 			column = IDENTIFIER;
 			field->type = T_DOUBLE;
-			field->incoming_term = T_ID;
+			field->incomTerm = T_ID;
 			break;
 		case TOKEN_STRING:
 			column = STRING;
 			field->type = T_STRING;
-			field->incoming_term = T_STRING;
+			field->incomTerm = T_STRING;
 			break;
 		case TOKEN_L_BRACKET:
 			column = OPERATOR_L_BRACKET;
-			field->incoming_term = T_LEFT_BRACKET;
+			field->incomTerm = T_LEFT_BRACKET;
 			break;
 		case TOKEN_R_BRACKET:
 			column = OPERATOR_R_BRACKET;
-			field->incoming_term = T_RIGHT_BRACKET;
+			field->incomTerm = T_RIGHT_BRACKET;
 			break;
 		case TOKEN_OPERATOR:
-			if(strcmp(token_val, "=") == 0){
+			if (strcmp(tokenVal, "=") == 0) {
 				column = OPERATOR_EQ;
-				field->incoming_term = T_OPERATOR_EQUAL;
+				field->incomTerm = T_OPERATOR_EQUAL;
 			}
 			else{
-				for (op_field_idx = 0; (op_field_idx < NUM_OF_OPERATORS) && (strcmp(token_val, OperatorField[op_field_idx]) != 0); op_field_idx++);
-				if ((keyword != T_IF) && (keyword != T_WHILE) && (op_field_idx > 4)) {
-					SemanticError(line_num, ER_SMC_COMPARATIVE_EXPR, NULL);
+				for (opFieldIdx = 0; (opFieldIdx < NUM_OF_OPERATORS) &&
+														 (strcmp(tokenVal, OperatorField[opFieldIdx]) != 0); opFieldIdx++);
+				if ((keyword != T_IF) && (keyword != T_WHILE) && (opFieldIdx > 4)) {
+					SemanticError(lineNum, ER_SMC_COMPARATIVE_EXPR, NULL);
 					field->error = FINDING_FAILURE;
 					return;
 				}
 				// podminka resici pokud je na zasobniku minus a po nem zacatek a nebo leva zavorka, tak
 				// je minus unarni
-				if((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->pre_terminal == T_LEFT_BRACKET)
-																												 || field->pre_terminal == T_EOL)) {
+				if ((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->preTerm == T_LEFT_BRACKET)
+																													|| field->preTerm == T_EOL)) {
 					unaryMinus = true;
 				}
 
 				// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
-				column = op_field_idx;
-				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT + op_field_idx;
+				column = opFieldIdx;
+				field->incomTerm = (Terminal) TERMINAL_OPERATOR_SHIFT + opFieldIdx;
 				Terminal tmp = GetSymbolOneDown(s);
 				if((tmp >= T_OPERATOR_MULTIPLY) && (tmp <= T_OPERATOR_INT_DIVIDE) &&
-					 (field->incoming_term == T_OPERATOR_MINUS)) {
-					field->cell_value = HIGHER_PR;
+					 (field->incomTerm == T_OPERATOR_MINUS)) {
+					field->cellValue = HIGHER_PR;
 					return;
 				}
-				// prichozi terminal je minus => do pre_terminal se zapise symbol pod znakem '-' =>
+				// prichozi terminal je minus => do preTerm se zapise symbol pod znakem '-' =>
 				// T_UNDEFINED pokud je zde neterminal a pokud je terminal tak prislusny terminal
-				if(field->incoming_term == T_OPERATOR_MINUS){
-					field->pre_terminal = GetSymbolOneDown(s);
+				if (field->incomTerm == T_OPERATOR_MINUS) {
+					field->preTerm = GetSymbolOneDown(s);
 				}
 			}
 			break;
 		case TOKEN_SEMICOLON:
 			if (keyword != T_PRINT) {
-				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, ";");
+				SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, ";");
 				field->error = FINDING_FAILURE;
 			}
 			column = END_SYMBOL;
-			field->incoming_term = T_EOL;
+			field->incomTerm = T_EOL;
 			ReturnToken();
 			break;
 		case TOKEN_KEYWORD:
 			if (keyword != T_IF || GetTokenTerminal(token) != T_THEN) {
-				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, token_val);
+				SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, tokenVal);
 				field->error = FINDING_FAILURE;
 			}
 			column = END_SYMBOL;
-			field->incoming_term = T_EOL;
+			field->incomTerm = T_EOL;
 			ReturnToken();
 			break;
 		case TOKEN_EOL:
 			if (keyword == T_PRINT) {
-				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, "EOL");
+				SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, "EOL");
 				field->error = FINDING_FAILURE;
 			}
 			column = END_SYMBOL;
-			field->incoming_term = T_EOL;
+			field->incomTerm = T_EOL;
 			ReturnToken();
 			break;
 		default:
 			if (tokenType != TOKEN_EOF) {
-				SemanticError(line_num, ER_SMC_UNEXPECT_SYM, token_val);
+				SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, tokenVal);
 				field->error = FINDING_FAILURE;
 				return;
 			}
@@ -442,13 +446,13 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 			break;
 	}
 	// Pokud se zadavaji parametry funkce je nutne zmenit pravidlo bunky g_PrecedentTable[11][15] na HIGHER_PR(3)
-	if (is_in_func && (row == OPERATOR_L_BRACKET) && (column == OPERATOR_COMMA)) {
-		field->cell_value = HIGHER_PR;
+	if (isInFunc && (row == OPERATOR_L_BRACKET) && (column == OPERATOR_COMMA)) {
+		field->cellValue = HIGHER_PR;
 		return;
 	}
-	field->cell_value = g_PrecedentTable[row][column];
+	field->cellValue = g_PrecedentTable[row][column];
 
-	if(unaryMinus && (field->cell_value != EXPR_ERROR)){
-		field->cell_value = LOWER_PR;
+	if (unaryMinus && (field->cellValue != EXPR_ERROR)) {
+		field->cellValue = LOWER_PR;
 	}
 }
