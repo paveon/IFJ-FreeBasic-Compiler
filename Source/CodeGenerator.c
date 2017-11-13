@@ -24,18 +24,44 @@ typedef struct TokenArray {
 	size_t size;
 } TokenArray;
 
+typedef struct Labels {
+	unsigned int* labels;
+	unsigned int size;
+	unsigned int count;
+	unsigned int used;
+} Labels;
+
+
+
+void PushString(char* newString);
+char *TypeToStringForInit(Terminal type);
+char *ScopeToString(bool global);
+const void* FindID(int *tokenPos);
+void PushWLabel (void);
+unsigned int TopWLabel(void);
+void PopWLabel(void);
+
+
+
 //Globalni staticka promenna pro jednodussi spravu pameti
 static Buffer g_Rules;
 static Buffer g_Code;
 static TokenArray g_Tokens;
+static Labels g_WLabels;
+static Labels g_IfLabels;
+
 
 bool isGlobal = true;
+
+
+
 
 
 void GenerateCode(void) {
 	int rule;
 	int tokenPos = 0;
 	char tmp[CODE_CHUNK];
+	char tmp2[CODE_CHUNK];
 	//TokenType type;
 	const void* value;
 	Variable *var;
@@ -49,7 +75,7 @@ void GenerateCode(void) {
 		for (size_t j = 0; j < g_Rules.used; j++) {
 			memset(tmp, 0, CODE_CHUNK);
 			rule = (int)g_Rules.buffer[j];
-			//printf ("pravidla: %d\n", rule);
+			printf ("pravidla: %d\n", rule);
 
 			switch (rule) {
 				case RULE_EPSILON: // 1
@@ -92,9 +118,18 @@ void GenerateCode(void) {
 					break;
 				case RULE_ST_WHILE: // 15
 					// TODO  ...jumpy podla vyrazov
+					PushWLabel();
+					printf ("A\n");
+					sprintf(tmp, "LABEL LF@_wlabel_%d\n", TopWLabel());
+					printf ("B\n");
+					PushString(tmp);
+					PushWLabel();
+					sprintf(tmp, "JUMPIFEQ LF@_wlabel_%d false X\n", TopWLabel()); // TODO podla vyrazov
+					PushString(tmp);
 					break;
 				case RULE_ST_IF: // 17
-					// TODO jumpy podla toho ako to bude s vyrazmi,
+					// TODO jumpy podla toho ako to bude s vyrazmi
+
 					break;
 				case	RULE_VAR_INIT: // 22
 					if (isGlobal) {
@@ -145,6 +180,31 @@ void GenerateCode(void) {
 
 			}
 
+		}
+
+		/*
+		 * Kedze nemame pravidlo pre loop a potrebujem generovat navestia na konci while
+		 * musel som to vyriesit takto.
+		 */
+		if (g_WLabels.used != 0) {
+
+			while ((unsigned)tokenPos < g_Tokens.used) {
+				if (GetTokenType(g_Tokens.array[tokenPos]) == TOKEN_KEYWORD) {
+					if ((strcmp(GetTokenValue(g_Tokens.array[tokenPos]), "LOOP")) == 0) {
+						printf("DO STUFF\n");
+						memset(tmp, 0, CODE_CHUNK);
+						memset(tmp2, 0, CODE_CHUNK);
+						sprintf(tmp2, "LABEL LF@_wlabel_%d\n", TopWLabel());
+						PopWLabel();
+						sprintf(tmp, "JUMP LF@_wlabel_%d\n", TopWLabel());
+						PopWLabel();
+						PushString(tmp);
+						PushString(tmp2);
+
+					}
+				}
+				tokenPos++;
+			}
 		}
 	}
 
@@ -245,6 +305,33 @@ void PushString(char *newString) {
 
 	g_Code.used = g_Code.used + length;
 
+}
+
+
+
+void PushWLabel (void) {
+	if (g_WLabels.used == g_WLabels.size) {
+		//Zvetsime pole ukazatelu
+		unsigned int* tmp;
+		g_WLabels.size += RULE_CHUNK;
+		if ((tmp = realloc(g_WLabels.labels, sizeof(unsigned int*) * g_WLabels.size)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		g_WLabels.labels = tmp;
+	}
+
+	g_WLabels.labels[g_WLabels.used++] = g_WLabels.count;
+	g_WLabels.count++;
+}
+
+
+unsigned int TopWLabel(void) {
+	printf ("lavels used: %d\n", g_WLabels.used);
+	return g_WLabels.labels[g_WLabels.used-1];
+}
+
+void PopWLabel(void) {
+	g_WLabels.used--;
 }
 
 
