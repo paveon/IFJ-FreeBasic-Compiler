@@ -14,7 +14,7 @@
 #define NUM_OF_OPERATORS 10
 #define TERMINAL_OPERATOR_SHIFT 30
 #define NO_NEXT_VAL_FOR_RULE 0
-#define NUM_OF_RULES 22
+#define NUM_OF_RULES 29
 #define RULE_ELEMENTS 4
 
 const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "<", "<=", ">", ">=",
@@ -22,24 +22,24 @@ const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "
 
 // g_PrecedentTable[11][15] se muze rovnat i 3 (carka ve volani funkce)
 static unsigned char g_PrecedentTable[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
-			// +  -  *  /  \  <  <= >  >= <> =  (  )  i  f  ,  s  $
+				// +  -  *  /  \  <  <= >  >= <> =  (  )  i  f  ,  s  $
 				{1, 1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 3, 1}, // +
 				{1, 1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 3, 1}, // -
 				{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 3, 1}, // *
 				{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 3, 1}, // /
-				{1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 0, 1}, // '\'
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // <
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // <=
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // >
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // >=
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // <>
-				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 0, 1}, // =
+				{1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 1, 3, 1}, // '\'
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // <
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // <=
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // >
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // >=
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // <>
+				{3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 3, 1, 3, 3, 0, 3, 1}, // =
 				{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 2, 3, 3, 0, 3, 0}, // (
 				{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1}, // )
 				{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1}, // i
 				{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0}, // f
 				{3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 3, 1, 3, 3, 1, 3, 0}, // ,
-				{1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1}, // s
+				{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1}, // s
 				{3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 0, 3, 0}, // $
 };
 
@@ -49,49 +49,62 @@ const char *const pole_err[] = {
 				"krat",
 				"deleno real",
 				"deleno int",
-				"vetsi",
-				"vetsi rovno",
-				"mensi",
-				"mensi rovno",
-				"nerovno",
-				"rovno",
+				"vetsi vyraz",
+				"vetsi rovno vyraz",
+				"mensi vyraz",
+				"mensi rovno vyraz",
+				"nerovno vyraz",
+				"rovno vyraz",
+				"vetsi retezec",
+				"vetsi rovno retezec",
+				"mensi retezec",
+				"mensi rovno retezec",
+				"nerovno retezec",
+				"rovno retezec",
 				"unarni minus",
 				"id",
-				"zavorky",
+				"zavorky vyraz",
+				"zavorky retezec",
 				"funkce expr",
 				"funkce str",
 				"retezec",
 				"konkatenace",
 				"parametry (carka) expr",
-				"parametry (carka) exp"
-								"r str",
+				"parametry (carka) expr str",
 				"parametry (carka) str expr",
 				"parametry (carka) str",
 };
 
 static unsigned char g_PrecedentRules[NUM_OF_RULES][RULE_ELEMENTS] = {
-				{NT_EXPRESSION,   T_OPERATOR_PLUS,        NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //0
-				{NT_EXPRESSION,   T_OPERATOR_MINUS,       NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //1
-				{NT_EXPRESSION,   T_OPERATOR_MULTIPLY,    NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //2
-				{NT_EXPRESSION,   T_OPERATOR_REAL_DIVIDE, NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //3
+				{NT_EXPRESSION,   T_OPERATOR_PLUS,        NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //0
+				{NT_EXPRESSION,   T_OPERATOR_MINUS,       NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //1
+				{NT_EXPRESSION,   T_OPERATOR_MULTIPLY,    NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //2
+				{NT_EXPRESSION,   T_OPERATOR_REAL_DIVIDE, NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //3
 				{NT_EXPRESSION,   T_OPERATOR_INT_DIVIDE,  NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //4
-				{NT_EXPRESSION,   T_OPERATOR_GRT,         NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //5
-				{NT_EXPRESSION,   T_OPERATOR_GRT_EQ,      NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //6
-				{NT_EXPRESSION,   T_OPERATOR_LESS,        NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //7
-				{NT_EXPRESSION,   T_OPERATOR_LESS_EQ,     NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //8
-				{NT_EXPRESSION,   T_OPERATOR_NOT_EQ,      NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //9
-				{NT_EXPRESSION,   T_OPERATOR_EQUAL,       NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //10
-				{NT_EXPRESSION,   T_OPERATOR_MINUS, 			NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //11
-				{T_ID,     				NO_NEXT_VAL_FOR_RULE,   NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //12
-				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, 			NO_NEXT_VAL_FOR_RULE}, //13
-				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, 			T_FUNCTION					}, //14
-				{T_RIGHT_BRACKET, NT_STRING,          		T_LEFT_BRACKET, 			T_FUNCTION					}, //15
-				{T_STRING, 				NO_NEXT_VAL_FOR_RULE,   NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //16
-				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      			NO_NEXT_VAL_FOR_RULE}, //17
-				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  			NO_NEXT_VAL_FOR_RULE}, //18
-				{NT_EXPRESSION,		T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //19
-				{NT_STRING,				T_COMMA,								NT_EXPRESSION,				NO_NEXT_VAL_FOR_RULE}, //20
-				{NT_STRING,				T_COMMA,								NT_STRING,						NO_NEXT_VAL_FOR_RULE}, //21
+				{NT_EXPRESSION,   T_OPERATOR_GRT,         NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //5
+				{NT_EXPRESSION,   T_OPERATOR_GRT_EQ,      NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //6
+				{NT_EXPRESSION,   T_OPERATOR_LESS,        NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //7
+				{NT_EXPRESSION,   T_OPERATOR_LESS_EQ,     NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //8
+				{NT_EXPRESSION,   T_OPERATOR_NOT_EQ,      NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //9
+				{NT_EXPRESSION,   T_OPERATOR_EQUAL,       NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //10
+				{NT_STRING,       T_OPERATOR_GRT,         NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //11
+				{NT_STRING,       T_OPERATOR_GRT_EQ,      NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //12
+				{NT_STRING,       T_OPERATOR_LESS,        NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //13
+				{NT_STRING,       T_OPERATOR_LESS_EQ,     NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //14
+				{NT_STRING,       T_OPERATOR_NOT_EQ,      NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //15
+				{NT_STRING,       T_OPERATOR_EQUAL,       NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //16
+				{NT_EXPRESSION,   T_OPERATOR_MINUS, NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //17
+				{T_ID,     NO_NEXT_VAL_FOR_RULE,    NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //18
+				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, NO_NEXT_VAL_FOR_RULE}, //19
+				{T_RIGHT_BRACKET, NT_STRING,              T_LEFT_BRACKET, NO_NEXT_VAL_FOR_RULE}, //20
+				{T_RIGHT_BRACKET, NT_EXPRESSION,          T_LEFT_BRACKET, T_FUNCTION}, //21
+				{T_RIGHT_BRACKET, NT_STRING,              T_LEFT_BRACKET, T_FUNCTION}, //22
+				{T_STRING, NO_NEXT_VAL_FOR_RULE,    NO_NEXT_VAL_FOR_RULE, NO_NEXT_VAL_FOR_RULE}, //23
+				{NT_STRING,       T_OPERATOR_PLUS,        NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //24
+				{NT_EXPRESSION,   T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //25
+				{NT_EXPRESSION,   T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //26
+				{NT_STRING,       T_COMMA,                NT_EXPRESSION,  NO_NEXT_VAL_FOR_RULE}, //27
+				{NT_STRING,       T_COMMA,                NT_STRING,      NO_NEXT_VAL_FOR_RULE}, //28
 };
 
 bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* field) {
@@ -171,7 +184,7 @@ bool ApplyPrecRule(Stack* s, bool is_in_func, size_t line_num, IdxTerminalPair* 
 
 		SemanticError(line_num, ER_SMC_STR_AND_NUM, NULL);
 	}
-	// Missing operator
+		// Missing operator
 	else if (((buffer[0] == NT_EXPRESSION) && (buffer[1] == NT_EXPRESSION)) ||
 					 ((buffer[1] == NT_EXPRESSION) && (buffer[2] == NT_EXPRESSION))) {
 		SemanticError(line_num, ER_SMC_MISSING_OP,
@@ -309,7 +322,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 				// podminka resici pokud je na zasobniku minus a po nem zacatek a nebo leva zavorka, tak
 				// je minus unarni
 				if((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->pre_terminal == T_LEFT_BRACKET)
-																													|| field->pre_terminal == T_EOL)){
+																												 || field->pre_terminal == T_EOL)) {
 					unaryMinus = true;
 				}
 
@@ -318,7 +331,7 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t line_num, bool is_in_func, 
 				field->incoming_term = (Terminal) TERMINAL_OPERATOR_SHIFT + op_field_idx;
 				Terminal tmp = GetSymbolOneDown(s);
 				if((tmp >= T_OPERATOR_MULTIPLY) && (tmp <= T_OPERATOR_INT_DIVIDE) &&
-								(field->incoming_term == T_OPERATOR_MINUS)){
+					 (field->incoming_term == T_OPERATOR_MINUS)) {
 					field->cell_value = HIGHER_PR;
 					return;
 				}

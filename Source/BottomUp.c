@@ -59,7 +59,7 @@ Terminal BottomUp(size_t line_num, Terminal keyword) {
 	while (1) {
 		FindInTable(stack, &values, line_num, false, keyword);
 
-		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
+		if ((values.rule >= ADD_RULE) && (values.rule <= EQ_EXPR_RULE)) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
@@ -187,12 +187,12 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 	while (1) {
 		FindInTable(s, &values, line_num, is_in_func, keyword);
 
-		if((values.rule >= ADD_RULE) && (values.rule <= EQ_RULE)){
+		if ((values.rule >= ADD_RULE) && (values.rule <= EQ_EXPR_RULE)) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
 			g_typeBufferStash.index--;
 			if((g_typeBufferStash.allocated[g_typeBufferStash.index] == T_DOUBLE) ||
-							(g_typeBufferStash.allocated[g_typeBufferStash.index-1] == T_DOUBLE)){
+				 (g_typeBufferStash.allocated[g_typeBufferStash.index - 1] == T_DOUBLE)) {
 
 				if(values.rule == INT_DIVIDE_RULE) {
 					SemanticError(line_num, ER_SMC_INT_DIV, NULL);
@@ -231,11 +231,11 @@ int FuncParams(Stack* s, IdxTerminalPair values, size_t line_num, Terminal keywo
 		}
 		// prichozi token byl identifikator, funkce a nebo retezec
 		if((values.incoming_term == T_ID) || (values.incoming_term == T_STRING) ||
-						(values.incoming_term == T_FUNCTION)){
+			 (values.incoming_term == T_FUNCTION)) {
 			// mezi double -> int && int -> double ___ je implicitni konverze takze se
 			// kontroluje pouze pokud neprichazi string a neni ocekavane neco jineho nebo naopak
 			if(((values.type == T_STRING) && (params[actParamCnt] != T_STRING)) ||
-							((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
+				 ((values.type != T_STRING) && (params[actParamCnt] == T_STRING))) {
 				SemanticError(line_num, ER_SMC_ARG_TYPES, func_name);
 				break;
 			}
