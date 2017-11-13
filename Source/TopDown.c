@@ -106,7 +106,6 @@ bool ParseProgram(void) {
 	bool endFlag = false; //Narazili jsme na terminal T_END
 	size_t paramCount = 0; //Pomocne pocitadlo parametru funkce
 
-
 	const char* value;
 	Variable* variable = NULL;
 	Function* function = NULL;
@@ -126,6 +125,29 @@ bool ParseProgram(void) {
 	symbolType = GetSymbolType(stack);
 	terminal = GetTokenTerminal(token);
 	PushToken(token);
+
+	//Length(s AS STRING) AS INTEGER
+	function = InsertFunction("length", false, 0);
+	function->returnType = T_INTEGER;
+	AddParameter(function, T_STRING);
+
+	//SubStr(s AS STRING, i AS INTEGER, n AS INTEGER) AS STRING
+	function = InsertFunction("substr", false, 0);
+	function->returnType = T_STRING;
+	AddParameter(function, T_STRING);
+	AddParameter(function, T_INTEGER);
+	AddParameter(function, T_INTEGER);
+
+	//Asc(s AS STRING, i AS INTEGER) AS INTEGER
+	function = InsertFunction("asc", false, 0);
+	function->returnType = T_INTEGER;
+	AddParameter(function, T_STRING);
+	AddParameter(function, T_INTEGER);
+
+	//Chr(i AS INTEGER) AS STRING
+	function = InsertFunction("chr", false, 0);
+	function->returnType = T_STRING;
+	AddParameter(function, T_INTEGER);
 
 	//Hlavni smycka syntakticke analyzy
 	Code result = ANALYSIS_CONTINUE;
@@ -200,6 +222,7 @@ bool ParseProgram(void) {
 
 						case T_IF:
 							if (endFlag) {
+								InsertRule(RULE_END_IF);
 								GenerateCode();
 								EndSubScope();
 							}
@@ -232,6 +255,7 @@ bool ParseProgram(void) {
 								InsertRule(RULE_ELSEIF);
 							}
 							break;
+
 
 						case T_OPERATOR_EQUAL:
 						case T_OPERATOR_PLUS_EQ:
