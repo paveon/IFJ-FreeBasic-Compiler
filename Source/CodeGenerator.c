@@ -317,7 +317,7 @@ void PushString(char *newString) {
 	if (g_Code.size - g_Code.used <= length) {
 		uchar* tmp;
 		if ((tmp = realloc(g_Code.buffer, sizeof(uchar) * (g_Code.size + CODE_CHUNK))) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Code.buffer = tmp;
 		if (g_Code.size == 0) {
@@ -341,7 +341,7 @@ void PushWLabel (void) {
 		unsigned int* tmp;
 		g_WLabels.size += RULE_CHUNK;
 		if ((tmp = realloc(g_WLabels.labels, sizeof(unsigned int*) * g_WLabels.size)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_WLabels.labels = tmp;
 	}
@@ -365,7 +365,7 @@ void PushIfLabel (void) {
 		unsigned int* tmp;
 		g_IfLabels.size += RULE_CHUNK;
 		if ((tmp = realloc(g_IfLabels.labels, sizeof(unsigned int*) * g_IfLabels.size)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_IfLabels.labels = tmp;
 	}
@@ -394,7 +394,7 @@ void PushToken(Token* token) {
 		Token** tmp;
 		g_Tokens.size += RULE_CHUNK;
 		if ((tmp = realloc(g_Tokens.array, sizeof(Token*) * g_Tokens.size)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Tokens.array = tmp;
 	}
@@ -419,7 +419,7 @@ void InsertRule(size_t ruleID) {
 		uchar* newBuffer;
 		g_Rules.size += RULE_CHUNK;
 		if ((newBuffer = realloc(g_Rules.buffer, sizeof(uchar) * g_Rules.size)) == NULL) {
-			FatalError(ER_FATAL_INTERNAL);
+			FatalError(ER_FATAL_ALLOCATION);
 		}
 		g_Rules.buffer = newBuffer;
 	}
