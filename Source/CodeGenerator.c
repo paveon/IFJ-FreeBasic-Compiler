@@ -391,4 +391,14 @@ void GeneratorCleanup(void) {
 		g_Tokens.array = NULL;
 		g_Tokens.used = g_Tokens.size = 0;
 	}
+	if (g_WLabels.labels) {
+		free(g_WLabels.labels);
+		g_WLabels.labels = NULL;
+		g_WLabels.used = g_Tokens.size = 0;
+	}
+	if (g_IfLabels.labels) {
+		free(g_IfLabels.labels);
+		g_IfLabels.labels = NULL;
+		g_IfLabels.used = g_Tokens.size = 0;
+	}
 }
