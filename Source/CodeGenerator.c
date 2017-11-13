@@ -40,6 +40,9 @@ const void* FindID(int *tokenPos);
 void PushWLabel (void);
 unsigned int TopWLabel(void);
 void PopWLabel(void);
+void PushIfLabel(void);
+unsigned int TopIfLabel(void);
+void PopIfLabel(void);
 
 
 
@@ -75,7 +78,7 @@ void GenerateCode(void) {
 		for (size_t j = 0; j < g_Rules.used; j++) {
 			memset(tmp, 0, CODE_CHUNK);
 			rule = (int)g_Rules.buffer[j];
-			printf ("pravidla: %d\n", rule);
+			//printf ("pravidla: %d\n", rule);
 
 			switch (rule) {
 				case RULE_EPSILON: // 1
@@ -119,9 +122,7 @@ void GenerateCode(void) {
 				case RULE_ST_WHILE: // 15
 					// TODO  ...jumpy podla vyrazov
 					PushWLabel();
-					printf ("A\n");
 					sprintf(tmp, "LABEL LF@_wlabel_%d\n", TopWLabel());
-					printf ("B\n");
 					PushString(tmp);
 					PushWLabel();
 					sprintf(tmp, "JUMPIFEQ LF@_wlabel_%d false X\n", TopWLabel()); // TODO podla vyrazov
@@ -129,7 +130,29 @@ void GenerateCode(void) {
 					break;
 				case RULE_ST_IF: // 17
 					// TODO jumpy podla toho ako to bude s vyrazmi
-
+					PushIfLabel();
+					sprintf(tmp, "JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel()); // TODO s vyrazmi
+					PushString(tmp);
+					break;
+				case RULE_ELSEIF: // 18
+					sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
+					PopIfLabel();
+					PushString(tmp);
+					PushIfLabel();
+					sprintf(tmp, "JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel());
+					PushString(tmp);
+					break;
+				case RULE_ELSE: // 20
+					sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
+					PopIfLabel();
+					PushString(tmp);
+					break;
+				case RULE_END_IF: // 21
+					if (g_IfLabels.used > 0) {
+						sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
+						PopIfLabel();
+						PushString(tmp);
+					}
 					break;
 				case	RULE_VAR_INIT: // 22
 					if (isGlobal) {
@@ -326,13 +349,39 @@ void PushWLabel (void) {
 
 
 unsigned int TopWLabel(void) {
-	printf ("lavels used: %d\n", g_WLabels.used);
 	return g_WLabels.labels[g_WLabels.used-1];
 }
 
 void PopWLabel(void) {
 	g_WLabels.used--;
 }
+
+void PushIfLabel (void) {
+	if (g_IfLabels.used == g_IfLabels.size) {
+		//Zvetsime pole ukazatelu
+		unsigned int* tmp;
+		g_IfLabels.size += RULE_CHUNK;
+		if ((tmp = realloc(g_IfLabels.labels, sizeof(unsigned int*) * g_IfLabels.size)) == NULL) {
+			FatalError(ER_FATAL_INTERNAL);
+		}
+		g_IfLabels.labels = tmp;
+	}
+
+	g_IfLabels.labels[g_IfLabels.used++] = g_IfLabels.count;
+	g_IfLabels.count++;
+}
+
+
+unsigned int TopIfLabel(void) {
+	return g_IfLabels.labels[g_IfLabels.used-1];
+}
+
+void PopIfLabel(void) {
+	g_IfLabels.used--;
+}
+
+
+
 
 
 
