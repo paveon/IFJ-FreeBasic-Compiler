@@ -11,14 +11,14 @@
 #include <string.h>
 
 #define PREC_TABLE_SIZE 18
-#define NUM_OF_OPERATORS 10
-#define TERMINAL_OPERATOR_SHIFT 30
+#define NUM_OF_OPERATORS 11
 #define NO_NEXT_VAL_FOR_RULE 0
 #define NUM_OF_RULES 30
 #define RULE_ELEMENTS 4
+#define CONDITION_OP_SKIP 4
 
 const char* const OperatorField[NUM_OF_OPERATORS] = {"+", "-", "*", "/", "\\", "<", "<=", ">", ">=",
-																										 "<>"};
+																										 "<>", "="};
 
 // g_PrecedentTable[11][15] se muze rovnat i 3 (carka ve volani funkce)
 static unsigned char g_PrecedentTable[PREC_TABLE_SIZE][PREC_TABLE_SIZE] = {
@@ -311,39 +311,72 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t lineNum, bool isInFunc, Ter
 			field->incomTerm = T_RIGHT_BRACKET;
 			break;
 		case TOKEN_OPERATOR:
-			if (strcmp(tokenVal, "=") == 0) {
-				column = OPERATOR_EQ;
-				field->incomTerm = T_OPERATOR_EQUAL;
+			for (opFieldIdx = 0; (opFieldIdx < NUM_OF_OPERATORS) &&
+													 (strcmp(tokenVal, OperatorField[opFieldIdx]) != 0); opFieldIdx++);
+			if ((keyword != T_IF) && (keyword != T_WHILE) && (opFieldIdx > CONDITION_OP_SKIP)) {
+				SemanticError(lineNum, ER_SMC_COMPARATIVE_EXPR, NULL);
+				field->error = FINDING_FAILURE;
+				return;
 			}
-			else{
-				for (opFieldIdx = 0; (opFieldIdx < NUM_OF_OPERATORS) &&
-														 (strcmp(tokenVal, OperatorField[opFieldIdx]) != 0); opFieldIdx++);
-				if ((keyword != T_IF) && (keyword != T_WHILE) && (opFieldIdx > 4)) {
-					SemanticError(lineNum, ER_SMC_COMPARATIVE_EXPR, NULL);
-					field->error = FINDING_FAILURE;
-					return;
-				}
-				// podminka resici pokud je na zasobniku minus a po nem zacatek a nebo leva zavorka, tak
-				// je minus unarni
-				if ((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->preTerm == T_LEFT_BRACKET)
-																													|| field->preTerm == T_EOL)) {
-					unaryMinus = true;
-				}
+			// podminka resici pokud je na zasobniku minus a po nem zacatek a nebo leva zavorka, tak
+			// je minus unarni
+			if ((GetFirstTerminal(s) == T_OPERATOR_MINUS) && ((field->preTerm == T_LEFT_BRACKET)
+																												|| (field->preTerm == T_EOL) ||
+																												((field->preTerm >= T_OPERATOR_LESS) &&
+																												 (field->preTerm <= T_OPERATOR_NOT_EQ)) ||
+																												(field->preTerm == T_OPERATOR_EQUAL))) {
+				unaryMinus = true;
+			}
 
-				// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
-				column = opFieldIdx;
-				field->incomTerm = (Terminal) TERMINAL_OPERATOR_SHIFT + opFieldIdx;
-				Terminal tmp = GetSymbolOneDown(s);
-				if((tmp >= T_OPERATOR_MULTIPLY) && (tmp <= T_OPERATOR_INT_DIVIDE) &&
-					 (field->incomTerm == T_OPERATOR_MINUS)) {
-					field->cellValue = HIGHER_PR;
-					return;
-				}
-				// prichozi terminal je minus => do preTerm se zapise symbol pod znakem '-' =>
-				// T_UNDEFINED pokud je zde neterminal a pokud je terminal tak prislusny terminal
-				if (field->incomTerm == T_OPERATOR_MINUS) {
-					field->preTerm = GetSymbolOneDown(s);
-				}
+			// pomoci shiftu a indexu v operatorech vlozi index spravneho terminalu operatoru do zasobniku
+			column = opFieldIdx;
+			switch (opFieldIdx) {
+				case OPERATOR_PLUS:
+					field->incomTerm = T_OPERATOR_PLUS;
+					break;
+				case OPERATOR_MINUS:
+					field->incomTerm = T_OPERATOR_MINUS;
+					break;
+				case OPERATOR_MULTIPLY:
+					field->incomTerm = T_OPERATOR_MULTIPLY;
+					break;
+				case OPERATOR_REAL_DIVIDE:
+					field->incomTerm = T_OPERATOR_REAL_DIVIDE;
+					break;
+				case OPERATOR_INT_DIVIDE:
+					field->incomTerm = T_OPERATOR_INT_DIVIDE;
+					break;
+				case OPERATOR_LESS:
+					field->incomTerm = T_OPERATOR_LESS;
+					break;
+				case OPERATOR_LESS_EQ:
+					field->incomTerm = T_OPERATOR_LESS_EQ;
+					break;
+				case OPERATOR_GRT:
+					field->incomTerm = T_OPERATOR_GRT;
+					break;
+				case OPERATOR_GRT_EQ:
+					field->incomTerm = T_OPERATOR_GRT_EQ;
+					break;
+				case OPERATOR_NOT_EQ:
+					field->incomTerm = T_OPERATOR_NOT_EQ;
+					break;
+				case OPERATOR_EQ:
+					field->incomTerm = T_OPERATOR_EQUAL;
+					break;
+				default:
+					break;
+			}
+			Terminal tmp = GetSymbolOneDown(s);
+			if ((tmp >= T_OPERATOR_MULTIPLY) && (tmp <= T_OPERATOR_INT_DIVIDE) &&
+					(field->incomTerm == T_OPERATOR_MINUS)) {
+				field->cellValue = HIGHER_PR;
+				return;
+			}
+			// prichozi terminal je minus => do preTerm se zapise symbol pod znakem '-' =>
+			// T_UNDEFINED pokud je zde neterminal a pokud je terminal tak prislusny terminal
+			if (field->incomTerm == T_OPERATOR_MINUS) {
+				field->preTerm = GetSymbolOneDown(s);
 			}
 			break;
 		case TOKEN_SEMICOLON:
