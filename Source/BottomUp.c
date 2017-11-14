@@ -160,6 +160,8 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 	free(g_typeBufferStash.allocated);
 	g_typeBufferStash.allocated = NULL;
 	InsertRule(RULE_DELIMITER);
+	printf("***************************************\n\n");
+	printf("***************************************\n");
 	return type;
 }
 
