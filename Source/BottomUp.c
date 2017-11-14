@@ -54,7 +54,7 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 
 	AllocTypeBuffer();
 
-	InsertRule(255);
+	InsertRule(RULE_DELIMITER);
 	while (1) {
 		FindInTable(stack, &values, lineNum, false, keyword);
 
@@ -159,7 +159,7 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 	ReleaseStack(stack);
 	free(g_typeBufferStash.allocated);
 	g_typeBufferStash.allocated = NULL;
-	InsertRule(255);
+	InsertRule(RULE_DELIMITER);
 	return type;
 }
 

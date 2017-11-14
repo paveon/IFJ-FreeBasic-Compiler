@@ -435,11 +435,15 @@ bool ParseProgram(void) {
 												if (function->parameters[paramCount] != terminal) {
 													SemanticError(currentLine, ER_SMC_FUNC_PARAM_TYPE, function->name);
 												}
+												else {
+													variable->type = terminal;
+												}
 											}
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme parametr automaticky
 											AddParameter(function, terminal);
+											variable->type = terminal;
 										}
 									}
 									else {
@@ -616,6 +620,10 @@ bool ParseProgram(void) {
 							case RULE_END_IF:
 								break;
 
+							case RULE_FUNC_DEF:
+								PopToken();
+								GenerateCode();
+								PushToken(token);
 							default:
 								InsertRule(expansionRule);
 						}

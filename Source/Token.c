@@ -196,7 +196,7 @@ Terminal GetTokenTerminal(const Token* token) {
 
 int GetTokenInt(const Token* token) {
 	if (token->type == TOKEN_INTEGER) {
-		return *((int*) (*token->value));
+		return ((int*) (*token->value))[token->bufferIdx];
 	}
 	return -1;
 }
@@ -204,7 +204,7 @@ int GetTokenInt(const Token* token) {
 
 double GetTokenDouble(const Token* token) {
 	if (token->type == TOKEN_DOUBLE) {
-		return *((double*) (*token->value));
+		return ((double*) (*token->value))[token->bufferIdx];
 	}
 	return NAN;
 }
