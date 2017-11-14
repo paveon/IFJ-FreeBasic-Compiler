@@ -223,8 +223,6 @@ bool ParseProgram(void) {
 						case T_IF:
 							if (endFlag) {
 								InsertRule(RULE_END_IF);
-								GenerateCode();
-								EndSubScope();
 							}
 							else {
 								PopToken();
@@ -521,14 +519,17 @@ bool ParseProgram(void) {
 							break;
 
 						case T_EOL:
+							if (endFlag && preExpr == T_IF) {
+								GenerateCode();
+								EndSubScope();
+							}
+
 							//Konec radku ukoncuje deklarace
 							declareVar = false;
 							declareFunc = false;
 							declareArg = false;
 							checkExprType = false;
-							if (endFlag && preExpr != T_IF) {
-								endFlag = false;
-							}
+							endFlag = false;
 							if (defineFunc) {
 								defineFunc = false;
 								funcScope = true;
@@ -547,11 +548,7 @@ bool ParseProgram(void) {
 					symbolType = GetSymbolType(stack);
 					token = GetNextToken();
 					terminal = GetTokenTerminal(token);
-
-					//Preskocime EOL token, ktery patril do predchoziho bloku za END IF
-					if (!endFlag) {
-						PushToken(token);
-					}
+					PushToken(token);
 				}
 				else {
 					//Porovnani tokenu a vrcholu zasobniku selhalo -> syntakticka chyba
