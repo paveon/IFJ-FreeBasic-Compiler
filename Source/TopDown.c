@@ -522,7 +522,9 @@ bool ParseProgram(void) {
 							declareFunc = false;
 							declareArg = false;
 							checkExprType = false;
-							endFlag = false;
+							if (endFlag && preExpr != T_IF) {
+								endFlag = false;
+							}
 							if (defineFunc) {
 								defineFunc = false;
 								funcScope = true;
@@ -541,7 +543,11 @@ bool ParseProgram(void) {
 					symbolType = GetSymbolType(stack);
 					token = GetNextToken();
 					terminal = GetTokenTerminal(token);
-					PushToken(token);
+
+					//Preskocime EOL token, ktery patril do predchoziho bloku za END IF
+					if (!endFlag) {
+						PushToken(token);
+					}
 				}
 				else {
 					//Porovnani tokenu a vrcholu zasobniku selhalo -> syntakticka chyba
