@@ -25,6 +25,7 @@ int main(int argc, char* argv[]) {
 	printf("Parsing simple program...\n");
 	if (ParseProgram()) {
 		printf("Program parsed...\n");
+		OutputCode();
 	}
 	else {
 		fprintf(stderr, "Program contains an error!\n");

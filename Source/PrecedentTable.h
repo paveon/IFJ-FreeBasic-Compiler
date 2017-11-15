@@ -15,6 +15,8 @@
 
 #define FINDING_FAILURE 10
 #define EOF_FINDING_FAILURE 50
+#define RULE_DELIMITER 127
+
 
 typedef struct IdxTerminalPair {
 	size_t cellValue;
@@ -24,7 +26,7 @@ typedef struct IdxTerminalPair {
 	Terminal type;
 	Terminal* funcParams;
 	const char* funcName;
-	size_t rule;
+	int rule;
 	int error;
 }IdxTerminalPair;
 

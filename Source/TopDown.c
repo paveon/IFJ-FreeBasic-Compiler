@@ -107,8 +107,8 @@ bool ParseProgram(void) {
 	size_t paramCount = 0; //Pomocne pocitadlo parametru funkce
 
 	const char* value;
-	Variable* variable = NULL;
-	Function* function = NULL;
+	Variable* var = NULL;
+	Function* func = NULL;
 	Stack* stack = GetStack();
 	Token* token = GetNextToken();
 	TokenType tokenType;
@@ -127,27 +127,27 @@ bool ParseProgram(void) {
 	PushToken(token);
 
 	//Length(s AS STRING) AS INTEGER
-	function = InsertFunction("length", false, 0);
-	function->returnType = T_INTEGER;
-	AddParameter(function, T_STRING);
+	func = InsertFunction("length", false, 0);
+	func->returnType = T_INTEGER;
+	AddParameter(func, T_STRING);
 
 	//SubStr(s AS STRING, i AS INTEGER, n AS INTEGER) AS STRING
-	function = InsertFunction("substr", false, 0);
-	function->returnType = T_STRING;
-	AddParameter(function, T_STRING);
-	AddParameter(function, T_INTEGER);
-	AddParameter(function, T_INTEGER);
+	func = InsertFunction("substr", false, 0);
+	func->returnType = T_STRING;
+	AddParameter(func, T_STRING);
+	AddParameter(func, T_INTEGER);
+	AddParameter(func, T_INTEGER);
 
 	//Asc(s AS STRING, i AS INTEGER) AS INTEGER
-	function = InsertFunction("asc", false, 0);
-	function->returnType = T_INTEGER;
-	AddParameter(function, T_STRING);
-	AddParameter(function, T_INTEGER);
+	func = InsertFunction("asc", false, 0);
+	func->returnType = T_INTEGER;
+	AddParameter(func, T_STRING);
+	AddParameter(func, T_INTEGER);
 
 	//Chr(i AS INTEGER) AS STRING
-	function = InsertFunction("chr", false, 0);
-	function->returnType = T_STRING;
-	AddParameter(function, T_INTEGER);
+	func = InsertFunction("chr", false, 0);
+	func->returnType = T_STRING;
+	AddParameter(func, T_INTEGER);
 
 	//Hlavni smycka syntakticke analyzy
 	Code result = ANALYSIS_CONTINUE;
@@ -177,8 +177,9 @@ bool ParseProgram(void) {
 						case T_SCOPE:
 							if (endFlag) {
 								//Terminal END ve spojeni s terminalem SCOPE ukoncuje aktualni blok.
-								GenerateCode();
-								EndSubScope();
+								//Samotne generovani se provede az narazime na token EOL, ktery patri
+								//do stejneho bloku
+								preExpr = T_SCOPE;
 							}
 							else {
 								if (funcScope) {
@@ -248,6 +249,7 @@ bool ParseProgram(void) {
 							EndSubScope();
 							BeginSubScope();
 
+							//Pravidlo vlozime az po vygenerovani mezikodu pro predchozi blok
 							if (terminal == T_ELSE) {
 								InsertRule(RULE_ELSE);
 							}
@@ -299,93 +301,93 @@ bool ParseProgram(void) {
 								if (mainScope || funcScope) {
 									//Deklarace lokalni promenne v hlavnim tele programu nebo
 									//ve funkci. Muze prekryt globalni promenne
-									variable = LookupVariable(value, true, false);
+									var = LookupVariable(value, true, false);
 								}
 								else {
 									//Deklarace globalni promenne. Nachazime se na globalni
 									//urovni a proto je lokalni tabulka prazdna -> nedojde ke kolizi
-									variable = LookupVariable(value, true, true);
+									var = LookupVariable(value, true, true);
 								}
-								if (variable) {
+								if (var) {
 									//Promenna jiz existuje (redeklarace)
-									SemanticError(currentLine, ER_SMC_VAR_REDECL, variable->name);
-									variable = NULL; //Nechceme dale upravovat originalni deklaraci
+									SemanticError(currentLine, ER_SMC_VAR_REDECL, var->name);
+									var = NULL; //Nechceme dale upravovat originalni deklaraci
 								}
 								else {
 									//Vytvorime novou promennou, pouzijeme informaci o tom, zda se
 									//nachazime v hlavnim tele programu a na zaklade teto informace
 									//vytvorime lokalni / globalni promennou
 									bool isGlobal = !funcScope && !mainScope;
-									variable = InsertVariable(value, isGlobal, currentLine);
+									var = InsertVariable(value, isGlobal, currentLine);
 									if (staticFlag) {
-										variable->staticVariable = true;
+										var->staticVariable = true;
 										staticFlag = false;
 									}
 								}
 							}
 							else if (declareFunc && !declareArg) {
-								function = LookupFunction(value);
-								if (function) {
+								func = LookupFunction(value);
+								if (func) {
 									//Chybove stavy
-									if (function->declaration == false) {
+									if (func->declaration == false) {
 										//Pozdni deklarace jiz definovane funkce
-										SemanticError(currentLine, ER_SMC_FUNC_DECL_AFTER_DEF, function->name);
+										SemanticError(currentLine, ER_SMC_FUNC_DECL_AFTER_DEF, func->name);
 									}
 									else {
 										//Redeklarace
-										SemanticError(currentLine, ER_SMC_FUNC_REDECL, function->name);
+										SemanticError(currentLine, ER_SMC_FUNC_REDECL, func->name);
 									}
 
 									//Nechceme dale upravovat redeklaraci a pouzivame originalni verzi
-									function = NULL;
+									func = NULL;
 								}
 								else {
 									//Funkce zatim nebyla deklarovana ani definovana
-									function = InsertFunction(value, true, currentLine);
-									AddDeclaration(function); //Jedna se o deklaraci
+									func = InsertFunction(value, true, currentLine);
+									AddDeclaration(func); //Jedna se o deklaraci
 								}
 							}
 							else if (defineFunc) {
 								if (declareArg) {
 									//Identifikator parametru funkce, hledame pouze lokalni promenne
-									variable = LookupVariable(value, true, false);
-									if (variable) {
+									var = LookupVariable(value, true, false);
+									if (var) {
 										//Dva parametry funkce se stejnym nazvem
-										SemanticError(currentLine, ER_SMC_FUNC_PARAM_REDEF, function->name);
+										SemanticError(currentLine, ER_SMC_FUNC_PARAM_REDEF, func->name);
 									}
-									else if (function) {
-										if (function->declaration) {
+									else if (func) {
+										if (func->declaration) {
 											//Pripadna neshoda poctu parametru bude
 											//vypisem resena az pri ukonceni seznamu parametru
 											// (T_RIGHT_BRACKET)
 											paramCount++;
 
 											//Parametry ovsem nevytvarime, pokud pocet nesedi
-											if (paramCount <= (function->argCount)) {
-												variable = InsertVariable(value, false, currentLine);
+											if (paramCount <= (func->argCount)) {
+												var = InsertVariable(value, false, currentLine);
 											}
 										}
 										else {
 											//Neexistuje deklarace, muzeme parametry vytvaret libovolne
-											variable = InsertVariable(value, false, currentLine);
+											var = InsertVariable(value, false, currentLine);
 										}
 									}
 								}
 								else {
-									function = LookupFunction(value);
-									if (function) {
-										if (function->declaration == false) {
+									func = LookupFunction(value);
+									if (func) {
+										if (func->declaration == false) {
 											//Redefinice
-											SemanticError(currentLine, ER_SMC_FUNC_REDEF, function->name);
+											SemanticError(currentLine, ER_SMC_FUNC_REDEF, func->name);
 										}
 										else {
 											//Jiz existuje deklarace, kterou timto stvrzujeme
-											ConfirmDeclaration(function);
+											ConfirmDeclaration(func);
 										}
 									}
 									else {
 										//Definice bez existujici deklarace
-										function = InsertFunction(value, false, currentLine);
+										func = InsertFunction(value, false, currentLine);
 									}
 								}
 							}
@@ -393,8 +395,8 @@ bool ParseProgram(void) {
 
 							if ((funcScope || mainScope) && !declareVar) {
 								//Pristup k promenne. Je nutne zkontrolovat existenci
-								variable = LookupVariable(value, false, true);
-								if (variable == NULL) {
+								var = LookupVariable(value, false, true);
+								if (var == NULL) {
 									//Neexistujici promenna
 									SemanticError(currentLine, ER_SMC_VAR_UNDEF, value);
 								}
@@ -412,53 +414,53 @@ bool ParseProgram(void) {
 						case T_STRING:
 							if (declareVar) {
 								//Typy promennych
-								if (variable) {
+								if (var) {
 									//Nastavime typ promenne
-									variable->type = terminal;
+									var->type = terminal;
 								}
 							}
-							else if (function) {
+							else if (func) {
 								if (declareFunc) {
 									if (declareArg) {
 										//Specifikace typu parametru pri deklaraci
-										AddParameter(function, terminal);
+										AddParameter(func, terminal);
 									}
 									else {
 										//Specifikace navratoveho typu pri deklaraci
-										function->returnType = terminal;
+										func->returnType = terminal;
 									}
 								}
 								else if (defineFunc) {
 									if (declareArg) {
-										if (function->declaration) {
+										if (func->declaration) {
 											//Je k dispozici deklarace, porovname typy parametru
-											if (paramCount < (function->argCount)) {
+											if (paramCount < (func->argCount)) {
 												//Muzeme porovnavat, pouze pokud parametr
 												//existuje i u deklarace (pokud ne, chyba se projevi dale)
-												if (function->parameters[paramCount] != terminal) {
-													SemanticError(currentLine, ER_SMC_FUNC_PARAM_TYPE, function->name);
+												if (func->parameters[paramCount] != terminal) {
+													SemanticError(currentLine, ER_SMC_FUNC_PARAM_TYPE, func->name);
 												}
 												else {
-													variable->type = terminal;
+													var->type = terminal;
 												}
 											}
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme parametr automaticky
-											AddParameter(function, terminal);
-											variable->type = terminal;
+											AddParameter(func, terminal);
+											var->type = terminal;
 										}
 									}
 									else {
-										if (function->declaration) {
+										if (func->declaration) {
 											//Je k dispozici deklarace, porovname navratove typy
-											if (function->returnType != terminal) {
-												SemanticError(currentLine, ER_SMC_FUNC_RETURN_TYPE, function->name);
+											if (func->returnType != terminal) {
+												SemanticError(currentLine, ER_SMC_FUNC_RETURN_TYPE, func->name);
 											}
 										}
 										else {
 											//Deklarace neexistuje, nastavujeme navratovy typ automaticky
-											function->returnType = terminal;
+											func->returnType = terminal;
 										}
 									}
 								}
@@ -488,10 +490,11 @@ bool ParseProgram(void) {
 						case T_FUNCTION:
 							if (endFlag) {
 								//Terminal END ve spojeni s terminalem FUNCTION ukoncuje telo funkce.
-								//Provede se vycisteni lokalnich tabulek.
+								//Samotne generovani se zavola az kdyz narazime na token EOL. Po
+								//Generovani se vycisti lokalni tabulky.
+								InsertRule(RULE_FUNC_BODY_END); //Umele pravidlo pro rozpoznani konce tela
+								preExpr = T_FUNCTION;
 								funcScope = false;
-								GenerateCode();
-								EndScope();
 							}
 							else {
 								if (!declareFunc) {
@@ -509,10 +512,10 @@ bool ParseProgram(void) {
 						case T_RIGHT_BRACKET:
 							//Konec deklarace parametru
 							declareArg = false;
-							if (defineFunc && function && function->declaration) {
+							if (defineFunc && func && func->declaration) {
 								//Pri definici se musi pocet parametru rovnat poctu parametru v deklaraci
-								if (paramCount != (function->argCount)) {
-									SemanticError(currentLine, ER_SMC_FUNC_PARAM_COUNT, function->name);
+								if (paramCount != (func->argCount)) {
+									SemanticError(currentLine, ER_SMC_FUNC_PARAM_COUNT, func->name);
 								}
 							}
 							//Resetujeme pocitadlo parametru
@@ -524,9 +527,22 @@ bool ParseProgram(void) {
 							break;
 
 						case T_EOL:
-							if (endFlag && (preExpr == T_IF || preExpr == T_WHILE)) {
-								GenerateCode();
-								EndSubScope();
+							if (endFlag) {
+								switch (preExpr) {
+									case T_SCOPE:
+									case T_IF:
+									case T_WHILE:
+										GenerateCode();
+										EndSubScope();
+										break;
+									case T_FUNCTION:
+										GenerateCode();
+										EndScope();
+										break;
+
+									default:
+										break;
+								}
 							}
 
 							//Konec radku ukoncuje deklarace
@@ -544,6 +560,10 @@ bool ParseProgram(void) {
 							currentLine++;
 							break;
 
+						case T_UNDEFINED:
+							//TODO: chyba lexikalni analyzy
+							FatalError(ER_FATAL_WRITE);
+							break;
 						default:
 							break;
 					}
@@ -580,26 +600,26 @@ bool ParseProgram(void) {
 					if (checkExprType) {
 						if (preExpr == T_RETURN) {
 							//Zkontrolujeme typ navratove hodnoty
-							if (function == NULL) {
+							if (func == NULL) {
 								//Interni chyba, nevim jestli k ni vubec muze dojit, nejspis ne
 								fprintf(stderr, "Internal error: function reference not available!\n");
 							}
-							else if (exprType == T_STRING && function->returnType != T_STRING) {
+							else if (exprType == T_STRING && func->returnType != T_STRING) {
 								//Jazyk podporuje implicitni typove konverze mezi typy double a integer,
 								//proto staci kontrolovat pouze pokud je vyraz typu string
-								SemanticError(currentLine, ER_SMC_FUNC_RETURN_EXPR, function->name);
+								SemanticError(currentLine, ER_SMC_FUNC_RETURN_EXPR, func->name);
 							}
 						}
 						else {
 							//Zkontrolujeme typ vyrazu
-							if (variable == NULL) {
+							if (var == NULL) {
 								//Interni chyba, nevim jestli k ni vubec muze dojit, nejspis ne
 								fprintf(stderr, "Internal error: variable reference not available!\n");
 							}
-							else if (exprType == T_STRING && variable->type != T_STRING) {
+							else if (exprType == T_STRING && var->type != T_STRING) {
 								//Jazyk podporuje implicitni typove konverze mezi typy double a integer,
 								//proto staci kontrolovat pouze pokud je vyraz typu string
-								SemanticError(currentLine, ER_SMC_VAR_TYPE, variable->name);
+								SemanticError(currentLine, ER_SMC_VAR_TYPE, var->name);
 							}
 						}
 					}
@@ -622,6 +642,7 @@ bool ParseProgram(void) {
 							case RULE_END_IF:
 								break;
 
+							case RULE_MAIN_SCOPE:
 							case RULE_FUNC_DEF:
 								PopToken();
 								GenerateCode();
