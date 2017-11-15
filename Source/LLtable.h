@@ -42,7 +42,8 @@ typedef enum Rules {
 	RULE_OP_INT_DIV_EQ,  // 33
 	RULE_OP_REAL_DIV_EQ,  // 34
 	RULE_ST_WHILE_END, //35 - umele pravidlo pro rozpoznani konce while smycky
-	RULE_FUNC_BODY_END //36 - umele pravidlo pro rozpoznani konce tela funkce
+	RULE_FUNC_BODY_END, //36 - umele pravidlo pro rozpoznani konce tela funkce
+	RULE_END_SCOPE //37 - umele pravidlo pro rozpoznani konce scopu
 } Rules;
 
 typedef unsigned char Rule;

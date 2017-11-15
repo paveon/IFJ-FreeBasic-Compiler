@@ -179,14 +179,12 @@ bool ParseProgram(void) {
 								//Terminal END ve spojeni s terminalem SCOPE ukoncuje aktualni blok.
 								//Samotne generovani se provede az narazime na token EOL, ktery patri
 								//do stejneho bloku
+								InsertRule(RULE_END_SCOPE); //Umele pravidlo pro rozpoznani konce tela
 								preExpr = T_SCOPE;
 							}
 							else {
 								if (funcScope) {
 									//Nachazime se ve funkci, provedeme zanoreni
-									PopToken(); //Token scope jiz do bloku nepatri
-									GenerateCode();
-									PushToken(token); //Patri do nasledujiciho bloku
 									BeginSubScope();
 								}
 								else {
@@ -642,7 +640,7 @@ bool ParseProgram(void) {
 							case RULE_END_IF:
 								break;
 
-							case RULE_MAIN_SCOPE:
+							case RULE_NEW_SCOPE:
 							case RULE_FUNC_DEF:
 								PopToken();
 								GenerateCode();
