@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
 	BeginSubScope();
 	EndSubScope();
 
-	OutputCode();
+	//OutputCode();
 
 	TokenCleanup();
 	TableCleanup();

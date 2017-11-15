@@ -63,9 +63,10 @@ const char* operators[] = {
 };
 
 
-
 void PushString(char* instruction, ...);
+void PushStringData(char* instruction, ...);
 char *TypeToStringForInit(Terminal type);
+const char* TypeToString(Terminal type);
 char *ScopeToString(bool global);
 const void* FindID();
 void PushWLabel (void);
@@ -90,6 +91,7 @@ void CleanArray();
 //Globalni staticka promenna pro jednodussi spravu pameti
 static Buffer g_Rules;
 static Buffer g_Code;
+static Buffer g_DataCode;
 static TokenArray g_Tokens;
 static Labels g_WLabels;
 static Labels g_IfLabels;
@@ -97,6 +99,7 @@ static FuncANDTypeArray g_funcField;
 static FuncANDTypeArray g_typeArray;
 const char ConditionVar[] = "GF@_eXpVariablE756158";
 const char GlobalScopeLabel[] = "GF@_gLobalScopELabel7785";
+const char TmpIOvar[] = "___tmpIOvar___";
 
 /* Pomocne premenne pre vyrazy...asi ich bude treba viac, lebo na zaciatku neviem ake typy im dat... */
 const char *ExpressionVars [] = {"GF@$ExpresioNVarNum1",
@@ -123,6 +126,7 @@ void GenerateCode(void) {
 	const void* value;
 	Variable *var;
 	bool elseWasUsed = false;
+	printf("PICOVINA\n");
 
 	if (g_Rules.used > 0) {
 		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
@@ -133,7 +137,7 @@ void GenerateCode(void) {
 		putchar('\n');
 		for (; g_Rules.index < g_Rules.used; g_Rules.index++) {
 			rule = (int)g_Rules.buffer[g_Rules.index];
-			//printf ("pravidla: %d\n", rule);
+			printf ("pravidla: %d\n", rule);
 			//printf ("g_Tokens.index: %d\n", g_Tokens.index);
 
 			switch (rule) {
@@ -141,6 +145,10 @@ void GenerateCode(void) {
 					break;
 				case RULE_MAIN_SCOPE: // 2
 					isGlobal = false;
+					for (int i = 0; i < 5; i++) {
+						PushStringData("DEFVAR GF@%s\n", ExpressionVars[i]); // TODO co dat do MOVE?
+					}
+					PushStringData("JUMP %s\n", GlobalScopeLabel);
 					PushString("LABEL %s\n", GlobalScopeLabel);
 					break;
 				case RULE_FUNC_DECL: // 3
@@ -152,7 +160,7 @@ void GenerateCode(void) {
 					PushString("LABEL GF@%s\n", (char*)value);
 					PushString("CREATEFRAME\n");
 					PushString("PUSHFRAME\n");
-					// TODO
+
 					break;
 				case RULE_FUNC_ARG: // 7
 					value = FindID();
@@ -174,7 +182,7 @@ void GenerateCode(void) {
 					value = FindID ();
 					var = LookupGlobalVariable((const char*)value);
 					//sprintf (tmp, "DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
-					PushString("DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
+					PushStringData("DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
 					break;
 
 				case RULE_ST_VAR_DECL: // 10
@@ -185,16 +193,24 @@ void GenerateCode(void) {
 					break;
 				case RULE_ST_VAR_STATIC: // 11
 					value = FindID ();
-					var = LookupGlobalVariable((const char*)value);
-					// TODO staticke
+					do {
+						var = LookupVariable((const char*) value, false, true);
+					} while(var != NULL && var->staticVariable == false);
+					PushStringData("DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name,(int)var->codeLine, var->name,(int)var->codeLine, TypeToStringForInit(var->type));
+
+					break;
+				case RULE_ST_INPUT: // 13
+					value = FindID();
+					var = LookupVariable((const char*) value, false, true);
+					PushString("READ %s@%s_%d %s\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine, TypeToString(var->type)); // TODO aj bool? vid. zadanie
 					break;
 				case RULE_ST_PRINT: // 14
-					//sprintf(tmp, "WRITE <symb>;\n"); // TODO.. token na printenie nepride?
 					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_KEYWORD || strcmp (GetTokenValue(g_Tokens.array[g_Tokens.index]), "PRINT") != 0) g_Tokens.index++;
 					g_Tokens.index++; //posunie na prvy token vyrazu
 					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
 					GenerateExpr();
-					//PushString("WRITE <symb>;\n");
+					PushString("POPS GF@%s\n", TmpIOvar);
+					PushString("WRITE GF@%s;\n", TmpIOvar);
 					break;
 				case RULE_ST_WHILE: // 15
 					PushWLabel();
@@ -222,7 +238,7 @@ void GenerateCode(void) {
 					GenerateExpr();
 					PushString("POPFRAME\n");
 					PushString("RETURN\n");
-					// TODO POPFRAME a RETURN az po vyrazoch
+
 					break;
 				case RULE_ST_IF: // 17
 					PushIfLabel();
@@ -259,14 +275,19 @@ void GenerateCode(void) {
 					}
 					elseWasUsed = false;
 					break;
-				case RULE_NEXT_EXPR: // 21 TODO
+				case RULE_NEXT_EXPR: // 21
+					//g_Tokens.index += 2; //posunie na prvy token vyrazu
+					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
+					printf("token type %d, value: %d\n", GetTokenType(g_Tokens.array[g_Tokens.index]), GetTokenInt(g_Tokens.array[g_Tokens.index]));
+					GenerateExpr();
+					PushString("POPS GF@%s\n", TmpIOvar); // TODO pomocnu premennu
+					PushString("WRITE GF@%s;\n", TmpIOvar); // TODO
 					break;
 				case	RULE_VAR_INIT: // 22
 					SetExpressionIndexesForOperators();
 					GenerateExpr();
 					if (isGlobal) {
-
-						PushString ("POPS GF@%s_%d\n", var->name, (int)var->codeLine);
+						PushStringData ("POPS GF@%s_%d\n", var->name, (int)var->codeLine);
 					}
 					else {
 						PushString("POPS %s@%s_%d\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
@@ -299,7 +320,7 @@ void GenerateCode(void) {
 		}
 	}
 
-	//printf ("BLOCK END\n");
+	printf ("BLOCK END\n");
 
 	g_Tokens.used = 0;
 	g_Rules.used = 0;
@@ -308,6 +329,20 @@ void GenerateCode(void) {
 
 
 
+}
+
+
+const char* TypeToString(Terminal type) {
+	switch (type) {
+		case T_STRING:
+			return "string";
+		case T_INTEGER:
+			return "int";
+		case T_DOUBLE:
+			return "float";
+		default:
+			return "int";
+	}
 }
 
 /************************************************************/
@@ -780,6 +815,33 @@ char *TypeToStringForInit(Terminal type) {
 	}
 }
 
+void PushStringData(char *instruction, ...) {
+	char newString[CODE_CHUNK];
+	va_list arglist;
+	va_start(arglist, instruction);
+	vsprintf(newString, instruction, arglist);
+	va_end(arglist);
+	size_t length = strlen(newString);
+
+	if (g_DataCode.size - g_DataCode.used <= length) {
+		uchar* tmp;
+		if ((tmp = realloc(g_DataCode.buffer, sizeof(uchar) * (g_DataCode.size + CODE_CHUNK))) == NULL) {
+			FatalError(ER_FATAL_ALLOCATION);
+		}
+		g_DataCode.buffer = tmp;
+		if (g_DataCode.size == 0) {
+			sprintf((char*)g_DataCode.buffer,".IFJcode17\n");
+		}
+		g_DataCode.size += CODE_CHUNK;
+	}
+
+
+	strcat((char*)g_DataCode.buffer, newString);
+
+	g_DataCode.used = g_DataCode.used + length;
+
+}
+
 
 void PushString(char *instruction, ...) {
 	char newString[CODE_CHUNK];
@@ -796,7 +858,8 @@ void PushString(char *instruction, ...) {
 		}
 		g_Code.buffer = tmp;
 		if (g_Code.size == 0) {
-			sprintf((char*)g_Code.buffer,".IFJcode17\nJUMP %s\n", GlobalScopeLabel);
+			memset((char*)g_Code.buffer, 0, g_Code.size + CODE_CHUNK);
+			//sprintf((char*)g_Code.buffer, "");
 		}
 		g_Code.size += CODE_CHUNK;
 	}
@@ -885,7 +948,7 @@ void PopToken(void) {
 
 
 void OutputCode(void) {
-	printf ("%s", g_Code.buffer);
+	printf ("%s%s", g_DataCode.buffer, g_Code.buffer);
 }
 
 
@@ -912,6 +975,11 @@ void GeneratorCleanup(void) {
 		free(g_Code.buffer);
 		g_Code.buffer = NULL;
 		g_Code.used = g_Code.size = 0;
+	}
+	if (g_DataCode.buffer) {
+		free(g_DataCode.buffer);
+		g_DataCode.buffer = NULL;
+		g_DataCode.used = g_Code.size = 0;
 	}
 	if (g_Tokens.array) {
 		free(g_Tokens.array);
