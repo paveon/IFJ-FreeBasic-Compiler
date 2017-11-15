@@ -222,6 +222,8 @@ bool ParseProgram(void) {
 
 						case T_IF:
 							if (endFlag) {
+								//Vlozime rucne pravidlo pro konec IFu, abychom v generatoru rozpoznali konec.
+								//Generovani probehne az narazime na EOL token, ktery patri do stejneho bloku.
 								InsertRule(RULE_END_IF);
 							}
 							else {
@@ -272,8 +274,11 @@ bool ParseProgram(void) {
 							break;
 
 						case T_LOOP:
-							GenerateCode();
-							EndSubScope();
+							//Vlozime umele pravidlo do generatoru a nastavime pomocne
+							//promenne, abychom mohli provest generovani az narazime na EOL token
+							InsertRule(RULE_ST_WHILE_END);
+							endFlag = true;
+							preExpr = T_WHILE;
 							break;
 
 						case T_DO:
@@ -519,7 +524,7 @@ bool ParseProgram(void) {
 							break;
 
 						case T_EOL:
-							if (endFlag && preExpr == T_IF) {
+							if (endFlag && (preExpr == T_IF || preExpr == T_WHILE)) {
 								GenerateCode();
 								EndSubScope();
 							}

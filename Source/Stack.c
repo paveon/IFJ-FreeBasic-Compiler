@@ -442,7 +442,7 @@ Rule ExpandTop(Stack* stack, Terminal tokenTerminal) {
 			PushT(stack, T_END);
 			break;
 		case RULE_NEXT_EXPR:
-			PushNT(stack, NT_EXPRESSION);
+			PushNT(stack, NT_NEXT_EXPRESSION);
 			PushT(stack, T_SEMICOLON);
 			PushNT(stack, NT_EXPRESSION);
 			break;

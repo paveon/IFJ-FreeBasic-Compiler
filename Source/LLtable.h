@@ -40,7 +40,8 @@ typedef enum Rules {
 	RULE_OP_MINUS_EQ,		// 31
 	RULE_OP_MULTIPLY_EQ,// 32
 	RULE_OP_INT_DIV_EQ,	// 33
-	RULE_OP_REAL_DIV_EQ	// 34
+	RULE_OP_REAL_DIV_EQ,  // 34
+	RULE_ST_WHILE_END //35 - umele pravidlo pro rozpoznani konce while smycky
 } Rules;
 
 typedef unsigned char Rule;

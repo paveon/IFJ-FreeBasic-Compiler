@@ -80,8 +80,13 @@ static Pair g_NT_ELSE[] = {
 				{T_UNDEFINED, RULE_MISSING}
 };
 static Pair g_NT_NEXT_EXPRESSION[] = {
-				{T_EOL,       RULE_EPSILON}, //epsilon
-				{T_UNDEFINED, RULE_MISSING}
+				{T_STRING,         RULE_NEXT_EXPR},
+				{T_INTEGER,        RULE_NEXT_EXPR},
+				{T_DOUBLE,         RULE_NEXT_EXPR},
+				{T_LEFT_BRACKET,   RULE_NEXT_EXPR},
+				{T_OPERATOR_MINUS, RULE_NEXT_EXPR},
+				{T_EOL,            RULE_EPSILON}, //epsilon
+				{T_UNDEFINED,      RULE_MISSING}
 };
 static Pair g_NT_INITIALIZATION[] = {
 				{T_OPERATOR_EQUAL, RULE_VAR_INIT},
