@@ -47,6 +47,7 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 	values.cellValue = FINDING_FAILURE;
 	values.incomTerm = T_UNDEFINED;
 	values.rule = NO_RULE_VALUE;
+	bool isCmp = false;
 	int endFuncVal = 0;   // promenna obsahujici vystup z rekurzivni funkce kontroly funkci
 	Terminal type = T_INTEGER;
 
@@ -54,10 +55,12 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 
 	AllocTypeBuffer();
 
-	InsertRule(RULE_DELIMITER);
+	InsertRule(255);
 	while (1) {
 		FindInTable(stack, &values, lineNum, false, keyword);
-
+		if ((values.rule >= GRT_EQ_EXPR_RULE) && (values.rule <= EQ_STR_RULE)) {
+			isCmp = true;
+		}
 		if ((values.rule >= ADD_RULE) && (values.rule <= EQ_EXPR_RULE)) {
 			// pokud je na jednom z predchozich 2 indexu pri zpracovani pravidla double, tak se ulozi
 			// na pozici o 2 zpet a zaroven se index posune  o 1 zpatky
@@ -159,7 +162,10 @@ Terminal BottomUp(size_t lineNum, Terminal keyword) {
 	ReleaseStack(stack);
 	free(g_typeBufferStash.allocated);
 	g_typeBufferStash.allocated = NULL;
-	InsertRule(RULE_DELIMITER);
+	InsertRule(255);
+	if (((keyword == T_WHILE) || (keyword == T_IF)) && (!isCmp)) {
+
+	}
 	printf("***************************************\n\n");
 	printf("***************************************\n");
 	return type;

@@ -22,7 +22,7 @@ typedef struct ErrorMetadata {
 	InternalExitCode exitCode;
 } ErrorMetadata;
 
-static ErrorMetadata errors[25] = {
+static ErrorMetadata errors[26] = {
 				[ER_FATAL_ALLOCATION] = {"memory allocation failed",
 																 EC_INTERNAL},
 
@@ -98,6 +98,9 @@ static ErrorMetadata errors[25] = {
 
 				[ER_SMC_INT_DIV] = {"integer division '\\' is only for integer types on both sides",
 														EC_SEMANTIC_DEFINITIONS},
+
+				[ER_SMC_NO_CMP_OP] = {"missing comparating operator in condition based expression",
+															EC_SEMANTIC_DEFINITIONS},
 };
 
 

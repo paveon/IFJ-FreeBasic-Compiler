@@ -30,6 +30,7 @@ typedef enum ErrorCode {
 	ER_SMC_LESS_ARGS, //Malo argumentu pri volani funkce
 	ER_SMC_ARG_TYPES, //Spatny typ argumentu funkce
 	ER_SMC_INT_DIV, //Pokus o celociselne deleni s necelociselnymi typy
+	ER_SMC_NO_CMP_OP, // While nebo if podminka neobsahuje porovnavaci operator
 } ErrorCode;
 
 void SemanticError(size_t line, ErrorCode errorCode, const char* extra);

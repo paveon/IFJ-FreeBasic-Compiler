@@ -15,7 +15,6 @@
 
 #define FINDING_FAILURE 10
 #define EOF_FINDING_FAILURE 50
-#define RULE_DELIMITER 127
 
 typedef struct IdxTerminalPair {
 	size_t cellValue;
@@ -25,7 +24,7 @@ typedef struct IdxTerminalPair {
 	Terminal type;
 	Terminal* funcParams;
 	const char* funcName;
-	int rule;
+	size_t rule;
 	int error;
 }IdxTerminalPair;
 
@@ -71,16 +70,16 @@ typedef enum PrecedentRulesNames {
 	MULTIPLY_RULE,
 	REAL_DIVIDE_RULE,
 	INT_DIVIDE_RULE,
-	LESS_EXPR_RULE,
-	LESS_EQ_EXPR_RULE,
 	GRT_EXPR_RULE,
 	GRT_EQ_EXPR_RULE,
+	LESS_EXPR_RULE,
+	LESS_EQ_EXPR_RULE,
 	NOT_EQ_EXPR_RULE,
 	EQ_EXPR_RULE,
-	LESS_STR_RULE,
-	LESS_EQ_STR_RULE,
 	GRT_STR_RULE,
 	GRT_EQ_STR_RULE,
+	LESS_STR_RULE,
+	LESS_EQ_STR_RULE,
 	NOT_EQ_STR_RULE,
 	EQ_STR_RULE,
 	UNARY_MINUS_RULE,
