@@ -2,6 +2,14 @@
 #define FREEBASIC_COMPILER_CODEGENERATOR_H
 
 #include "Token.h"
+#include "CompilationErrors.h"
+#include "LLtable.h"
+#include "symtable.h"
+#include <string.h>
+#include "PrecedentTable.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdarg.h>
 
 /*
  * Pomocne premenne budu generovane ako globalne pre vypocet vyrazov
