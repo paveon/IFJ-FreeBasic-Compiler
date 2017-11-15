@@ -407,14 +407,18 @@ FindInTable(Stack* s, IdxTerminalPair* field, size_t lineNum, bool isInFunc, Ter
 			ReturnToken();
 			break;
 		default:
-			if (tokenType != TOKEN_EOF) {
-				SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, tokenVal);
-				field->error = FINDING_FAILURE;
+			if (tokenType == TOKEN_EOF) {
+				ReturnToken();
+				field->error = EOF_FINDING_FAILURE;
 				return;
 			}
-			ReturnToken();
-			field->error = EOF_FINDING_FAILURE;
+			else if (tokenType == TOKEN_UNDEFINED) {
+				//TODO dopsat lexikalni error
+			}
+			SemanticError(lineNum, ER_SMC_UNEXPECT_SYM, tokenVal);
+			field->error = FINDING_FAILURE;
 			return;
+
 	}
 	// Druhy switch rozdelujici pouze podle nejvrchnejsiho terminalu zasobniku
 	switch (termType) {

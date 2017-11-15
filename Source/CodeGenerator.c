@@ -62,6 +62,8 @@ const char* operators[] = {
 				"\\=",
 };
 
+
+
 void PushString(char* instruction, ...);
 char *TypeToStringForInit(Terminal type);
 char *ScopeToString(bool global);
@@ -72,6 +74,9 @@ void PopWLabel(void);
 void PushIfLabel(void);
 unsigned int TopIfLabel(void);
 void PopIfLabel(void);
+void SetExpressionIndexesForOperators(void);
+void FunctionArgumentsAdd(const char *newArgument);
+
 
 void GenerateExpr(void);
 
@@ -90,17 +95,30 @@ static Labels g_WLabels;
 static Labels g_IfLabels;
 static FuncANDTypeArray g_funcField;
 static FuncANDTypeArray g_typeArray;
+const char ConditionVar[] = "GF@_eXpVariablE756158";
+const char GlobalScopeLabel[] = "GF@_gLobalScopELabel7785";
 
+/* Pomocne premenne pre vyrazy...asi ich bude treba viac, lebo na zaciatku neviem ake typy im dat... */
+const char *ExpressionVars [] = {"GF@$ExpresioNVarNum1",
+																"GF@$ExpresioNVarNum2",
+																"GF@$ExpresioNVarNum3",
+																"GF@$ExpresioNVarNum4",
+																"GF@$ExpresioNVarNum5"
+};
+typedef struct FunctionArguments {
+	const char **arguments;
+	size_t maxsize;
+	size_t used;
+} FunctionArguments;
 
+static FunctionArguments FunctionArgs;
 bool isGlobal = true;
-
-
 
 
 
 void GenerateCode(void) {
 	int rule;
-
+	int tmp_label;
 
 	const void* value;
 	Variable *var;
@@ -108,6 +126,7 @@ void GenerateCode(void) {
 
 	if (g_Rules.used > 0) {
 		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
+		//printf("RULES...index: %d, tTOKENS...index: %d\n", g_Rules.index, g_Tokens.index);
 		for (size_t i = 0; i < g_Tokens.used; i++) {
 			printf("%s ", (char*)GetTokenValue(g_Tokens.array[i])); // pomocne vypisy
 		}
@@ -122,6 +141,7 @@ void GenerateCode(void) {
 					break;
 				case RULE_MAIN_SCOPE: // 2
 					isGlobal = false;
+					PushString("LABEL %s\n", GlobalScopeLabel);
 					break;
 				case RULE_FUNC_DECL: // 3
 					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_IDENTIFIER) g_Tokens.index++; // deklaracie nas nezaujimaju
@@ -134,6 +154,20 @@ void GenerateCode(void) {
 					PushString("PUSHFRAME\n");
 					// TODO
 					break;
+				case RULE_FUNC_ARG: // 7
+					value = FindID();
+					var = LookupVariable((const char*)value, true, false);
+					FunctionArgumentsAdd((const char*)value);
+					//printf("var name: %s %s, \n", ScopeToString(var->globalVariable), var->name);
+					PushString("DEFVAR LF@%s_%d\n", var->name, (int)var->codeLine);
+					if (g_Rules.buffer[g_Rules.index+2] != RULE_FUNC_NEXT_ARG) {
+						while (FunctionArgs.used > 0) {
+							var = LookupVariable(FunctionArgs.arguments[--FunctionArgs.used], true, false);
+							PushString("POPS LF@%s_%d\n", var->name, var->codeLine);
+							//sdadagrgsdfs
+						}
+					}
+					break;
 				case RULE_ST_LIST: // 9
 					break;
 				case RULE_VAR_GLOBAL: // 27 // TODO lokalna prepisuje globalnu!
@@ -142,16 +176,10 @@ void GenerateCode(void) {
 					//sprintf (tmp, "DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
 					PushString("DEFVAR GF@%s_%d\nMOVE GF@%s_%d %s\n", var->name, (int)var->codeLine, var->name, (int)var->codeLine, TypeToStringForInit(var->type));
 					break;
-				case RULE_ST_VAR_DECL: // 10
-					//printf ("g_Tokens.index je: %d\n", g_Tokens.index);
-					value = FindID ();
-					//printf ("g_Tokens.index po je: %d\n", g_Tokens.index);
-					//printf ("TOKEN POS JE %d a id: %s\n", g_Tokens.index, (char*) value);
-					var = LookupVariable((const char*)value, false, true);
-					//printf ("LADENIE:\n");
-					//sprintf (tmp, "DEFVAR %s@%s_%d\nMOVE %s@%s_%d %s\n", ScopeToString(var->globalVariable), var->name,(int)var->codeLine ,
-					//				 ScopeToString(var->globalVariable), var->name, (int)var->codeLine,TypeToStringForInit(var->type));
 
+				case RULE_ST_VAR_DECL: // 10
+					value = FindID ();
+					var = LookupVariable((const char*)value, false, true);
 					PushString("DEFVAR %s@%s_%d\nMOVE %s@%s_%d %s\n", ScopeToString(var->globalVariable), var->name,(int)var->codeLine ,
 										 ScopeToString(var->globalVariable), var->name, (int)var->codeLine,TypeToStringForInit(var->type));
 					break;
@@ -162,96 +190,103 @@ void GenerateCode(void) {
 					break;
 				case RULE_ST_PRINT: // 14
 					//sprintf(tmp, "WRITE <symb>;\n"); // TODO.. token na printenie nepride?
-					PushString("WRITE <symb>;\n");
+					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_KEYWORD || strcmp (GetTokenValue(g_Tokens.array[g_Tokens.index]), "PRINT") != 0) g_Tokens.index++;
+					g_Tokens.index++; //posunie na prvy token vyrazu
+					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
+					GenerateExpr();
+					//PushString("WRITE <symb>;\n");
 					break;
 				case RULE_ST_WHILE: // 15
-					// TODO  ...jumpy podla vyrazov
 					PushWLabel();
 					PushString("LABEL LF@_wlabel_%d\n", TopWLabel());
 					PushWLabel();
-					PushString("JUMPIFEQ LF@_wlabel_%d false X\n", TopWLabel());
+					g_Tokens.index += 2; // preskoci na prvy token vyrazu
+					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
+					GenerateExpr();
+					PushString("PUSHS bool@false\n");
+					PushString("JUMPIFEQS LF@_wlabel_%d\n", TopWLabel());
+					/*PushString("POPS %s\n", ConditionVar);
+					PushString("JUMPIFEQ LF@_wlabel_%d bool@false %s\n", TopWLabel(), ConditionVar);*/
+					break;
+				case RULE_ST_WHILE_END: // 35
+					tmp_label = TopWLabel();
+					PopWLabel();
+					PushString("JUMP LF@_wlabel_%d\n", TopWLabel());
+					PushString("LABEL LF@_wlabel_%d\n", tmp_label);
+					PopWLabel();
 					break;
 				case RULE_ST_RETURN: // 16
-					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_KEYWORD &&  strcmp(GetTokenValue(g_Tokens.array[g_Tokens.index]), "RETURN") != 0) g_Tokens.index++;
+					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_KEYWORD ||  strcmp(GetTokenValue(g_Tokens.array[g_Tokens.index]), "RETURN") != 0) g_Tokens.index++;
 					g_Tokens.index++; // preskocime token return;
+					g_Rules.index += 2; // index je teraz na prvom pravidle pre vyrazy
+					GenerateExpr();
+					PushString("POPFRAME\n");
+					PushString("RETURN\n");
 					// TODO POPFRAME a RETURN az po vyrazoch
 					break;
 				case RULE_ST_IF: // 17
-					// TODO jumpy podla toho ako to bude s vyrazmi
 					PushIfLabel();
-					//sprintf(tmp, "JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel()); // TODO s vyrazmi
-					PushString("JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel());
+					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
+					g_Tokens.index++; // prvy token vyrazu
+					GenerateExpr();
+					PushString("PUSHS bool@false\n");
+					PushString("JUMPIFEQS LF@_iflabel_%d\n", TopIfLabel());
+					/*PushString("POPS %s\n", ConditionVar);
+					PushString("JUMPIFEQ LF@_iflabel_%d bool@false %s\n", TopIfLabel(), ConditionVar);*/
 					break;
 				case RULE_ELSEIF: // 18
 					//sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
 					PushString("LABEL LF@_iflabel_%d\n",  TopIfLabel());
 					PopIfLabel();
 					PushIfLabel();
-					//sprintf(tmp, "JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel());
-					PushString("JUMPIFEQ LF@_iflabel_%d false X\n", TopIfLabel());
+					g_Rules.index += 2; // preskoci na prve pravidlo vyrazu
+					g_Tokens.index++; // prvy token vyrazu
+					GenerateExpr();
+					PushString("PUSHS bool@false\n");
+					PushString("JUMPIFEQS LF@_iflabel_%d\n", TopIfLabel());
+					/*PushString("POPS %s\n", ConditionVar);
+					PushString("JUMPIFEQ LF@_iflabel_%d bool@false %s\n", TopIfLabel(), ConditionVar);*/
 					break;
-				case RULE_ELSE: // 20
+				case RULE_ELSE: // 19
 					elseWasUsed = true;
-					//sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
-
 					PushString("LABEL LF@_iflabel_%d\n", TopIfLabel());
 					PopIfLabel();
 					break;
-				case RULE_END_IF: // 21
+				case RULE_END_IF: // 20
 					if (g_IfLabels.used > 0 && !elseWasUsed) {
-						//sprintf(tmp, "LABEL LF@_iflabel_%d\n", TopIfLabel());
-
 						PushString("LABEL LF@_iflabel_%d\n", TopIfLabel());
 						PopIfLabel();
 					}
 					elseWasUsed = false;
 					break;
+				case RULE_NEXT_EXPR: // 21 TODO
+					break;
 				case	RULE_VAR_INIT: // 22
+					SetExpressionIndexesForOperators();
+					GenerateExpr();
 					if (isGlobal) {
-						PushString ("MOVE GF@%s_%d X\n", var->name, (int)var->codeLine); // TODO podla vyrazov
+
+						PushString ("POPS GF@%s_%d\n", var->name, (int)var->codeLine);
 					}
 					else {
-						PushString("MOVE %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO podla vyrazov
+						PushString("POPS %s@%s_%d\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
 					}
 					break;
 				case RULE_OP_EQ: // 29
-					value = FindID();
-					var = LookupVariable((const char*)value, false, true);
-					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_OPERATOR) g_Tokens.index++;
-					g_Tokens.index++; // preskoci token operator
-					g_Rules.index += 2; // posunie index na prve pravidlo pre vyrazy
-
-					GenerateExpr();
-					PushString("POPS %s@%s_%d\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
-
-					//PushString ("MOVE %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
-					break;
 				case RULE_OP_PLUS_EQ: // 30
-					value = FindID();
-					var = LookupVariable((const char*)value, false, true);
-					PushString ("ADD %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
-									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
-					break;
 				case RULE_OP_MINUS_EQ: // 31
-					value = FindID();
-					var = LookupVariable((const char*)value, false, true);
-					PushString ("SUB %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
-									 ScopeToString(var->globalVariable), var->name,(int)var->codeLine); // TODO s vyrazmi
-					break;
 				case RULE_OP_MULTIPLY_EQ: // 32
-					value = FindID();
-					var = LookupVariable((const char*)value, false, true);
-					PushString ("MUL %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name,(int) var->codeLine,
-									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
-					break;
-				case RULE_OP_INT_DIV_EQ: // 33 TODO lisia sa? zas zistit podla vyrazov
+				case RULE_OP_INT_DIV_EQ: // 33
 				case RULE_OP_REAL_DIV_EQ: // 34
 					value = FindID();
 					var = LookupVariable((const char*)value, false, true);
-					PushString ("DIV %s@%s_%d %s@%s_%d X\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine,
-									 ScopeToString(var->globalVariable), var->name, (int)var->codeLine); // TODO s vyrazmi
+					SetExpressionIndexesForOperators();
+					//printf("LADENIE: pravidlo %d, token: %d\n", g_Rules.buffer[g_Rules.index], GetTokenType(g_Tokens.array[g_Tokens.index]));
+					GenerateExpr();
+					PushString("POPS %s@%s_%d\n", ScopeToString(var->globalVariable), var->name, (int)var->codeLine);
 					break;
-				case RULE_DELIMITER:
+
+				case 255:
 					/*g_Rules.index++;
 					while((int)g_Rules.buffer[g_Rules.index] != RULE_DELIMITER) g_Rules.index++;
 					g_Rules.index++;*/
@@ -262,26 +297,6 @@ void GenerateCode(void) {
 			}
 
 		}
-
-		/*
-		 * Kedze nemame pravidlo pre loop a potrebujem generovat navestia na konci while
-		 * musel som to vyriesit takto.
-		 */
-		if (g_WLabels.used != 0) {
-
-			while ((unsigned)g_Tokens.index < g_Tokens.used) {
-				if (GetTokenType(g_Tokens.array[g_Tokens.index]) == TOKEN_KEYWORD) {
-					if ((strcmp(GetTokenValue(g_Tokens.array[g_Tokens.index]), "LOOP")) == 0) {
-						int tmp_label = TopWLabel();
-						PopWLabel();
-						PushString("JUMP LF@_wlabel_%d\n", TopWLabel());
-						PushString("LABEL LF@_wlabel_%d\n", tmp_label);
-						PopWLabel();
-					}
-				}
-				g_Tokens.index++;
-			}
-		}
 	}
 
 	//printf ("BLOCK END\n");
@@ -289,7 +304,7 @@ void GenerateCode(void) {
 	g_Tokens.used = 0;
 	g_Rules.used = 0;
 	g_Tokens.index = 0;
-	g_Tokens.used = 0;
+	g_Rules.index = 0;
 
 
 
@@ -340,6 +355,7 @@ void GenerateExpr(void) {
 					isString = true;
 					break;
 				case TOKEN_IDENTIFIER:
+					var = LookupVariable(GetTokenValue(g_Tokens.array[g_Tokens.index - 2]), false, true);
 					// kdyz se jedna o promennou je treba ji vlozit na zasobnik pokud byl pritomen operator
 					// typu (+= -= apod.)
 					if (i > OP_EQUAL) {
@@ -353,6 +369,7 @@ void GenerateExpr(void) {
 					tokenContent = GetTokenValue(g_Tokens.array[g_Tokens.index - 2]);
 					var = LookupVariable(tokenContent, false, true);
 					g_typeArray.data.tArray[g_typeArray.idx] = var->type;
+					//printf ("LADENIE car type: %d\n", var->type);
 					break;
 				default:
 					break;
@@ -374,8 +391,8 @@ void GenerateExpr(void) {
 		default:
 			break;
 	}
-	// cyklus vyhledavajici pravidlo 127 => konec expression pravidel
-	while (g_Rules.buffer[g_Rules.index] != RULE_DELIMITER) {
+	// cyklus vyhledavajici pravidlo 255 => konec expression pravidel
+	while (g_Rules.buffer[g_Rules.index] != 255) {
 		// pokud je pravidlo "vypocetni" a obsahuje cisla
 		if ((g_Rules.buffer[g_Rules.index] >= ADD_RULE) &&
 				(g_Rules.buffer[g_Rules.index] <= EQ_EXPR_RULE)) {
@@ -390,9 +407,9 @@ void GenerateExpr(void) {
 					PushString("INT2FLOATS\n"); // TODO  INT2FLOATS
 				}
 				if (g_typeArray.data.tArray[g_typeArray.idx - 2] != T_DOUBLE) {
-					// TODO  POPS GF@1
-					// TODO  INT2FLOATS
-					// TODO  PUSHS GF@1
+					PushString("POPS %s\n", ExpressionVars[0]); // TODO  POPS GF@1
+					PushString("INT2FLOATS\n"); // TODO  INT2FLOATS
+					PushString("PUSHS %s\n", ExpressionVars[0]); // TODO  PUSHS GF@1
 				}
 			}
 		}
@@ -455,14 +472,14 @@ void GenerateExpr(void) {
 				// unarni '-' je odecteni daneho cisla od 0.. je treba cislo vyndat a vlozit 0 od ktere se
 				// bude odecitat.. take je treba davat pozor na typy
 			case UNARY_MINUS_RULE:
-				// TODO  POPS GF@1
+				PushString("POPS %s\n", ExpressionVars[0]); // TODO  POPS GF@1
 				if (g_typeArray.data.tArray[g_typeArray.idx - 1] == T_INTEGER) {
 					PushString("PUSHS int@0\n"); // TODO  PUSHS int@0
 				}
 				else {
 					PushString("PUSHS float@0.0\n"); // TODO  PUSHS float@0
 				}
-				// TODO  PUSHS GF@1
+				PushString("PUSHS %s\n", ExpressionVars[0]); // TODO  PUSHS GF@1
 				PushString("SUBS\n"); // TODO  SUBS
 				break;
 			case ID_RULE:
@@ -477,6 +494,7 @@ void GenerateExpr(void) {
 					tokenType = GetTokenType(g_Tokens.array[g_Tokens.index]);
 					while (tokenType != TOKEN_R_BRACKET) {
 						if (tokenType == TOKEN_IDENTIFIER) {
+							tokenContent = GetTokenValue(g_Tokens.array[g_Tokens.index]);
 							func = LookupFunction(tokenContent);
 
 							g_typeArray.data.tArray[g_typeArray.idx] = func->returnType;
@@ -489,7 +507,7 @@ void GenerateExpr(void) {
 					}
 				}
 				g_funcField.idx--;
-				// TODO  CALL funcName => g_funcField.data.cArray[g_funcField.idx]
+				PushString("CALL GF@%s\n", g_funcField.data.cArray[g_funcField.idx]);// TODO  CALL funcName => g_funcField.data.cArray[g_funcField.idx]
 				g_funcField.data.cArray[g_funcField.idx] = NULL;
 
 				g_typeArray.idx--;
@@ -499,10 +517,10 @@ void GenerateExpr(void) {
 				break;
 				// konkatenace se da provadet pouze v instanci promennych a ne na zasobniku
 			case CONCATENATION_RULE:
-				// TODO  POPS GF@2
-				// TODO  POPS GF@1
-				// TODO  CONCAT GF@3 GF@1 GF@2
-				// TODO  PUSHS GF@3
+				PushString("POPS %s\n", ExpressionVars[1]); // TODO  POPS GF@2
+				PushString("POPS %s\n", ExpressionVars[0]); // TODO  POPS GF@1
+				PushString("CONCAT %s %s %s\n", ExpressionVars[2], ExpressionVars[0], ExpressionVars[1]);// TODO  CONCAT GF@3 GF@1 GF@2
+				PushString("PUSHS %s\n", ExpressionVars[2]); // TODO  PUSHS GF@3
 			case COMMA_STR_RULE:
 			case COMMA_EXPR_RULE:
 			case COMMA_EXPR_STR_RULE:
@@ -525,7 +543,7 @@ void GenerateExpr(void) {
 					break;
 				case TOKEN_DOUBLE:
 					g_typeArray.data.tArray[g_typeArray.idx] = T_INTEGER;
-					dblVal = GetTokenInt(g_Tokens.array[g_Tokens.index]);
+					dblVal = GetTokenDouble(g_Tokens.array[g_Tokens.index]);
 					PushString("PUSHS float@%f\n", dblVal);// TODO  PUSHS float@%dbl
 					idRule = false;
 					g_typeArray.idx++;
@@ -592,10 +610,10 @@ void GenerateExpr(void) {
 	if (i > OP_EQUAL) {
 		// u stringu je mozna jen konktatenace += ...
 		if (isString) {
-			// TODO  POPS GF@2
-			// TODO  POPS GF@1
-			// TODO  CONCAT GF@3 GF@1 GF@2
-			// TODO  PUSHS GF@3
+			PushString("POPS %s\n", ExpressionVars[1]); // TODO  POPS GF@2
+			PushString("POPS %s\n", ExpressionVars[0]); // TODO  POPS GF@1
+			PushString("CONCAT %s %s %s\n", ExpressionVars[2], ExpressionVars[0], ExpressionVars[1]); // TODO  CONCAT GF@3 GF@1 GF@2
+			PushString("PUSHS %s\n", ExpressionVars[2]);// TODO  PUSHS GF@3
 			return;
 		}
 		// oba operandy prevedeme na float aby bylo spravne deleni
@@ -604,9 +622,9 @@ void GenerateExpr(void) {
 		}
 		if (g_typeArray.data.tArray[g_typeArray.idx - 2] != T_DOUBLE) {
 			convertBack = true;
-			// TODO  POPS GF@1
-			// TODO  INT2FLOATS
-			// TODO  PUSHS GF@1 => ma promenna
+			PushString("POPS %s\n", ExpressionVars[0]); // TODO  POPS GF@1
+			PushString("INT2FLOATS\n"); // TODO  INT2FLOATS
+			PushString("PUSHS %s\n", ExpressionVars[0]); // TODO  PUSHS GF@1 => ma promenna
 		}
 		switch (i) {
 			case OP_PLUS:
@@ -649,7 +667,7 @@ void GenerateExpr(void) {
 			default:
 				break;
 		}
-		g_Tokens.index;
+		g_Tokens.index++;
 	}
 	CleanArray();
 }
@@ -708,6 +726,30 @@ void CleanArray(void) {
 }
 
 
+void FunctionArgumentsAdd(const char* newArgument) {
+	if (FunctionArgs.used == FunctionArgs.maxsize) {
+		const char** tmp;
+		if ((tmp = realloc(FunctionArgs.arguments, sizeof(const char*) * (FunctionArgs.maxsize + RULE_CHUNK))) == NULL) {
+			FatalError(ER_FATAL_ALLOCATION);
+		}
+		FunctionArgs.maxsize *= 2;
+		FunctionArgs.arguments = tmp;
+
+	}
+	FunctionArgs.arguments[FunctionArgs.used++] = newArgument;
+}
+
+/*
+ * Pomocna funkcia pre preskocenie tokenov az za operator a posunutie indexu pravidiel na prve
+ * pravidlo vyrazy
+ */
+
+void SetExpressionIndexesForOperators() {
+	while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_OPERATOR) g_Tokens.index++;
+	g_Tokens.index++; // preskoci token operator
+	g_Rules.index += 2; // posunie index na prve pravidlo pre vyrazy
+}
+
 
 const void* FindID() {
 	const void *tmp;
@@ -754,7 +796,7 @@ void PushString(char *instruction, ...) {
 		}
 		g_Code.buffer = tmp;
 		if (g_Code.size == 0) {
-			sprintf((char*)g_Code.buffer,".IFJcode17\n");
+			sprintf((char*)g_Code.buffer,".IFJcode17\nJUMP %s\n", GlobalScopeLabel);
 		}
 		g_Code.size += CODE_CHUNK;
 	}
@@ -879,11 +921,18 @@ void GeneratorCleanup(void) {
 	if (g_WLabels.labels) {
 		free(g_WLabels.labels);
 		g_WLabels.labels = NULL;
-		g_WLabels.used = g_Tokens.size = 0;
+		g_WLabels.used = 0;
+		g_WLabels.size = 0;
 	}
 	if (g_IfLabels.labels) {
 		free(g_IfLabels.labels);
 		g_IfLabels.labels = NULL;
-		g_IfLabels.used = g_Tokens.size = 0;
+		g_IfLabels.used = 0;
+		g_IfLabels.size = 0;
+	}
+	if (FunctionArgs.arguments) {
+		free(FunctionArgs.arguments);
+		FunctionArgs.arguments = NULL;
+		FunctionArgs.used = FunctionArgs.maxsize = 0;
 	}
 }
