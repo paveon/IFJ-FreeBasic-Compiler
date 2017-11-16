@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include "Lexical.h"
 #include "Token.h"
+
 #include "CompilationErrors.h"
 
 #define CHUNK 100
@@ -75,6 +76,28 @@ void AppendToBuff(int c) {
 	g_Buffer.data[g_Buffer.index] = 0;
 }
 
+void ConvStringVal(int c,bool *flag){
+	int offset1,offset2,offset3;
+	switch(c) {
+		case 'n':
+			c = 10; //newline v ascii
+			break;
+		case 't':
+			c = 9; //horizontal tab v ascii
+			break;
+	}
+	//vypocita hodnoty cisel v desitkove soustave
+	offset1 =  c%10;
+	offset2 =  (c%100 - offset1) / 10;
+	offset3 =  (c - offset2 - offset1) / 100;
+	//zapise do bufferu jako \ a Ascii hodnota
+	AppendToBuff('\\');
+	AppendToBuff(offset3 + 48) ;
+	AppendToBuff(offset2 + 48) ;
+	AppendToBuff(offset1 + 48) ;
+	*flag = false; // vypne slash flag
+}
+
 
 /*
  * @brief Resetuje pocitadlo bufferu
@@ -130,7 +153,6 @@ void SetLex(State* currentState, int firstChar) {
 	else {
 		*currentState = FAIL;
 	}
-
 }
 
 
@@ -181,7 +203,6 @@ Type IsEnd(int currentChar) {
 	switch (currentChar) {
 		case ';':
 			return LEX_SEMICOLON;
-
 		case '+':
 		case '-':
 		case '/':
@@ -223,7 +244,9 @@ bool Lexical() {
 	bool eofFlag = false; //znaci prichod EOF
 	bool floatEFlag = false; //urcuje zda je float v exponeniclanim tvaru
 	bool floatDotFlag = false; //urcuje zda je aktualni cast floatu v desetinenm tvaru tvaru
+	bool slashFlag = false; //urcuje zda ve stringu byl posledni znak '\'
 	Type endFlag; //znak ukoncuje lexem
+	int escapeNumCount = 0;//pocita kolik ciselnych znaku jiz v prislo ve stringu v konstrukci \055 apod.
 	int currentChar; //aktualne zadany znak
 
 	while (!eofFlag) {
@@ -410,6 +433,8 @@ bool Lexical() {
 				{
 					if (!escapeFlag)
 						escapeFlag = true;
+					else if(slashFlag) //na vstupu \"
+						ConvStringVal(currentChar,&slashFlag);
 					else // v pripade konce stringu vytvori jeho token
 					{
 						escapeFlag = false;
@@ -419,8 +444,43 @@ bool Lexical() {
 						currentState = START;
 					}
 				}
-				else if (escapeFlag) {
-					AppendToBuff(currentChar);
+				else if(endFlag == LEX_EOL) //retezce musi byt jednoradkove
+				{
+					currentState = FAIL;
+				}
+				else if (escapeFlag)//jsme uvnitr retezce
+				{
+					if(slashFlag)
+					{
+						if(isdigit(currentChar)) // sekvence "\ddd"
+						{
+							if(escapeNumCount == 0)
+								AppendToBuff('\\');
+							AppendToBuff(currentChar);
+							escapeNumCount++;
+							if(escapeNumCount == 3)
+							{
+								escapeNumCount = 0;
+								slashFlag = false;
+							}
+
+						}
+						else
+							ConvStringVal(currentChar,&slashFlag);// v ostatnich pripadech prevede znak
+					}																					// na jeho ascii hodnotu
+					else if(isalnum(currentChar))
+					{
+						AppendToBuff(currentChar);
+					}
+					else if(currentChar == '\\')
+					{
+						slashFlag = true;
+					}
+					else
+					{
+						ConvStringVal(currentChar,&slashFlag); //ne-alfanumericke znaky budou prevedeny
+					}																				 // na jejich ascii hodnotu
+
 				}
 				else {
 					currentState = FAIL;
