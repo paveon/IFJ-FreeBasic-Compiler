@@ -529,6 +529,7 @@ bool Lexical() {
 						currentState = START;
 					}
 					else
+						ClearBuffer();
 						SetLex(&currentState, currentChar);
 				}
 				break;
@@ -618,10 +619,10 @@ int TEST_TOKENS() {
 				printf("Token type is:\tidentifier :\t(%s) \n", (char*) GetTokenValue(token));
 				break;
 			case 9 :
-				printf("Token type is:\tinteger :\t(%i) \n", *((int*) GetTokenValue(token)));
+				printf("Token type is:\tinteger :\t(%d) \n", GetTokenInt(token));
 				break;
 			case 10 :
-				printf("Token type is:\tdouble :\t(%f) \n", *((double*) GetTokenValue(token)));
+				printf("Token type is:\tdouble :\t(%f) \n", GetTokenDouble(token));
 				break;
 			case 11 :
 				printf("Token type is:\tstring :\t(%s) \n", (char*) GetTokenValue(token));
