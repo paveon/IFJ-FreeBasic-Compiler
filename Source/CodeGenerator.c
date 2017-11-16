@@ -126,7 +126,6 @@ void GenerateCode(void) {
 	const void* value;
 	Variable *var;
 	bool elseWasUsed = false;
-	printf("PICOVINA\n");
 
 	if (g_Rules.used > 0) {
 		printf("BLOCK START - TOKENS...size: %d, used: %d, RULES...size: %d, used: %d\n",(int)g_Tokens.size, (int)g_Tokens.used, (int)g_Rules.size, (int)g_Rules.used);
@@ -150,6 +149,8 @@ void GenerateCode(void) {
 					}
 					PushStringData("JUMP %s\n", GlobalScopeLabel);
 					PushString("LABEL %s\n", GlobalScopeLabel);
+					PushString("CREATEFRAME\n");
+					PushString("PUSHFRAME\n");
 					break;
 				case RULE_FUNC_DECL: // 3
 					while (GetTokenType(g_Tokens.array[g_Tokens.index]) != TOKEN_IDENTIFIER) g_Tokens.index++; // deklaracie nas nezaujimaju
@@ -579,7 +580,7 @@ void GenerateExpr(void) {
 				case TOKEN_DOUBLE:
 					g_typeArray.data.tArray[g_typeArray.idx] = T_INTEGER;
 					dblVal = GetTokenDouble(g_Tokens.array[g_Tokens.index]);
-					PushString("PUSHS float@%f\n", dblVal);// TODO  PUSHS float@%dbl
+					PushString("PUSHS float@%g\n", dblVal);// TODO  PUSHS float@%dbl
 					idRule = false;
 					g_typeArray.idx++;
 					break;
@@ -920,10 +921,6 @@ unsigned int TopIfLabel(void) {
 void PopIfLabel(void) {
 	g_IfLabels.used--;
 }
-
-
-
-
 
 
 void PushToken(Token* token) {
