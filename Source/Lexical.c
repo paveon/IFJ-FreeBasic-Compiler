@@ -128,7 +128,7 @@ void SetLex(State* currentState, int firstChar) {
 		AppendToBuff(firstChar);
 	}
 	else {
-		*currentState = START;
+		*currentState = FAIL;
 	}
 
 }
