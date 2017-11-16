@@ -150,6 +150,11 @@ void SetLex(State* currentState, int firstChar) {
 		*currentState = LONGOPERATOR;
 		AppendToBuff(firstChar);
 	}
+	else if(firstChar == '(' || firstChar == ')' || firstChar == ' '
+					|| firstChar == '\t' || firstChar == '\n' || firstChar == '=' || firstChar == ','
+					|| firstChar == ';'){
+		*currentState = START;
+	}
 	else {
 		*currentState = FAIL;
 	}
@@ -278,7 +283,7 @@ bool Lexical() {
 					CreateToken();
 					SetOperator(g_Buffer.data);
 					ClearBuffer();
-					if (endFlag) {
+					if (endFlag){
 						if (endFlag == LEX_UND_OP) {
 							char tmp[2] = {currentChar, 0};
 							CreateToken();
